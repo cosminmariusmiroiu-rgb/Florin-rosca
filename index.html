@@ -66,33 +66,50 @@
 
   <main id="top">
 
-    <!-- ===== SCENE 1 · HERO ===== -->
-    <section class="hero" id="hero">
-      <div class="hero__copy">
+    <!-- ===== SCENE 1 · HERO (cinematic before -> after) ===== -->
+    <section class="hero cine" id="hero">
+      <div class="cine__bg studio__frame" aria-hidden="true">
+        <img class="cine__after" src="assets/img/ad-after.webp" alt="">
+        <img class="studio__before" src="assets/img/ad-before.webp" alt="">
+        <span class="studio__band"></span>
+        <span class="cine__shade"></span>
+      </div>
+
+      <div class="cine__content hero__copy">
+        <div class="hero__medal">
+          <div class="medal">
+            <img src="assets/img/logo.webp" alt="Logo Florin Roșca Luxury Hair" class="medal__img" width="1024" height="1133">
+          </div>
+        </div>
         <p class="eyebrow reveal-hero">Luxury Hair · București</p>
         <h1 class="hero__title" aria-label="Florin Roșca">
           <span class="line"><span class="split">Florin</span></span>
           <span class="line"><span class="split gold-text">Roșca</span></span>
         </h1>
-        <p class="hero__lead reveal-hero">Experiența din <em>Dubai</em>. În salonul din <em>București</em>.<br>Formare la Mounir Academy Dubai. Culoare, tuns și styling adaptate părului tău.</p>
+        <p class="hero__lead reveal-hero">Din păr ars și deteriorat, în balayage blond perlat. Experiența din <em>Dubai</em>, în salonul din <em>București</em>.</p>
         <div class="hero__actions reveal-hero">
-          <a href="#contact" class="btn btn--gold" data-magnetic><span>Programează consultația</span></a>
+          <a href="tel:+40732937622" class="btn btn--gold" data-magnetic><span>Sună: 0732 937 622</span></a>
           <a href="#lucrari" class="btn btn--ghost" data-magnetic><span>Vezi lucrările</span></a>
         </div>
-        <p class="hero__note reveal-hero"><span class="dot"></span> Consultație inițială gratuită · 15 minute</p>
-        <p class="hero__badge reveal-hero"><span class="hero__badge-star">★</span> Primul hair-stylist publicat pe paginile lui <strong>Mounir</strong></p>
       </div>
 
-      <div class="hero__medal" data-tilt>
-        <div class="medal">
-          <div class="medal__halo"></div>
-          <img src="assets/img/logo.webp" alt="Logo Florin Roșca Luxury Hair" class="medal__img" width="1024" height="1133">
-          <div class="medal__shine"></div>
-        </div>
-        <div class="medal__orbit"><span>Culoare</span><span>Tuns</span><span>Vopsit</span><span>Balayage</span><span>Tratamente</span></div>
-      </div>
+      <aside class="cine__card reveal-hero" aria-label="Transformare">
+        <p class="cine__state"><span class="cine__dot"></span><b class="studio__tag-a">Înainte · păr deteriorat</b><b class="studio__tag-b">După · balayage blond perlat</b></p>
+        <h2>Balayage Premium Dubai</h2>
+        <dl>
+          <div><dt>Tehnică</dt><dd>Mounir Academy Dubai</dd></div>
+          <div><dt>Consultație</dt><dd>Gratuită · 15 min</dd></div>
+          <div><dt>Program</dt><dd>L–J 10–21 · V–D 10–20</dd></div>
+        </dl>
+        <a href="#contact" class="cine__link">Programează-te →</a>
+      </aside>
 
-      <a href="#despre" class="scroll-cue" aria-label="Derulează"><span></span>Scroll</a>
+      <ul class="cine__stats reveal-hero">
+        <li><strong>10+</strong><span>ani de experiență</span></li>
+        <li><strong>4,9</strong><span>rating Google</span></li>
+        <li><strong>581</strong><span>recenzii</span></li>
+        <li class="cine__mounir"><strong>★</strong><span>Primul hair-stylist publicat pe paginile lui Mounir</span></li>
+      </ul>
     </section>
 
     <!-- ===== SHOP BANNER ===== -->
@@ -106,18 +123,6 @@
           <span class="btn btn--gold shopbanner__btn"><span>Intră în magazin →</span></span>
         </div>
       </a>
-    </section>
-
-    <!-- ===== 3D ANIMATED SCENE ===== -->
-    <section class="studio section" id="balayage-3d">
-      <header class="section__head section__head--center">
-        <p class="eyebrow reveal">Balayage blond perlat</p>
-        <h2 class="h2 reveal-lines">Balayage-ul,<br><em>din toate unghiurile.</em></h2>
-      </header>
-      <div class="studio__frame reveal" data-tilt>
-        <video class="studio__video" src="assets/video/florin-balayage-3d.mp4" poster="assets/img/scene-3d.webp" autoplay muted loop playsinline preload="metadata" aria-label="Animație 3D: Florin Roșca prezintă un balayage blond perlat"></video>
-        <span class="studio__corner studio__corner--tl"></span><span class="studio__corner studio__corner--br"></span>
-      </div>
     </section>
 
     <!-- ===== MARQUEE ===== -->

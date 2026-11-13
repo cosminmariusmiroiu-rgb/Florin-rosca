@@ -579,3 +579,103 @@ html:not(.webgl) .ritual__stage, html:not(.webgl) .ritual__hint { display: none;
 .sound.is-on .sound__bars i:nth-child(2) { animation-delay: -.3s; } .sound.is-on .sound__bars i:nth-child(3) { animation-delay: -.6s; } .sound.is-on .sound__bars i:nth-child(4) { animation-delay: -.15s; }
 @keyframes eq { 0%, 100% { height: 4px; } 50% { height: 16px; } }
 @media (max-width: 560px) { .sound__label { display: none; } .sound { padding: 0 15px; } }
+
+/* ---------- Hero v2: Florin in the foreground (right), small animated logo (left) ---------- */
+.hero { grid-template-columns: minmax(0, .8fr) minmax(0, 1.45fr); gap: clamp(28px, 4vw, 64px); padding-top: 100px; }
+.hero__copy { min-width: 0; }
+.hero__medal { display: block; perspective: none; margin: 0 0 6px; }
+.hero .medal { width: clamp(120px, 13vw, 190px); }
+.hero__title { font-size: clamp(46px, 6.6vw, 112px); }
+.hero__stage { min-width: 0; position: relative; }
+.hero__stage .studio__frame { max-width: none; }
+.hero__caption { margin: 14px 0 0; text-align: right; font-size: 11px; letter-spacing: .3em; text-transform: uppercase; color: var(--gold); }
+.hero .scroll-cue { display: none; }
+@media (max-width: 860px) {
+  .hero { grid-template-columns: 1fr; padding-top: 86px; }
+  .hero__stage { order: -1; }
+  .hero__caption { text-align: center; }
+  .hero__medal { order: 0; }
+  .hero .medal { width: 110px; }
+}
+
+/* ---------- Brunette -> pearl blonde transformation (hero) ---------- */
+.studio__frame { --p: -10%; }
+.studio__before { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; pointer-events: none;
+  -webkit-mask-image: linear-gradient(to bottom, transparent calc(var(--p) - 10%), #000 var(--p));
+          mask-image: linear-gradient(to bottom, transparent calc(var(--p) - 10%), #000 var(--p));
+  transition: opacity .9s ease; }
+.studio__frame.is-after .studio__before { opacity: 0; }
+.studio__band { position: absolute; left: 0; right: 0; top: calc(var(--p) - 9%); height: 14%; pointer-events: none; opacity: 0;
+  background: radial-gradient(60% 50% at 50% 50%, rgba(255,236,180,.85), rgba(212,169,69,.35) 45%, transparent 75%);
+  mix-blend-mode: screen; filter: blur(6px); }
+.studio__frame.is-wiping .studio__band { opacity: 1; }
+.studio__tag { position: absolute; left: 18px; bottom: 16px; font: 600 10.5px/1 var(--f-sans); letter-spacing: .26em; text-transform: uppercase; }
+.studio__tag b { display: inline-block; padding: 8px 12px; border-radius: 999px; background: rgba(10,10,10,.65); border: 1px solid rgba(212,169,69,.5); color: var(--gold-hi); backdrop-filter: blur(6px); transition: opacity .6s; }
+.studio__tag-b { position: absolute; left: 0; bottom: 0; white-space: nowrap; opacity: 0; }
+.studio__frame.is-after .studio__tag-a { opacity: 0; }
+.studio__frame.is-after .studio__tag-b { opacity: 1; }
+@media (max-width: 560px) { .studio__tag { left: 10px; bottom: 10px; font-size: 9px; } }
+
+/* ---------- Hero v3: cinematic full-bleed before/after ---------- */
+.hero.cine { position: relative; display: block; min-height: 100svh; padding: 0; overflow: hidden; isolation: isolate; }
+.cine__bg { position: absolute; inset: 0; z-index: -1; aspect-ratio: auto; border-radius: 0; box-shadow: none; max-width: none; margin: 0; background: #070707; }
+.cine__bg img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: 50% 30%; transform: scale(1.16) translateX(8%); transform-origin: 50% 40%; }
+.cine__bg img { animation: kenburns 14s ease-in-out infinite alternate; }
+@keyframes kenburns { from { transform: scale(1.16) translateX(8%); } to { transform: scale(1.22) translateX(7%) translateY(-1%); } }
+.cine__shade { position: absolute; inset: 0; pointer-events: none; background:
+  linear-gradient(90deg, rgba(7,7,7,.94) 0%, rgba(7,7,7,.78) 26%, rgba(7,7,7,.15) 52%, rgba(7,7,7,0) 70%, rgba(7,7,7,.45) 100%),
+  linear-gradient(0deg, rgba(7,7,7,.95) 0%, rgba(7,7,7,0) 30%),
+  linear-gradient(180deg, rgba(7,7,7,.7) 0%, rgba(7,7,7,0) 18%); }
+.cine__content { position: relative; z-index: 2; max-width: min(560px, 44vw); padding: 120px 0 190px var(--pad); }
+.cine .hero__medal { margin-bottom: 4px; }
+.cine .medal { width: clamp(110px, 10vw, 150px); }
+.cine .hero__title { font-size: clamp(48px, 7vw, 116px); }
+.cine .hero__lead { max-width: 440px; color: #e6dccb; }
+.cine__card { position: absolute; z-index: 2; right: var(--pad); top: 120px; width: 270px; padding: 20px 20px 18px; border-radius: 12px;
+  background: rgba(10,10,10,.55); border: 1px solid rgba(212,169,69,.35); backdrop-filter: blur(14px) saturate(1.2); -webkit-backdrop-filter: blur(14px);
+  box-shadow: 0 30px 60px -20px rgba(0,0,0,.9); }
+.cine__card h2 { margin: 10px 0 12px; font-family: var(--f-display); font-weight: 500; font-size: 19px; line-height: 1.25; }
+.cine__card dl { margin: 0; display: grid; gap: 8px; border-top: 1px solid var(--line); padding-top: 12px; }
+.cine__card dl div { display: flex; justify-content: space-between; gap: 12px; font-size: 12.5px; }
+.cine__card dt { color: var(--muted); }
+.cine__card dd { margin: 0; color: var(--ink); text-align: right; }
+.cine__link { display: inline-block; margin-top: 14px; font-size: 11px; letter-spacing: .22em; text-transform: uppercase; color: var(--gold-hi); }
+.cine__state { position: relative; margin: 0; display: flex; align-items: center; gap: 8px; font-size: 10px; letter-spacing: .22em; text-transform: uppercase; color: var(--gold); min-height: 14px; }
+.cine__state b { font-weight: 600; transition: opacity .6s; }
+.cine__state .studio__tag-b { position: absolute; left: 16px; opacity: 0; white-space: nowrap; }
+.cine__bg.is-after ~ .cine__card .studio__tag-a { opacity: 0; }
+.cine__bg.is-after ~ .cine__card .studio__tag-b { opacity: 1; }
+.cine__dot { width: 8px; height: 8px; border-radius: 50%; background: #c0614e; box-shadow: 0 0 10px #c0614e; transition: background .6s, box-shadow .6s; }
+.cine__bg.is-after ~ .cine__card .cine__dot { background: var(--gold-hi); box-shadow: 0 0 12px var(--gold); }
+.cine__stats { position: absolute; z-index: 2; left: var(--pad); right: var(--pad); bottom: 28px; margin: 0; padding: 18px 0 0; list-style: none; display: flex; flex-wrap: wrap; gap: 14px 46px; border-top: 1px solid rgba(212,169,69,.25); }
+.cine__stats li { display: grid; gap: 2px; }
+.cine__stats strong { font-family: var(--f-display); font-weight: 500; font-size: clamp(22px, 2vw, 30px); line-height: 1; background: var(--gold-grad); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.cine__stats span { font-size: 10px; letter-spacing: .2em; text-transform: uppercase; color: var(--muted); }
+.cine__stats .cine__mounir { margin-left: auto; max-width: 260px; }
+.cine__stats .cine__mounir span { color: var(--ink); line-height: 1.5; }
+@media (max-width: 1100px) { .cine__card { display: none; } }
+@media (max-width: 860px) {
+  .hero.cine { min-height: 0; display: flex; flex-direction: column; }
+  .cine__bg { position: relative; inset: auto; height: 62vh; min-height: 380px; }
+  .cine__bg img { transform: scale(1.35) translateX(0); object-position: 50% 30%; }
+  @keyframes kenburns { from { transform: scale(1.35); } to { transform: scale(1.42) translateY(-1%); } }
+  .cine__shade { background: linear-gradient(0deg, rgba(7,7,7,1) 0%, rgba(7,7,7,0) 35%), linear-gradient(180deg, rgba(7,7,7,.7) 0%, rgba(7,7,7,0) 22%); }
+  .cine__content { max-width: none; padding: 0 var(--pad) 20px; margin-top: -120px; }
+  .cine__stats { position: static; margin: 10px var(--pad) 30px; gap: 14px 26px; }
+  .cine__stats .cine__mounir { margin-left: 0; }
+}
+
+/* ---------- Hero v3 fixes ---------- */
+.cine__bg img { object-position: 50% 18%; transform: scale(1.04) translateX(9%); }
+@keyframes kenburns { from { transform: scale(1.04) translateX(9%); } to { transform: scale(1.09) translateX(8%) translateY(-1%); } }
+/* small animated logo in the hero: shown as an image floating in 3D (the WebGL coin sits behind the photo) */
+.webgl .cine .medal__img, .cine .medal__img { opacity: 1; animation: logoFloat 7s ease-in-out infinite; filter: drop-shadow(0 18px 30px rgba(0,0,0,.8)) drop-shadow(0 0 18px rgba(212,169,69,.25)); }
+.cine .medal { perspective: 600px; }
+@keyframes logoFloat { 0%, 100% { transform: translateY(0) rotateY(-14deg); } 50% { transform: translateY(-8px) rotateY(14deg); } }
+@media (max-width: 860px) {
+  .cine__bg { height: 64vh; height: 64svh; }
+  .cine__bg img { transform: scale(1.0); object-position: 50% 20%; }
+  @keyframes kenburns { from { transform: scale(1.0); } to { transform: scale(1.06); } }
+}
+@media (max-width: 860px) { .cine__bg { width: 100%; align-self: stretch; } }
+@media (max-width: 860px) { .cine__content { margin-top: -30px; } .cine .medal { width: 84px; } .cine .hero__medal { display: flex; justify-content: flex-start; } }

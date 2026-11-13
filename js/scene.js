@@ -511,7 +511,7 @@
     state.coinR = (r.width / 2) * k;
     state.coinX = ((r.left + r.width / 2) / state.w - 0.5) * state.viewW;
     state.coinY = -((r.top + r.height / 2) / state.h - 0.5) * state.viewH;
-    state.coinVisible = r.bottom > -r.height * 0.6 && r.top < state.h + r.height * 0.6;
+    state.coinVisible = !medalEl.closest(".cine") && r.bottom > -r.height * 0.6 && r.top < state.h + r.height * 0.6;
   }
 
   /* ---------- Loop ---------- */
@@ -670,7 +670,7 @@
     updateRitual(t);
     updateStrands(t);
     const lockOp = state.intro < 0.5 ? 0 : (state.hero < 0.5 ? 0.5 : (ritual.visible ? 0.4 : 0.55));
-    for (const L of locks) updateLock(L, t, (L.side < 0 && (state.hero < 0.5 || ritual.visible)) ? 0 : lockOp, dt);
+    for (const L of locks) updateLock(L, t, (state.hero < 0.5 || (L.side < 0 && ritual.visible)) ? 0 : lockOp, dt);
     dMat.uniforms.uTime.value = t;
     dMat.uniforms.uScroll.value = 0;
     dMat.uniforms.uAlpha.value = Math.min(1, state.strandsIn * 1.2);
