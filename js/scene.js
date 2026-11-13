@@ -70,29 +70,96 @@
   const goldSatin = new THREE.MeshStandardMaterial({ color: 0xc9973c, metalness: 1, roughness: 0.38, envMapIntensity: 1.1 });
   const goldBright = new THREE.MeshStandardMaterial({ color: 0xffe6a6, metalness: 1, roughness: 0.12, envMapIntensity: 1.6 });
 
-  /* ---------- Coin with logo ---------- */
+  /* ---------- 3D animated logo (hands + hair + script) ---------- */
+  // plane height = 2 world units (scaled by the hero slot); image aspect 1192 x 1320
+  const LOGO_AR = 1192 / 1320;
   const coin = new THREE.Group();
   const coinSpin = new THREE.Group();
   coin.add(coinSpin);
   scene.add(coin);
-  const faceMat = new THREE.MeshStandardMaterial({ color: 0xffffff, metalness: 0.25, roughness: 0.42, emissive: 0xffffff, emissiveIntensity: 0.62 });
-  const backMat = new THREE.MeshStandardMaterial({ color: 0xffffff, metalness: 0.35, roughness: 0.4, emissive: 0xffffff, emissiveIntensity: 0.4 });
-  const coinBody = new THREE.Mesh(new THREE.CylinderGeometry(1, 1, 0.09, 128, 1, false), [goldSatin, faceMat, backMat]);
-  coinBody.rotation.x = Math.PI / 2;
-  coinSpin.add(coinBody);
-  const bevelF = new THREE.Mesh(new THREE.TorusGeometry(1, 0.035, 16, 160), gold); bevelF.position.z = 0.045; coinSpin.add(bevelF);
-  const bevelB = bevelF.clone(); bevelB.position.z = -0.045; coinSpin.add(bevelB);
-  const rimLip = new THREE.Mesh(new THREE.TorusGeometry(1.035, 0.018, 12, 160), goldBright); coinSpin.add(rimLip);
-
-  new THREE.TextureLoader().load(document.querySelector('.medal__img')?.getAttribute('src') || 'assets/img/logo.webp', (tex) => {
-    tex.encoding = THREE.sRGBEncoding;
-    tex.anisotropy = renderer.capabilities.getMaxAnisotropy();
-    tex.center.set(0.5, 0.5);
-    tex.rotation = Math.PI / 2; // align cylinder-cap UVs with the image
-    faceMat.map = tex; faceMat.emissiveMap = tex; faceMat.needsUpdate = true;
-    const back = tex.clone(); back.needsUpdate = true; back.rotation = Math.PI / 2; back.repeat.set(-1, 1);
-    backMat.map = back; backMat.emissiveMap = back; backMat.needsUpdate = true;
+  const logoUni = {
+    map: { value: null }, uTime: { value: 0 }, uIntro: { value: 0 }, uWrite: { value: 0 }, uReady: { value: 0 }
+  };
+  const logoMat = new THREE.ShaderMaterial({
+    uniforms: logoUni, transparent: true, depthWrite: true,
+    vertexShader: `varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0); }`,
+    fragmentShader: `
+      uniform sampler2D map; uniform float uTime, uIntro, uWrite, uReady;
+      varying vec2 vUv;
+      void main(){
+        vec4 c = texture2D(map, vUv);
+        // script lettering (bottom third) is written left -> right; the rest reveals from the hair tip down
+        float isText = 1.0 - smoothstep(0.31, 0.335, vUv.y);
+        float write = 1.0 - smoothstep(uWrite - 0.05, uWrite, vUv.x);
+        float drop = clamp(uIntro * 1.7 - (1.0 - vUv.y) * 0.7, 0.0, 1.0);
+        float a = c.a * mix(drop, write, isText) * uReady;
+        if (a < 0.03) discard;
+        vec3 col = c.rgb;
+        // travelling light sweep across the gold
+        float lum = dot(col, vec3(0.299, 0.587, 0.114));
+        float band = mod(uTime * 0.22, 2.6) - 0.4;
+        float sweep = smoothstep(0.09, 0.0, abs(vUv.x * 0.8 + (1.0 - vUv.y) * 0.6 - band));
+        col += sweep * 0.55 * lum * vec3(1.0, 0.86, 0.55);
+        // the writing pen tip glows
+        float pen = smoothstep(0.03, 0.0, abs(vUv.x - uWrite)) * isText * step(uWrite, 0.999);
+        col += pen * vec3(1.0, 0.8, 0.4) * 0.9;
+        gl_FragColor = vec4(col, a);
+      }`
   });
+  const logoPlane = new THREE.Mesh(new THREE.PlaneGeometry(2 * LOGO_AR, 2), logoMat);
+  coinSpin.add(logoPlane);
+  new THREE.TextureLoader().load('assets/img/logo-3d.webp', (tex) => {
+    tex.anisotropy = renderer.capabilities.getMaxAnisotropy();
+    tex.minFilter = THREE.LinearMipmapLinearFilter;
+    logoUni.map.value = tex; logoUni.uReady.value = 1;
+  });
+
+  // ring of the logo, in plane units
+  const ringC = new THREE.Vector3(0, (0.5 - 0.362) * 2, 0);
+  const ringR = 0.411 * 2 * LOGO_AR;
+
+  // soft gold glow behind
+  function radialTex(stops) {
+    const c = document.createElement('canvas'); c.width = c.height = 256;
+    const g = c.getContext('2d'); const gr = g.createRadialGradient(128, 128, 0, 128, 128, 128);
+    stops.forEach(([o, col]) => gr.addColorStop(o, col)); g.fillStyle = gr; g.fillRect(0, 0, 256, 256);
+    return new THREE.CanvasTexture(c);
+  }
+  const glow = new THREE.Mesh(new THREE.PlaneGeometry(3.4, 3.4), new THREE.MeshBasicMaterial({
+    map: radialTex([[0, 'rgba(212,169,69,0.55)'], [0.45, 'rgba(212,169,69,0.12)'], [1, 'rgba(0,0,0,0)']]),
+    transparent: true, depthWrite: false, blending: THREE.AdditiveBlending
+  }));
+  glow.position.set(ringC.x, ringC.y, -0.6);
+  coinSpin.add(glow);
+
+  // two 3D gold rings spinning like a gyroscope around the logo circle
+  const gyro = new THREE.Group(); gyro.position.copy(ringC); coinSpin.add(gyro);
+  const gyroA = new THREE.Mesh(new THREE.TorusGeometry(ringR * 1.16, 0.014, 12, 180), goldBright);
+  const gyroB = new THREE.Mesh(new THREE.TorusGeometry(ringR * 1.28, 0.009, 10, 180), gold);
+  gyro.add(gyroA, gyroB);
+  const beads = [];
+  for (let i = 0; i < 3; i++) {
+    const bead = new THREE.Mesh(new THREE.SphereGeometry(0.035, 16, 12), goldBright);
+    gyroA.add(bead); beads.push(bead);
+  }
+
+  // star flare that travels along the logo ring (like the sparkle in the logo)
+  function flareTex() {
+    const c = document.createElement('canvas'); c.width = c.height = 256; const g = c.getContext('2d');
+    const gr = g.createRadialGradient(128, 128, 0, 128, 128, 60);
+    gr.addColorStop(0, 'rgba(255,250,230,1)'); gr.addColorStop(0.2, 'rgba(255,220,150,0.6)'); gr.addColorStop(1, 'rgba(0,0,0,0)');
+    g.fillStyle = gr; g.fillRect(0, 0, 256, 256);
+    g.globalCompositeOperation = 'lighter';
+    [[256, 6], [6, 256], [120, 3]].forEach(([w, h], i) => {
+      const lg = g.createRadialGradient(128, 128, 0, 128, 128, 128);
+      lg.addColorStop(0, 'rgba(255,240,200,0.95)'); lg.addColorStop(1, 'rgba(0,0,0,0)');
+      g.save(); g.translate(128, 128); g.rotate(i === 2 ? Math.PI / 4 : 0); g.fillStyle = lg; g.fillRect(-w / 2, -h / 2, w, h); g.restore();
+    });
+    return new THREE.CanvasTexture(c);
+  }
+  const flare = new THREE.Sprite(new THREE.SpriteMaterial({ map: flareTex(), transparent: true, depthWrite: false, blending: THREE.AdditiveBlending }));
+  flare.scale.setScalar(0.55);
+  coinSpin.add(flare);
 
   /* ---------- Scissors ---------- */
   function makeHalf(s) {
@@ -244,7 +311,7 @@
     strandGroup.add(line);
     strands.push({
       line, phase: Math.random() * Math.PI * 2, amp: 0.35 + Math.random() * 0.9, freq: 1.6 + Math.random() * 1.6,
-      speed: 0.25 + Math.random() * 0.35, off: (i / STRANDS - 0.5) * 1.6, z: -3 + Math.random() * 4,
+      speed: 0.25 + Math.random() * 0.35, off: (i / STRANDS - 0.5) * 1.6, z: -5 + Math.random() * 3,
       bright: 0.15 + Math.random() * 0.5, tint: Math.random()
     });
   }
@@ -448,17 +515,30 @@
       const R = state.coinR * (0.92 + 0.08 * ease(state.intro));
       coin.position.set(state.coinX, state.coinY, 0);
       coin.scale.setScalar(R * ease(Math.min(1, state.intro * 1.2)));
-      coinSpin.rotation.y = (1 - ease(state.intro)) * Math.PI * 2.2 + state.mx * 0.45 + Math.sin(t * 0.6) * 0.08;
-      coinSpin.rotation.x = state.my * 0.32 + Math.cos(t * 0.5) * 0.05;
+      coinSpin.rotation.y = (1 - ease(state.intro)) * 0.9 + state.mx * 0.38 + Math.sin(t * 0.6) * 0.12;
+      logoUni.uTime.value = t;
+      logoUni.uIntro.value = Math.min(1, state.intro * 1.25);
+      logoUni.uWrite.value = Math.min(1.05, Math.max(0, (state.intro - 0.3) / 0.55) * 1.05);
+      gyroA.rotation.set(1.15 + Math.sin(t * 0.4) * 0.2, t * 0.5, 0);
+      gyroB.rotation.set(-0.9, -t * 0.35, 0.4);
+      gyro.scale.setScalar(ease(Math.min(1, Math.max(0, (state.intro - 0.2) / 0.6))) + 0.0001);
+      beads.forEach((bd, i) => { const ang = t * 0.8 + i * 2.094; bd.position.set(Math.cos(ang) * ringR * 1.16, Math.sin(ang) * ringR * 1.16, 0); });
+      const fa = t * 0.45 + 2.4;
+      flare.position.set(ringC.x + Math.cos(fa) * ringR, ringC.y + Math.sin(fa) * ringR, 0.05);
+      const tw = 0.75 + 0.25 * Math.sin(t * 5.0);
+      flare.material.opacity = Math.min(1, state.intro * 1.5) * tw;
+      flare.scale.setScalar(0.5 + 0.12 * Math.sin(t * 3.1));
+      glow.material.opacity = 0.75 + 0.25 * Math.sin(t * 1.3);
+      coinSpin.rotation.x = state.my * 0.22 + Math.cos(t * 0.5) * 0.04;
       coinSpin.position.y = Math.sin(t * 0.9) * 0.025;
 
       // scissors orbit
       const k = Math.min(1, Math.max(0, (state.intro - 0.35) / 0.65));
       const th = t * (reduced ? 0 : 0.42) + 0.9;
-      const orx = R * (isSmall ? 1.12 : 1.3), orz = R * 1.1;
+      const orx = R * (isSmall ? 1.0 : 1.12), orz = R * 1.0;
       scissorsWrap.position.set(
         state.coinX + Math.cos(th) * orx,
-        state.coinY + Math.sin(th) * R * 0.32 + R * 0.08,
+        state.coinY + Math.sin(th) * R * 0.32 + R * 0.3,
         Math.sin(th) * orz + R * 0.55
       );
       // keep the blades facing the viewer; point the tip along the on-screen orbit direction
