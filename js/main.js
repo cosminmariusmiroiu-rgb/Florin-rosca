@@ -138,28 +138,35 @@
   });
   form.addEventListener('submit', (e) => { e.preventDefault(); waSend.click(); });
 
-  /* ---------- Portfolio strip controls ---------- */
-  const strip = $('.works__track');
-  $('.works').classList.add('is-native');
-  const stepBy = (dir) => {
-    const card = $('.work', strip);
-    strip.scrollBy({ left: dir * (card.getBoundingClientRect().width + 24), behavior: reduced ? 'auto' : 'smooth' });
-  };
-  $('.works__prev').addEventListener('click', () => stepBy(-1));
-  $('.works__next').addEventListener('click', () => stepBy(1));
-  const bar = $('.works__progress span');
-  const syncBar = () => { const max = strip.scrollWidth - strip.clientWidth; bar.style.transform = `scaleX(${max > 0 ? strip.scrollLeft / max : 1})`; };
-  strip.addEventListener('scroll', syncBar, { passive: true });
-  window.addEventListener('resize', syncBar);
-  syncBar();
-  if (finePointer) { // drag with the mouse
-    let down = false, sx = 0, sl = 0, moved = false;
-    strip.addEventListener('pointerdown', (e) => { if (e.pointerType !== 'mouse') return; down = true; moved = false; sx = e.clientX; sl = strip.scrollLeft; strip.classList.add('is-drag'); });
-    window.addEventListener('pointermove', (e) => { if (!down) return; const dx = e.clientX - sx; if (Math.abs(dx) > 4) moved = true; strip.scrollLeft = sl - dx; });
-    window.addEventListener('pointerup', () => { down = false; strip.classList.remove('is-drag'); });
-    strip.addEventListener('click', (e) => { if (moved) { e.preventDefault(); e.stopPropagation(); } }, true);
-    strip.addEventListener('dragstart', (e) => e.preventDefault());
+  /* ---------- Portfolio lightbox ---------- */
+  const works = $$('.work');
+  const lb = $('.lightbox'), lbImg = $('.lightbox__fig img'), lbCap = $('.lightbox__fig figcaption');
+  let lbIndex = 0, lastFocus = null;
+  function showWork(i) {
+    lbIndex = (i + works.length) % works.length;
+    const w = works[lbIndex];
+    lbImg.src = w.dataset.full; lbImg.alt = $('img', w).alt; lbCap.innerHTML = w.dataset.cap;
   }
+  function openLb(i) { lastFocus = document.activeElement; showWork(i); lb.hidden = false; document.body.style.overflow = 'hidden'; $('.lightbox__close').focus(); }
+  function closeLb() { lb.hidden = true; document.body.style.overflow = ''; if (lastFocus) lastFocus.focus(); }
+  works.forEach((w, i) => w.addEventListener('click', () => openLb(i)));
+  $('.lightbox__close').addEventListener('click', closeLb);
+  $('.lightbox__prev').addEventListener('click', () => showWork(lbIndex - 1));
+  $('.lightbox__next').addEventListener('click', () => showWork(lbIndex + 1));
+  lb.addEventListener('click', (e) => { if (e.target === lb) closeLb(); });
+  document.addEventListener('keydown', (e) => {
+    if (lb.hidden) return;
+    if (e.key === 'Escape') closeLb();
+    if (e.key === 'ArrowRight') showWork(lbIndex + 1);
+    if (e.key === 'ArrowLeft') showWork(lbIndex - 1);
+  });
+  let tx = null;
+  lb.addEventListener('touchstart', (e) => { tx = e.touches[0].clientX; }, { passive: true });
+  lb.addEventListener('touchend', (e) => {
+    if (tx === null) return;
+    const dx = e.changedTouches[0].clientX - tx; tx = null;
+    if (Math.abs(dx) > 40) showWork(lbIndex + (dx < 0 ? 1 : -1));
+  });
 
   /* ---------- Text splitting helpers ---------- */
   function splitChars(el) {
@@ -287,7 +294,7 @@
   }
 
   /* ---------- Portfolio: user-controlled strip (drag / swipe / arrows) ---------- */
-  gsap.from('.work', { y: 60, opacity: 0, duration: 1.2, stagger: 0.08, ease: 'expo.out', scrollTrigger: { trigger: '.works__track', start: 'top 85%' } });
+  gsap.from('.work', { y: 60, opacity: 0, duration: 1.2, stagger: 0.08, ease: 'expo.out', scrollTrigger: { trigger: '.works__grid', start: 'top 85%' } });
 
   /* ---------- Products & FAQ ---------- */
   gsap.from('.product__img', { rotateY: -40, opacity: 0, duration: 1.4, stagger: 0.1, ease: 'expo.out', scrollTrigger: { trigger: '.products', start: 'top 85%' } });

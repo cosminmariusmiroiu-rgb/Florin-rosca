@@ -220,29 +220,32 @@
       </ol>
     </section>
 
-    <!-- ===== PORTFOLIO (horizontal, pinned) ===== -->
-    <section class="works" id="lucrari">
-      <div class="works__pin">
-        <header class="works__head">
-          <p class="eyebrow">Portofoliu</p>
-          <h2 class="h2">Culoarea se vede.<br><em>Detaliile se simt.</em></h2>
-          <div class="works__nav"><button class="works__prev" aria-label="Lucrarea anterioară">←</button><button class="works__next" aria-label="Lucrarea următoare">→</button></div>
-        </header>
-        <div class="works__track">
-          <figure class="work"><div class="work__img"><img src="assets/img/work-platinum-waves.webp" alt="Platinum cu bucle largi" loading="lazy"></div><figcaption><span>Blond</span>Platinum &amp; bucle</figcaption></figure>
-          <figure class="work"><div class="work__img"><img src="assets/img/work-balayage-straight.webp" alt="Balayage pe păr drept" loading="lazy"></div><figcaption><span>Balayage</span>Culoare &amp; dimensiune</figcaption></figure>
-          <figure class="work"><div class="work__img"><img src="assets/img/work-icy-bob.webp" alt="Bob blond rece" loading="lazy"></div><figcaption><span>Blond</span>Blond cu personalitate</figcaption></figure>
-          <figure class="work"><div class="work__img"><img src="assets/img/work-blonde-curtain.webp" alt="Blond luminos" loading="lazy"></div><figcaption><span>Transformare</span>O nouă expresie</figcaption></figure>
-          <figure class="work"><div class="work__img"><img src="assets/img/work-blonde-curls.webp" alt="Bucle blonde" loading="lazy"></div><figcaption><span>Styling</span>Textură și strălucire</figcaption></figure>
-          <figure class="work"><div class="work__img"><img src="assets/img/work-ombre-sleek.webp" alt="Ombre sleek" loading="lazy"></div><figcaption><span>Culoare</span>Finisaj &amp; strălucire</figcaption></figure>
-          <a class="work work--tiktok" href="https://www.tiktok.com/@florirosca.hairart" target="_blank" rel="noopener">
-            <div class="work__img"><img src="assets/img/tiktok-1.webp" alt="Video TikTok Florin Roșca" loading="lazy"><span class="play">▶</span></div>
-            <figcaption><span>TikTok</span>Vezi procesul pe TikTok</figcaption>
-          </a>
-        </div>
-        <div class="works__progress"><span></span></div>
+    <!-- ===== PORTFOLIO (grid + lightbox) ===== -->
+    <section class="works section" id="lucrari">
+      <header class="section__head">
+        <p class="eyebrow reveal">Portofoliu</p>
+        <h2 class="h2 reveal-lines">Culoarea se vede.<br><em>Detaliile se simt.</em></h2>
+        <p class="reveal">Apasă pe o fotografie ca s-o vezi mare.</p>
+      </header>
+      <div class="works__grid">
+          <button class="work" type="button" data-full="assets/img/work-platinum-waves.webp" data-cap="Platinum &amp; bucle"><span class="work__img"><img src="assets/img/work-platinum-waves.webp" alt="Platinum cu bucle largi" loading="lazy"><span class="work__zoom" aria-hidden="true">+</span></span><span class="work__cap"><span>Blond</span>Platinum &amp; bucle</span></button>
+          <button class="work" type="button" data-full="assets/img/work-balayage-straight.webp" data-cap="Culoare &amp; dimensiune"><span class="work__img"><img src="assets/img/work-balayage-straight.webp" alt="Balayage pe păr drept" loading="lazy"><span class="work__zoom" aria-hidden="true">+</span></span><span class="work__cap"><span>Balayage</span>Culoare &amp; dimensiune</span></button>
+          <button class="work" type="button" data-full="assets/img/work-icy-bob.webp" data-cap="Blond cu personalitate"><span class="work__img"><img src="assets/img/work-icy-bob.webp" alt="Bob blond rece" loading="lazy"><span class="work__zoom" aria-hidden="true">+</span></span><span class="work__cap"><span>Blond</span>Blond cu personalitate</span></button>
+          <button class="work" type="button" data-full="assets/img/work-blonde-curtain.webp" data-cap="O nouă expresie"><span class="work__img"><img src="assets/img/work-blonde-curtain.webp" alt="Blond luminos" loading="lazy"><span class="work__zoom" aria-hidden="true">+</span></span><span class="work__cap"><span>Transformare</span>O nouă expresie</span></button>
+          <button class="work" type="button" data-full="assets/img/work-blonde-curls.webp" data-cap="Textură și strălucire"><span class="work__img"><img src="assets/img/work-blonde-curls.webp" alt="Bucle blonde" loading="lazy"><span class="work__zoom" aria-hidden="true">+</span></span><span class="work__cap"><span>Styling</span>Textură și strălucire</span></button>
+          <button class="work" type="button" data-full="assets/img/work-ombre-sleek.webp" data-cap="Finisaj &amp; strălucire"><span class="work__img"><img src="assets/img/work-ombre-sleek.webp" alt="Ombre sleek" loading="lazy"><span class="work__zoom" aria-hidden="true">+</span></span><span class="work__cap"><span>Culoare</span>Finisaj &amp; strălucire</span></button>
+          <button class="work" type="button" data-full="assets/img/tiktok-2.webp" data-cap="Balayage înainte și după"><span class="work__img"><img src="assets/img/tiktok-2.webp" alt="Transformare balayage din TikTok" loading="lazy"><span class="work__zoom" aria-hidden="true">+</span></span><span class="work__cap"><span>TikTok</span>Balayage înainte și după</span></button>
+          <button class="work" type="button" data-full="assets/img/tiktok-3.webp" data-cap="Transformare de culoare"><span class="work__img"><img src="assets/img/tiktok-3.webp" alt="Corecție de culoare din TikTok" loading="lazy"><span class="work__zoom" aria-hidden="true">+</span></span><span class="work__cap"><span>TikTok</span>Transformare de culoare</span></button>
       </div>
+      <div class="center reveal"><a href="https://www.tiktok.com/@florirosca.hairart" target="_blank" rel="noopener" class="btn btn--ghost" data-magnetic><span>Vezi procesul pe TikTok</span></a></div>
     </section>
+
+    <div class="lightbox" hidden>
+      <button class="lightbox__close" type="button" aria-label="Închide">×</button>
+      <button class="lightbox__prev" type="button" aria-label="Fotografia anterioară">←</button>
+      <figure class="lightbox__fig"><img alt=""><figcaption></figcaption></figure>
+      <button class="lightbox__next" type="button" aria-label="Fotografia următoare">→</button>
+    </div>
 
     <!-- ===== TRAINING ===== -->
     <section class="training section" id="formare">

@@ -306,29 +306,27 @@ strong { color: var(--ink); font-weight: 500; }
 .step > span { font-family: var(--f-display); font-size: 64px; line-height: 1; color: transparent; -webkit-text-stroke: 1px rgba(212,169,69,.5); display: block; margin-bottom: 10px; }
 .step h3 { font-family: var(--f-display); font-weight: 500; font-size: 20px; margin: 0 0 10px; }
 
-/* ---------- Works (horizontal) ---------- */
+/* ---------- Works (grid + lightbox) ---------- */
 .works { position: relative; z-index: 2; }
-.works__pin { height: 100svh; display: flex; flex-direction: column; justify-content: center; overflow: hidden; padding: 90px 0 40px; }
-.works__head { padding: 0 var(--pad); display: flex; flex-wrap: wrap; align-items: end; gap: 0 40px; margin-bottom: clamp(20px, 3vw, 40px); }
-.works__head .eyebrow { width: 100%; }
-.works__head .h2 { margin: 0; }
-.works__nav { margin: 0 0 6px auto; display: flex; gap: 10px; }
-.works__nav button { width: 52px; height: 52px; border-radius: 50%; border: 1px solid rgba(212,169,69,.45); background: rgba(10,10,10,.5); color: var(--gold); font-size: 18px; transition: background .3s, color .3s, transform .3s; }
-.works__nav button:hover { background: var(--gold); color: #120d02; transform: scale(1.06); }
-.works__track.is-drag { scroll-snap-type: none !important; cursor: grabbing; }
-.works__track.is-drag img { pointer-events: none; }
-.works__track { display: flex; gap: clamp(16px, 2.2vw, 34px); padding: 0 var(--pad); width: max-content; will-change: transform; }
-.work { margin: 0; flex: 0 0 auto; width: clamp(230px, 24vw, 380px); perspective: 900px; }
-.work:nth-child(even) { margin-top: 6vh; }
-.work__img { position: relative; aspect-ratio: 3/4; overflow: hidden; border-radius: 8px; box-shadow: var(--shadow-deep); transform-style: preserve-3d; transition: transform .7s var(--ease), box-shadow .7s; }
-.work__img img { width: 100%; height: 100%; object-fit: cover; transform: scale(1.15); transition: transform 1.2s var(--ease), filter .6s; filter: saturate(.9) contrast(1.05); }
-.work:hover .work__img { transform: rotateY(-8deg) rotateX(4deg) translateZ(20px); box-shadow: var(--shadow-gold), var(--shadow-deep); }
-.work:hover .work__img img { transform: scale(1.04); filter: saturate(1.05) contrast(1.05); }
-.work figcaption { padding-top: 16px; font-family: var(--f-display); font-size: 17px; }
-.work figcaption span { display: block; font-family: var(--f-sans); font-size: 10.5px; letter-spacing: .3em; text-transform: uppercase; color: var(--gold); margin-bottom: 4px; }
-.play { position: absolute; inset: 0; margin: auto; width: 72px; height: 72px; border-radius: 50%; display: grid; place-items: center; background: rgba(10,10,10,.6); border: 1px solid var(--gold); color: var(--gold); font-size: 20px; backdrop-filter: blur(6px); }
-.works__progress { margin: 34px var(--pad) 0; height: 1px; background: rgba(255,255,255,.08); }
-.works__progress span { display: block; height: 100%; width: 100%; transform-origin: left; transform: scaleX(0); background: var(--gold-grad); }
+.works__grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: clamp(12px, 1.6vw, 24px); perspective: 1200px; }
+.work { margin: 0; padding: 0; border: 0; background: none; color: inherit; font: inherit; text-align: left; display: block; }
+.work__img { position: relative; display: block; aspect-ratio: 3/4; overflow: hidden; border-radius: 8px; box-shadow: var(--shadow-deep); transform-style: preserve-3d; transition: transform .7s var(--ease), box-shadow .7s; }
+.work__img img { width: 100%; height: 100%; object-fit: cover; transition: transform 1.2s var(--ease), filter .6s; filter: saturate(.92) contrast(1.05); }
+.work:hover .work__img, .work:focus-visible .work__img { transform: rotateY(-7deg) rotateX(4deg) translateZ(20px); box-shadow: var(--shadow-gold), var(--shadow-deep); }
+.work:hover .work__img img { transform: scale(1.06); filter: saturate(1.05) contrast(1.05); }
+.work:focus-visible { outline: 2px solid var(--gold); outline-offset: 4px; border-radius: 8px; }
+.work__zoom { position: absolute; right: 12px; bottom: 12px; width: 38px; height: 38px; border-radius: 50%; display: grid; place-items: center; background: rgba(10,10,10,.6); border: 1px solid var(--gold); color: var(--gold-hi); font-size: 22px; font-weight: 300; backdrop-filter: blur(6px); }
+.work__cap { display: block; padding-top: 14px; font-family: var(--f-display); font-size: 16px; line-height: 1.3; }
+.work__cap span { display: block; font-family: var(--f-sans); font-size: 10.5px; letter-spacing: .3em; text-transform: uppercase; color: var(--gold); margin-bottom: 4px; }
+
+.lightbox { position: fixed; inset: 0; z-index: 150; display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 12px; padding: max(16px, env(safe-area-inset-top, 0px)) max(16px, env(safe-area-inset-right, 0px)) max(16px, env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px)); background: rgba(5,5,5,.94); backdrop-filter: blur(10px); }
+.lightbox[hidden] { display: none; }
+.lightbox__fig { margin: 0; display: grid; justify-items: center; gap: 12px; min-width: 0; touch-action: pan-y; }
+.lightbox__fig img { max-height: 82vh; max-height: 82svh; width: auto; max-width: 100%; border-radius: 8px; box-shadow: var(--shadow-gold), var(--shadow-deep); }
+.lightbox__fig figcaption { font-family: var(--f-display); font-size: 18px; color: var(--ink); }
+.lightbox button { width: 52px; height: 52px; border-radius: 50%; border: 1px solid rgba(212,169,69,.5); background: rgba(10,10,10,.6); color: var(--gold-hi); font-size: 22px; }
+.lightbox button:hover { background: var(--gold); color: #120d02; }
+.lightbox__close { position: absolute; top: max(16px, env(safe-area-inset-top, 0px)); right: max(16px, env(safe-area-inset-right, 0px)); font-size: 28px !important; }
 
 /* ---------- Training ---------- */
 .training { display: grid; grid-template-columns: .9fr 1.1fr; gap: clamp(40px, 6vw, 100px); align-items: center; }
@@ -464,12 +462,13 @@ html:not(.webgl) .ritual__stage, html:not(.webgl) .ritual__hint { display: none;
 }
 
 /* WebGL active: the 3D coin replaces the flat logo */
-.webgl .medal__img, .webgl .medal__shine, .webgl .medal__orbit { opacity: 0; }
+.webgl .medal__img, .webgl .medal__shine, .webgl .medal__orbit, .medal__halo { opacity: 0; }
 .webgl .hero__medal { pointer-events: none; }
 
 /* ---------- Responsive ---------- */
 @media (max-width: 1100px) {
   .cards, .products { grid-template-columns: repeat(2, 1fr); }
+  .works__grid { grid-template-columns: repeat(3, 1fr); }
   .nav__links { display: none; }
 }
 @media (max-width: 860px) {
@@ -493,6 +492,12 @@ html:not(.webgl) .ritual__stage, html:not(.webgl) .ritual__hint { display: none;
   .reviews { text-align: center; }
 }
 @media (max-width: 560px) {
+  .works__grid { grid-template-columns: repeat(2, 1fr); }
+  .work__cap { font-size: 13.5px; }
+  .work__zoom { width: 30px; height: 30px; font-size: 18px; right: 8px; bottom: 8px; }
+  .lightbox { grid-template-columns: 1fr; }
+  .lightbox__prev, .lightbox__next { position: absolute; bottom: max(20px, env(safe-area-inset-bottom, 0px)); }
+  .lightbox__prev { left: 30%; } .lightbox__next { right: 30%; }
   .cards, .products { grid-template-columns: 1fr; }
   .products { grid-template-columns: 1fr 1fr; gap: 12px; }
   .product { padding: 10px 10px 16px; }
@@ -505,15 +510,6 @@ html:not(.webgl) .ritual__stage, html:not(.webgl) .ritual__hint { display: none;
   .floater { opacity: .25; }
   .medal__orbit span { font-size: 9px; letter-spacing: .3em; }
 }
-
-/* Mobile/touch: portfolio is a native swipe strip instead of pinned scroll */
-.works.is-native .works__pin { height: auto; padding: clamp(90px, 13vw, 180px) 0 60px; }
-.works.is-native .works__track { width: auto; overflow-x: auto; scroll-snap-type: x mandatory; padding-bottom: 20px; scrollbar-width: none; }
-.works.is-native .works__track::-webkit-scrollbar { display: none; }
-.works.is-native .work { scroll-snap-align: start; scroll-margin-left: var(--pad); }
-@media (max-width: 860px) { .works.is-native .work { width: 72vw; scroll-snap-align: center; } }
-.works.is-native .work:nth-child(even) { margin-top: 0; }
-.works.is-native .works__progress span { transition: transform .2s linear; }
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: .001ms !important; animation-iteration-count: 1 !important; transition-duration: .001ms !important; }

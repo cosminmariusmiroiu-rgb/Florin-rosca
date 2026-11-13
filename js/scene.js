@@ -99,7 +99,6 @@
         float lum = dot(col, vec3(0.299, 0.587, 0.114));
         float band = mod(uTime * 0.22, 2.6) - 0.4;
         float sweep = smoothstep(0.09, 0.0, abs(vUv.x * 0.8 + (1.0 - vUv.y) * 0.6 - band));
-        col += sweep * 0.55 * lum * vec3(1.0, 0.86, 0.55);
         // the writing pen tip glows
         float pen = smoothstep(0.03, 0.0, abs(vUv.x - uWrite)) * isText * step(uWrite, 0.999);
         col += pen * vec3(1.0, 0.8, 0.4) * 0.9;
@@ -130,7 +129,6 @@
     transparent: true, depthWrite: false, blending: THREE.AdditiveBlending
   }));
   glow.position.set(ringC.x, ringC.y, -0.6);
-  coinSpin.add(glow);
 
   // two 3D gold rings spinning like a gyroscope around the logo circle
   const gyro = new THREE.Group(); gyro.position.copy(ringC); coinSpin.add(gyro);
@@ -316,6 +314,93 @@
     });
   }
 
+
+  /* ---------- Blond hair locks (balayage: caramel roots -> platinum ends) ---------- */
+  // Each lock = hundreds of strands drawn as one LineSegments; they sway on their own (time-driven).
+  const PALETTE = [[0.98, 0.93, 0.80], [0.95, 0.84, 0.60], [0.90, 0.74, 0.46], [1.0, 0.97, 0.90], [0.86, 0.66, 0.38]];
+  function makeLock(o) {
+    const N = o.count, P = o.points;
+    const pos = new Float32Array(N * (P - 1) * 2 * 3);
+    const col = new Float32Array(N * (P - 1) * 2 * 3);
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+    geo.setAttribute('color', new THREE.BufferAttribute(col, 3));
+    const mat = new THREE.LineBasicMaterial({ vertexColors: true, transparent: true, opacity: 0, depthWrite: false });
+    const mesh = new THREE.LineSegments(geo, mat);
+    mesh.frustumCulled = false;
+    const strands = [];
+    for (let k = 0; k < N; k++) {
+      const a = (Math.random() * 2 - 1), d = (Math.random() * 2 - 1);
+      strands.push({
+        a: Math.sign(a) * Math.pow(Math.abs(a), 0.8), d, len: 0.78 + Math.random() * 0.22,
+        c: PALETTE[(Math.random() * PALETTE.length) | 0], shade: 0.6 + Math.random() * 0.45, ph: Math.random() * 6.28
+      });
+    }
+    scene.add(mesh);
+    return Object.assign({ mesh, geo, strands, N, P, cur: 0 }, o);
+  }
+  const locks = isSmall
+    ? [makeLock({ count: 170, points: 56, side: 1, top: 1.08, length: 1.25, width: 0.42, phase: 0.0 })]
+    : [
+        makeLock({ count: 300, points: 72, side: 1, top: 1.08, length: 1.3, width: 0.55, phase: 0.0 }),
+        makeLock({ count: 240, points: 64, side: -1, top: 1.1, length: 1.05, width: 0.45, phase: 2.1 })
+      ];
+
+  function updateLock(L, t, targetOpacity, dt) {
+    const H = state.viewH, W = state.viewW, sc = H / 10.7;
+    const len = H * L.length, wid = L.width * sc * 2.2;
+    const bx = L.side * (W * 0.5 - (isSmall ? 0.1 : 0.35) * sc);
+    const by = H * (L.top - 0.5) + H * 0.5 * 0.0;
+    const pos = L.geo.attributes.position.array, col = L.geo.attributes.color.array;
+    let vi = 0;
+    const tt = t * 0.55 + L.phase;
+    // centre line + twist computed once per sample
+    const P = L.P, cxA = new Float32Array(P), cyA = new Float32Array(P), czA = new Float32Array(P), thA = new Float32Array(P), wA = new Float32Array(P);
+    for (let j = 0; j < P; j++) {
+      const u = j / (P - 1);
+      cxA[j] = bx - L.side * ((0.5 + 0.5 * Math.sin(u * Math.PI * 2.2 + tt)) * (isSmall ? 0.45 : 0.9) * sc * (0.25 + u) + Math.sin(u * 7 + tt * 1.3) * 0.08 * sc);
+      cyA[j] = by - u * len;
+      czA[j] = -2.5 + Math.cos(u * 2.4 + tt * 0.8) * 0.6;
+      thA[j] = u * 5.2 + Math.sin(tt * 0.7) * 0.6 + L.phase;
+      wA[j] = wid * (1 - 0.8 * Math.pow(u, 1.4)) * (0.75 + 0.25 * Math.sin(u * 3.1 + 0.6));
+    }
+    for (let k = 0; k < L.N; k++) {
+      const st = L.strands[k];
+      const jMax = Math.max(2, Math.floor(st.len * (P - 1)));
+      let px = 0, py = 0, pz = 0, pr = 0, pg = 0, pb = 0;
+      for (let j = 0; j < P; j++) {
+        const u = j / (P - 1);
+        const th = thA[j], w = wA[j];
+        const lat = st.a * w, dep = st.d * w * 0.35;
+        const wav = Math.sin(u * 14 + st.ph + tt * 1.6) * 0.025 * sc * u;
+        const x = cxA[j] + Math.cos(th) * lat + wav;
+        const y = cyA[j] + Math.sin(th * 0.5) * dep * 0.4;
+        const z = czA[j] + Math.sin(th) * lat + dep;
+        // balayage colour: caramel root -> blond -> platinum ends, glossy band
+        const m = Math.min(1, u * 1.6);
+        const root = [0.42, 0.27, 0.13];
+        const gloss = Math.pow(Math.max(0, Math.sin(u * 9 - tt * 1.2 + st.a * 1.5)), 12) * 0.5;
+        const tipFade = j > jMax ? 0 : (1 - Math.pow(j / jMax, 6));
+        const r = (root[0] + (st.c[0] - root[0]) * m) * st.shade + gloss;
+        const g = (root[1] + (st.c[1] - root[1]) * m) * st.shade + gloss;
+        const b = (root[2] + (st.c[2] - root[2]) * m) * st.shade + gloss * 0.8;
+        const f = tipFade * Math.min(1, u * 8 + 0.15);
+        if (j > 0) {
+          pos[vi] = px; pos[vi + 1] = py; pos[vi + 2] = pz;
+          col[vi] = pr; col[vi + 1] = pg; col[vi + 2] = pb;
+          pos[vi + 3] = x; pos[vi + 4] = y; pos[vi + 5] = z;
+          col[vi + 3] = r * f; col[vi + 4] = g * f; col[vi + 5] = b * f;
+          vi += 6;
+        }
+        px = x; py = y; pz = z; pr = r * f; pg = g * f; pb = b * f;
+      }
+    }
+    L.geo.attributes.position.needsUpdate = true;
+    L.geo.attributes.color.needsUpdate = true;
+    L.cur += (targetOpacity - L.cur) * Math.min(1, dt * 1.2);
+    L.mesh.material.opacity = L.cur;
+  }
+
   /* ---------- Gold dust ---------- */
   const DUST = isSmall ? 380 : 900;
   const dGeo = new THREE.BufferGeometry();
@@ -423,8 +508,8 @@
         const env = Math.pow(Math.sin(u * Math.PI), 1.6) * s.bright * fade;
         const glint = 0.7 + 0.3 * Math.sin(u * 20 - t * 2 + s.phase);
         col[j * 3] = (1.0) * env * glint;
-        col[j * 3 + 1] = (0.72 + s.tint * 0.14) * env * glint;
-        col[j * 3 + 2] = (0.32 + s.tint * 0.18) * env * glint;
+        col[j * 3 + 1] = (0.8 + s.tint * 0.15) * env * glint;
+        col[j * 3 + 2] = (0.5 + s.tint * 0.35) * env * glint;
       }
       s.line.geometry.attributes.position.needsUpdate = true;
       s.line.geometry.attributes.color.needsUpdate = true;
@@ -527,8 +612,8 @@
       flare.position.set(ringC.x + Math.cos(fa) * ringR, ringC.y + Math.sin(fa) * ringR, 0.05);
       const tw = 0.75 + 0.25 * Math.sin(t * 5.0);
       flare.material.opacity = Math.min(1, state.intro * 1.5) * tw;
-      flare.scale.setScalar(0.5 + 0.12 * Math.sin(t * 3.1));
-      glow.material.opacity = 0.75 + 0.25 * Math.sin(t * 1.3);
+      flare.scale.setScalar(0.32 + 0.06 * Math.sin(t * 3.1));
+
       coinSpin.rotation.x = state.my * 0.22 + Math.cos(t * 0.5) * 0.04;
       coinSpin.position.y = Math.sin(t * 0.9) * 0.025;
 
@@ -555,6 +640,8 @@
 
     updateRitual(t);
     updateStrands(t);
+    const lockOp = state.intro < 0.5 ? 0 : (state.hero < 0.5 ? 0.5 : (ritual.visible ? 0.4 : 0.7));
+    for (const L of locks) updateLock(L, t, lockOp, dt);
     dMat.uniforms.uTime.value = t;
     dMat.uniforms.uScroll.value = 0;
     dMat.uniforms.uAlpha.value = Math.min(1, state.strandsIn * 1.2);
