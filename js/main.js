@@ -114,6 +114,23 @@
     contact.style.setProperty('--cy', `${e.clientY - r.top}px`);
   });
 
+  /* ---------- Music toggle ---------- */
+  const soundBtn = $('.sound'), theme = $('#theme');
+  if (soundBtn && theme) {
+    theme.volume = 0.7;
+    const setState = (on) => {
+      soundBtn.setAttribute('aria-pressed', String(on));
+      soundBtn.classList.toggle('is-on', on);
+      const label = on ? 'Oprește muzica' : 'Pornește muzica';
+      $('.sound__label', soundBtn).textContent = label;
+      soundBtn.setAttribute('aria-label', label);
+    };
+    soundBtn.addEventListener('click', () => {
+      if (theme.paused) theme.play().then(() => setState(true)).catch(() => setState(false));
+      else { theme.pause(); setState(false); }
+    });
+  }
+
   /* ---------- Portfolio lightbox ---------- */
   const works = $$('.work');
   const lb = $('.lightbox'), lbImg = $('.lightbox__fig img'), lbCap = $('.lightbox__fig figcaption');
