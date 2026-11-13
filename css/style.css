@@ -273,7 +273,7 @@ strong { color: var(--ink); font-weight: 500; }
 .f4 { left: 3%; bottom: 14%; }
 .f5 { right: 38%; bottom: 3%; width: 54px; height: 54px; }
 
-.cards { display: grid; grid-template-columns: repeat(4, 1fr); gap: 22px; perspective: 1400px; position: relative; z-index: 2; }
+.cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 22px; perspective: 1400px; position: relative; z-index: 2; }
 .card {
   position: relative; padding: 38px 28px 32px; border-radius: 10px; overflow: hidden;
   background: linear-gradient(160deg, rgba(30,28,24,.92), rgba(12,12,11,.96));
@@ -467,7 +467,7 @@ html:not(.webgl) .ritual__stage, html:not(.webgl) .ritual__hint { display: none;
 
 /* ---------- Responsive ---------- */
 @media (max-width: 1100px) {
-  .cards, .products { grid-template-columns: repeat(2, 1fr); }
+  .products { grid-template-columns: repeat(2, 1fr); }
   .works__grid { grid-template-columns: repeat(3, 1fr); }
   .nav__links { display: none; }
 }
@@ -483,7 +483,7 @@ html:not(.webgl) .ritual__stage, html:not(.webgl) .ritual__hint { display: none;
   .medal__orbit span:nth-child(4) { transform: rotate(216deg) translate(calc(min(74vw,400px)*.6)) rotate(90deg) translate(-50%,-50%); }
   .medal__orbit span:nth-child(5) { transform: rotate(288deg) translate(calc(min(74vw,400px)*.6)) rotate(90deg) translate(-50%,-50%); }
   .scroll-cue { display: none; }
-  .about, .training, .faq, .contact__grid, .reviews { grid-template-columns: 1fr; }
+  .about, .training, .faq, .contact__grid, .reviews, .cards { grid-template-columns: 1fr; }
   .about__media { max-width: 520px; width: 100%; margin: 0 auto 30px; }
   .steps { grid-template-columns: 1fr; }
   .process__line { display: none; }

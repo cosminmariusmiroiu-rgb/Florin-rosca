@@ -349,7 +349,7 @@
   function updateLock(L, t, targetOpacity, dt) {
     const H = state.viewH, W = state.viewW, sc = H / 10.7;
     const len = H * L.length, wid = L.width * sc * 2.2;
-    const bx = L.side * (W * 0.5 - (isSmall ? 0.1 : 0.35) * sc);
+    const bx = L.side * (W * 0.5 - (isSmall ? 0.1 : 0.15) * sc);
     const by = H * (L.top - 0.5) + H * 0.5 * 0.0;
     const pos = L.geo.attributes.position.array, col = L.geo.attributes.color.array;
     let vi = 0;
@@ -358,7 +358,7 @@
     const P = L.P, cxA = new Float32Array(P), cyA = new Float32Array(P), czA = new Float32Array(P), thA = new Float32Array(P), wA = new Float32Array(P);
     for (let j = 0; j < P; j++) {
       const u = j / (P - 1);
-      cxA[j] = bx - L.side * ((0.5 + 0.5 * Math.sin(u * Math.PI * 2.2 + tt)) * (isSmall ? 0.45 : 0.9) * sc * (0.25 + u) + Math.sin(u * 7 + tt * 1.3) * 0.08 * sc);
+      cxA[j] = bx - L.side * ((0.5 + 0.5 * Math.sin(u * Math.PI * 2.2 + tt)) * (isSmall ? 0.4 : 0.55) * sc * (0.25 + u) + Math.sin(u * 7 + tt * 1.3) * 0.08 * sc);
       cyA[j] = by - u * len;
       czA[j] = -2.5 + Math.cos(u * 2.4 + tt * 0.8) * 0.6;
       thA[j] = u * 5.2 + Math.sin(tt * 0.7) * 0.6 + L.phase;
@@ -640,7 +640,7 @@
 
     updateRitual(t);
     updateStrands(t);
-    const lockOp = state.intro < 0.5 ? 0 : (state.hero < 0.5 ? 0.5 : (ritual.visible ? 0.4 : 0.7));
+    const lockOp = state.intro < 0.5 ? 0 : (state.hero < 0.5 ? 0.5 : (ritual.visible ? 0.4 : 0.55));
     for (const L of locks) updateLock(L, t, lockOp, dt);
     dMat.uniforms.uTime.value = t;
     dMat.uniforms.uScroll.value = 0;
