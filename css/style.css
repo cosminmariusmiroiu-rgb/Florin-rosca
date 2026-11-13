@@ -679,3 +679,7 @@ html:not(.webgl) .ritual__stage, html:not(.webgl) .ritual__hint { display: none;
 }
 @media (max-width: 860px) { .cine__bg { width: 100%; align-self: stretch; } }
 @media (max-width: 860px) { .cine__content { margin-top: -30px; } .cine .medal { width: 84px; } .cine .hero__medal { display: flex; justify-content: flex-start; } }
+
+/* canvas version of the transformation (hand of light through the hair) */
+.cine__canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+.cine__bg.has-canvas > img, .cine__bg.has-canvas .studio__band { display: none; }

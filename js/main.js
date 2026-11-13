@@ -114,34 +114,6 @@
     contact.style.setProperty('--cy', `${e.clientY - r.top}px`);
   });
 
-  /* ---------- Hero: damaged -> pearl blonde transformation (looping) ---------- */
-  (function transformation() {
-    const frame = $('.cine__bg');
-    if (!frame) return;
-    if (reduced) { frame.classList.add('is-after'); return; }
-    const setP = (v) => frame.style.setProperty('--p', v + '%');
-    const wait = (ms) => new Promise((r) => setTimeout(r, ms));
-    const wipe = (ms) => new Promise((res) => {
-      frame.classList.add('is-wiping');
-      const t0 = performance.now();
-      (function step(now) {
-        const k = Math.min(1, (now - t0) / ms);
-        const e = k < .5 ? 2 * k * k : 1 - Math.pow(-2 * k + 2, 2) / 2;
-        setP(-10 + e * 125);
-        if (k < 1) requestAnimationFrame(step); else { frame.classList.remove('is-wiping'); res(); }
-      })(t0);
-    });
-    (async function loop() {
-      for (;;) {
-        frame.classList.remove('is-after'); setP(-10);   // before: he lifts the damaged hair
-        await wait(3200);
-        await wipe(2000);                                  // golden wave: the hair falls, transformed
-        frame.classList.add('is-after');
-        await wait(6000);                                  // after: pearl blonde balayage
-      }
-    })();
-  })();
-
   /* ---------- Music toggle ---------- */
   const soundBtn = $('.sound'), theme = $('#theme');
   if (soundBtn && theme) {
