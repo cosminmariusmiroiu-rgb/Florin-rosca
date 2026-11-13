@@ -135,6 +135,98 @@
   scissorsWrap.add(scissors);
   scene.add(scissorsWrap);
 
+  /* ---------- Ritual: exploded 3D stack of salon objects ---------- */
+  const lacquer = new THREE.MeshStandardMaterial({ color: 0x0d0c0b, metalness: 0.55, roughness: 0.18, envMapIntensity: 1.2 });
+  const dyeMat = new THREE.MeshStandardMaterial({ color: 0x7a4a16, metalness: 0.6, roughness: 0.22, emissive: 0x2a1404, emissiveIntensity: 0.5 });
+  const bristleMat = new THREE.MeshStandardMaterial({ color: 0x1a1714, metalness: 0.1, roughness: 0.7 });
+
+  function makeComb() {
+    const g = new THREE.Group();
+    const spine = new THREE.Mesh(new THREE.BoxGeometry(2.3, 0.12, 0.34), gold);
+    g.add(spine);
+    for (let i = 0; i < 24; i++) {
+      const tooth = new THREE.Mesh(new THREE.BoxGeometry(0.045, 0.07, i < 8 ? 0.7 : 0.55), goldSatin);
+      tooth.position.set(-1.08 + i * 0.094, 0, 0.17 + (i < 8 ? 0.35 : 0.27));
+      g.add(tooth);
+    }
+    g.position.z = -0.3;
+    const w = new THREE.Group(); w.add(g); return w;
+  }
+  function makeBowl() {
+    const g = new THREE.Group();
+    const prof = [];
+    for (let i = 0; i <= 16; i++) { const a = (i / 16) * Math.PI / 2; prof.push(new THREE.Vector2(0.15 + Math.sin(a) * 0.95, -Math.cos(a) * 0.55)); }
+    const bowl = new THREE.Mesh(new THREE.LatheGeometry(prof, 64), lacquer);
+    bowl.material.side = THREE.DoubleSide;
+    g.add(bowl);
+    const rimT = new THREE.Mesh(new THREE.TorusGeometry(1.1, 0.045, 12, 96), gold); rimT.rotation.x = Math.PI / 2; g.add(rimT);
+    const dye = new THREE.Mesh(new THREE.CircleGeometry(1.0, 64), dyeMat); dye.rotation.x = -Math.PI / 2; dye.position.y = -0.12; g.add(dye);
+    const brush = new THREE.Group();
+    const handle = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.035, 1.9, 16), gold); handle.position.y = 0.95; brush.add(handle);
+    const head = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.14, 0.09), goldBright); brush.add(head);
+    const bristles = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.3, 0.07), bristleMat); bristles.position.y = -0.2; brush.add(bristles);
+    brush.position.set(0.35, 0.05, 0.1); brush.rotation.z = -0.95; g.add(brush);
+    return g;
+  }
+  function makeBottle() {
+    const g = new THREE.Group();
+    const prof = [new THREE.Vector2(0, -0.8), new THREE.Vector2(0.36, -0.8), new THREE.Vector2(0.4, -0.74), new THREE.Vector2(0.4, 0.4), new THREE.Vector2(0.34, 0.56), new THREE.Vector2(0.16, 0.66), new THREE.Vector2(0.14, 0.78), new THREE.Vector2(0, 0.78)];
+    g.add(new THREE.Mesh(new THREE.LatheGeometry(prof, 48), lacquer));
+    const cap = new THREE.Mesh(new THREE.CylinderGeometry(0.17, 0.17, 0.36, 32), gold); cap.position.y = 0.94; g.add(cap);
+    const band = new THREE.Mesh(new THREE.CylinderGeometry(0.405, 0.405, 0.5, 48, 1, true), goldSatin); band.position.y = -0.15; g.add(band);
+    const line1 = new THREE.Mesh(new THREE.TorusGeometry(0.41, 0.012, 8, 64), goldBright); line1.rotation.x = Math.PI / 2; line1.position.y = 0.1; g.add(line1);
+    const line2 = line1.clone(); line2.position.y = -0.4; g.add(line2);
+    g.rotation.z = Math.PI / 2;
+    const w = new THREE.Group(); w.add(g); return w;
+  }
+  function makeCrown() {
+    const g = new THREE.Group();
+    const band = new THREE.Mesh(new THREE.CylinderGeometry(0.95, 0.85, 0.42, 64, 1, true), gold);
+    band.material = gold.clone(); band.material.side = THREE.DoubleSide; g.add(band);
+    const lip = new THREE.Mesh(new THREE.TorusGeometry(0.86, 0.05, 12, 96), goldBright); lip.rotation.x = Math.PI / 2; lip.position.y = -0.21; g.add(lip);
+    const lipT = new THREE.Mesh(new THREE.TorusGeometry(0.95, 0.04, 12, 96), goldBright); lipT.rotation.x = Math.PI / 2; lipT.position.y = 0.21; g.add(lipT);
+    const N = 8;
+    for (let i = 0; i < N; i++) {
+      const a = (i / N) * Math.PI * 2;
+      const tall = i % 2 === 0;
+      const spike = new THREE.Mesh(new THREE.ConeGeometry(0.16, tall ? 0.75 : 0.45, 4), gold);
+      spike.position.set(Math.cos(a) * 0.93, 0.21 + (tall ? 0.375 : 0.225), Math.sin(a) * 0.93);
+      spike.rotation.y = -a;
+      g.add(spike);
+      const ball = new THREE.Mesh(new THREE.SphereGeometry(tall ? 0.085 : 0.06, 16, 12), goldBright);
+      ball.position.set(Math.cos(a) * 0.93, 0.21 + (tall ? 0.8 : 0.48), Math.sin(a) * 0.93);
+      g.add(ball);
+      const gem = new THREE.Mesh(new THREE.OctahedronGeometry(0.07), lacquer);
+      gem.position.set(Math.cos(a + Math.PI / N) * 0.92, 0, Math.sin(a + Math.PI / N) * 0.92);
+      g.add(gem);
+    }
+    return g;
+  }
+  function makeFlatScissors() {
+    const w = new THREE.Group();
+    const s = new THREE.Group();
+    const a = makeHalf(1), b = makeHalf(-1);
+    s.add(a, b);
+    const sc = new THREE.Mesh(new THREE.CylinderGeometry(0.11, 0.11, 0.34, 32), goldBright); sc.rotation.x = Math.PI / 2; s.add(sc);
+    s.scale.setScalar(0.5); s.position.x = -0.18;
+    s.rotation.x = -Math.PI / 2; // lie flat
+    w.add(s);
+    w.userData.halves = [a, b];
+    return w;
+  }
+
+  const ritualEl = document.querySelector('.ritual');
+  const ritualStage = document.querySelector('.ritual__stage');
+  const ritualLabels = Array.from(document.querySelectorAll('.ritual__label'));
+  const ritualNum = document.querySelector('.ritual__num');
+  const ritualBar = document.querySelector('.ritual__bar i');
+  const ritual = new THREE.Group();
+  const layers = [makeComb(), makeBowl(), makeFlatScissors(), makeBottle(), makeCrown()]; // bottom → top
+  layers.forEach((l) => ritual.add(l));
+  ritual.visible = false;
+  scene.add(ritual);
+  const tmpV = new THREE.Vector3();
+
   /* ---------- Gold hair strands ---------- */
   const STRANDS = isSmall ? 16 : 30;
   const PTS = isSmall ? 90 : 140;
@@ -247,7 +339,7 @@
   function updateStrands(t) {
     const W = state.viewW * 0.62;
     const baseY = -state.viewH * 0.3 + state.hero * state.viewH * 0.2;
-    const fade = state.strandsIn * (1 - state.hero * 0.72);
+    const fade = state.strandsIn * (1 - state.hero * 0.72) * (ritual.visible ? 0.45 : 1);
     for (let i = 0; i < strands.length; i++) {
       const s = strands[i];
       const pos = s.line.geometry.attributes.position.array;
@@ -269,6 +361,62 @@
       s.line.geometry.attributes.position.needsUpdate = true;
       s.line.geometry.attributes.color.needsUpdate = true;
     }
+  }
+
+
+  function updateRitual(t) {
+    if (!ritualEl || !ritualStage) return;
+    const r = ritualEl.getBoundingClientRect();
+    const inView = r.top < state.h && r.bottom > 0;
+    ritual.visible = inView;
+    if (!inView) return;
+    const p = Math.min(1, Math.max(0, -r.top / Math.max(1, r.height - state.h)));
+    const sr = ritualStage.getBoundingClientRect();
+    const k = state.viewH / state.h;
+    const cx = ((sr.left + sr.width / 2) / state.w - 0.5) * state.viewW;
+    const cy = -((sr.top + sr.height / 2) / state.h - 0.5) * state.viewH;
+    // explode 0.06 → 0.62, hold, gentle re-stack at the very end
+    const e1 = Math.min(1, Math.max(0, (p - 0.06) / 0.56));
+    const e2 = Math.min(1, Math.max(0, (p - 0.9) / 0.1));
+    const ex = ease(e1) * (1 - ease(e2) * 0.6);
+    const gapMax = 1.3, gapMin = 0.36;
+    const gap = gapMin + (gapMax - gapMin) * ex;
+    const fitH = (sr.height * k) / (4 * gapMax + 2.8);
+    const fitW = (sr.width * k) / 2.6;
+    const S = Math.min(fitH, fitW);
+    ritual.position.set(cx, cy - S * 0.25, 0);
+    ritual.scale.setScalar(S * (0.85 + 0.15 * Math.min(1, p / 0.06)));
+    ritual.rotation.x = 0.42 - ex * 0.12;
+    ritual.rotation.y = -0.5 + p * 1.1 + state.mx * 0.15;
+    layers.forEach((l, i) => {
+      const dir = i % 2 ? 1 : -1;
+      l.position.y = (i - 2) * gap;
+      l.rotation.y = dir * ex * 0.9 + Math.sin(t * 0.6 + i) * 0.04 * ex;
+      l.rotation.z = dir * ex * 0.08;
+      l.position.x = dir * ex * 0.12;
+    });
+    const sh = layers[2].userData.halves;
+    if (sh) { const o = 0.05 + ex * 0.35 + (reduced ? 0 : snip(t * 0.5) * 0.15 * ex); sh[0].rotation.z = o; sh[1].rotation.z = -o; }
+
+    // labels track their layer on screen
+    ritual.updateMatrixWorld(true);
+    let active = 0;
+    const stickyTop = ritualStage.parentElement.getBoundingClientRect().top;
+    ritualLabels.forEach((lab) => {
+      const i = +lab.dataset.i;
+      tmpV.set(0, 0, 0);
+      layers[i].localToWorld(tmpV);
+      tmpV.project(camera);
+      const y = (-tmpV.y * 0.5 + 0.5) * state.h;
+      const order = 4 - i; // top label first
+      const o = Math.min(1, Math.max(0, (e1 - 0.25 - order * 0.13) / 0.12)) * (1 - ease(e2));
+      if (o > 0.5) active = Math.max(active, order + 1);
+      lab.style.top = (y - stickyTop) + 'px';
+      lab.style.opacity = o.toFixed(3);
+      lab.style.setProperty('--line', o.toFixed(3));
+    });
+    if (ritualNum) ritualNum.textContent = String(Math.max(1, active)).padStart(2, '0');
+    if (ritualBar) ritualBar.style.transform = `scaleX(${p.toFixed(3)})`;
   }
 
   function frame() {
@@ -319,6 +467,7 @@
       scissors.rotation.x = Math.sin(t * 0.8) * 0.4;
     }
 
+    updateRitual(t);
     updateStrands(t);
     dMat.uniforms.uTime.value = t;
     dMat.uniforms.uScroll.value = state.scroll / Math.max(1, state.h);
