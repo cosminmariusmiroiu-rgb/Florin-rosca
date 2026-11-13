@@ -323,9 +323,9 @@
         <form class="booking reveal" id="booking" novalidate>
           <h3>Programează o vizită</h3>
           <p class="booking__sub">Completează și trimite direct pe WhatsApp.</p>
-          <label><span>Nume</span><input name="nume" required autocomplete="name" placeholder="Numele tău"></label>
+          <label><span>Nume</span><input name="nume" id="f-nume" required autocomplete="name" placeholder="Numele tău"></label>
           <label><span>Serviciu</span>
-            <select name="serviciu">
+            <select name="serviciu" id="f-serviciu">
               <option>Consultație gratuită (15 min)</option>
               <option>Balayage Premium Dubai</option>
               <option>Vopsit / corecție de culoare</option>
@@ -334,11 +334,11 @@
               <option>Coafură mireasă / eveniment</option>
             </select>
           </label>
-          <label><span>Data preferată</span><input name="data" type="date"></label>
-          <label><span>Mesaj</span><textarea name="mesaj" rows="2" placeholder="Ce îți dorești pentru părul tău?"></textarea></label>
-          <button type="submit" class="btn btn--pulse" data-magnetic>
+          <label><span>Data preferată</span><input name="data" id="f-data" type="date"></label>
+          <label><span>Mesaj</span><textarea name="mesaj" id="f-mesaj" rows="2" placeholder="Ce îți dorești pentru părul tău?"></textarea></label>
+          <a href="https://wa.me/40732937622" id="waSend" class="btn btn--pulse" target="_blank" rel="noopener" data-magnetic>
             <span>Trimite pe WhatsApp</span>
-          </button>
+          </a>
           <a class="booking__call" href="tel:+40732937622">sau sună: 0732 937 622</a>
         </form>
       </div>
