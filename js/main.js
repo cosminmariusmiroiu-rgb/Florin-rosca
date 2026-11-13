@@ -114,30 +114,6 @@
     contact.style.setProperty('--cy', `${e.clientY - r.top}px`);
   });
 
-  /* ---------- Booking → WhatsApp (real link, updated as the visitor types) ---------- */
-  const form = $('#booking'), waSend = $('#waSend');
-  function waUrl() {
-    const name = form.nume.value.trim();
-    let date = '';
-    if (form.data.value) { const [y, m, d] = form.data.value.split('-'); date = `${d}.${m}.${y}`; }
-    const lines = [
-      `Bună ziua, Florin!${name ? ' Sunt ' + name + '.' : ''}`,
-      `Aș dori o programare pentru: ${form.serviciu.value}.`,
-      date ? `Data preferată: ${date}.` : '',
-      form.mesaj.value.trim() ? `Detalii: ${form.mesaj.value.trim()}` : ''
-    ].filter(Boolean);
-    return `https://wa.me/40732937622?text=${encodeURIComponent(lines.join('\n'))}`;
-  }
-  const syncWa = () => { waSend.href = waUrl(); };
-  form.addEventListener('input', syncWa);
-  form.addEventListener('change', syncWa);
-  syncWa();
-  waSend.addEventListener('click', (e) => {
-    if (!form.nume.value.trim()) { e.preventDefault(); form.nume.classList.add('is-invalid'); form.nume.focus(); return; }
-    form.nume.classList.remove('is-invalid'); syncWa();
-  });
-  form.addEventListener('submit', (e) => { e.preventDefault(); waSend.click(); });
-
   /* ---------- Portfolio lightbox ---------- */
   const works = $$('.work');
   const lb = $('.lightbox'), lbImg = $('.lightbox__fig img'), lbCap = $('.lightbox__fig figcaption');

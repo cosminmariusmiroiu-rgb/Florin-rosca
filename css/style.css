@@ -68,13 +68,11 @@ main, .footer, .nav { position: relative; z-index: 2; }
 .loader__curtain--top { top: 0; box-shadow: 0 1px 0 rgba(212,169,69,.35); }
 .loader__curtain--bottom { bottom: 0; }
 .loader__inner { position: relative; z-index: 1; display: grid; place-items: center; gap: 18px; }
-.loader__scissors { width: 92px; height: 92px; overflow: visible; }
-.loader__scissors path { fill: url(#g-gold); fill: var(--gold); }
-.loader__scissors circle { fill: none; stroke: var(--gold); stroke-width: 3; }
-.loader__scissors .pivot { fill: var(--gold-hi); stroke: none; }
-.loader__scissors .blade { transform-origin: 60px 60px; animation: snip .7s var(--ease) infinite alternate; }
-.loader__scissors .blade--b { animation-direction: alternate-reverse; }
-@keyframes snip { from { transform: rotate(-9deg); } to { transform: rotate(9deg); } }
+.loader__brush { width: 150px; height: 112px; overflow: visible; }
+.loader__stroke { fill: none; stroke: var(--gold); stroke-width: 5; stroke-linecap: round; stroke-dasharray: 200; stroke-dashoffset: 200; filter: drop-shadow(0 0 6px rgba(212,169,69,.6)); animation: paint 1.6s var(--ease) infinite; }
+.loader__tool { offset-path: path("M10 96 C 40 70, 70 104, 100 80 S 140 74, 150 70"); offset-rotate: 0deg; animation: paintTool 1.6s var(--ease) infinite; }
+@keyframes paint { 0% { stroke-dashoffset: 200; } 70%, 100% { stroke-dashoffset: 0; } }
+@keyframes paintTool { 0% { offset-distance: 0%; transform: rotate(-20deg); } 70% { offset-distance: 100%; transform: rotate(10deg); } 100% { offset-distance: 100%; transform: rotate(10deg); opacity: 0; } }
 .loader__mono { font-family: var(--f-display); font-size: 44px; letter-spacing: .08em; background: var(--gold-grad); -webkit-background-clip: text; background-clip: text; color: transparent; }
 .loader__bar { width: 180px; height: 1px; background: rgba(255,255,255,.08); overflow: hidden; }
 .loader__bar span { display: block; height: 100%; width: 0; background: var(--gold-grad); }
@@ -515,3 +513,51 @@ html:not(.webgl) .ritual__stage, html:not(.webgl) .ritual__hint { display: none;
   *, *::before, *::after { animation-duration: .001ms !important; animation-iteration-count: 1 !important; transition-duration: .001ms !important; }
   .grain { display: none; }
 }
+
+/* ---------- Mounir recognition ---------- */
+.hero__badge { display: inline-flex; align-items: center; gap: 10px; margin: 14px 0 0; padding: 9px 16px; border-radius: 999px; border: 1px solid rgba(212,169,69,.45); background: rgba(212,169,69,.08); color: var(--ink); font-size: 13px; letter-spacing: .04em; }
+.hero__badge strong { color: var(--gold-hi); font-weight: 600; }
+.hero__badge-star, .mounir__mark { color: var(--gold); }
+.mounir { position: relative; margin: 30px 0 0; padding: 22px 24px 22px 60px; border-radius: 10px; border: 1px solid rgba(212,169,69,.35); background: linear-gradient(160deg, rgba(40,33,20,.7), rgba(12,12,11,.9)); box-shadow: var(--shadow-gold); }
+.mounir p { margin: 0; color: var(--ink); font-family: var(--f-serif); font-size: clamp(18px, 1.5vw, 22px); line-height: 1.45; }
+.mounir strong { color: var(--gold-hi); font-weight: 500; }
+.mounir__mark { position: absolute; left: 22px; top: 20px; font-size: 24px; }
+
+/* ---------- Call-only booking card ---------- */
+.callcard { text-align: center; justify-items: center; }
+.callcard__num { margin: 4px 0 6px; font-family: var(--f-display); font-size: clamp(30px, 3.4vw, 44px); letter-spacing: .06em; color: var(--gold-hi); user-select: all; font-variant-numeric: tabular-nums; }
+.callcard__hours { margin: 8px 0 0; font-size: 13px; color: var(--muted); }
+
+/* ---------- Shop banner (home) ---------- */
+.shopbanner { position: relative; z-index: 2; padding: 0 var(--pad) clamp(40px, 6vw, 80px); }
+.shopbanner__card { display: grid; grid-template-columns: 1.1fr 1fr; align-items: center; border-radius: 16px; overflow: hidden; background: linear-gradient(120deg, #1d1810, #0c0b0a 60%); border: 1px solid rgba(212,169,69,.35); box-shadow: var(--shadow-gold), var(--shadow-deep); transition: transform .6s var(--ease), box-shadow .6s; }
+.shopbanner__card:hover { transform: translateY(-4px); box-shadow: 0 0 0 1px rgba(212,169,69,.6), 0 30px 70px -20px rgba(212,169,69,.45); }
+.shopbanner__media { height: 100%; min-height: 320px; overflow: hidden; }
+.shopbanner__media img { width: 100%; height: 100%; object-fit: cover; transition: transform 1.4s var(--ease); }
+.shopbanner__card:hover .shopbanner__media img { transform: scale(1.05); }
+.shopbanner__copy { padding: clamp(28px, 4vw, 64px); }
+.shopbanner__copy .h2 { font-size: clamp(30px, 3.6vw, 54px); }
+.shopbanner__btn { margin-top: 10px; }
+.nav__shop { color: var(--gold-hi) !important; }
+@media (max-width: 860px) {
+  .shopbanner__card { grid-template-columns: 1fr; }
+  .shopbanner__media { min-height: 0; aspect-ratio: 4/3; }
+  .shopbanner__btn { width: 100%; }
+}
+
+/* ---------- Shop page ---------- */
+.page-shop, .page-shop a, .page-shop button { cursor: auto; }
+.page-shop a, .page-shop button { cursor: pointer; }
+.shophero { display: grid; grid-template-columns: 1fr 1.1fr; gap: clamp(30px, 5vw, 80px); align-items: center; padding: 130px var(--pad) 40px; }
+.shophero__media { border-radius: 14px; overflow: hidden; box-shadow: var(--shadow-gold), var(--shadow-deep); }
+.shophero__media img { width: 100%; height: auto; }
+.shophero h1 { margin-top: 0; }
+.shoplist { padding-top: clamp(40px, 6vw, 80px); }
+.shopcard h2 { font-family: var(--f-display); font-weight: 500; font-size: 16px; line-height: 1.35; margin: 20px 0 10px; }
+.shopcard h2 small { display: block; font-family: var(--f-sans); color: var(--muted); font-size: 12px; margin-top: 4px; letter-spacing: .05em; }
+.shopcard .price { margin: 0 0 16px; }
+.shopcard__buy { width: 100%; margin-top: auto; }
+.shoplist__note { max-width: 640px; margin: 40px auto 0; text-align: center; font-size: 14px; }
+.shoplist__note a { color: var(--gold-hi); }
+@media (max-width: 860px) { .shophero { grid-template-columns: 1fr; padding-top: 100px; } .shophero__media { order: -1; } }
+@media (max-width: 560px) { .shopcard__buy { --h: 44px; padding: 0 12px; font-size: 11px; } }

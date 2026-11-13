@@ -1,7 +1,7 @@
 /* =========================================================
    Florin Roșca — WebGL stage (Three.js)
    - 3D gold coin carrying the logo (follows the hero medal slot)
-   - 3D gold scissors orbiting the coin and snipping
+   - 3D tint brush (Framar shape) orbiting the logo and painting
    - flowing gold "hair strands" + drifting gold dust
    ========================================================= */
 (function () {
@@ -191,14 +191,47 @@
     g.position.z = 0.07 * s;
     return g;
   }
-  const scissors = new THREE.Group();
-  const halfA = makeHalf(1), halfB = makeHalf(-1);
-  scissors.add(halfA, halfB);
-  const screw = new THREE.Mesh(new THREE.CylinderGeometry(0.11, 0.11, 0.34, 32), goldBright);
-  screw.rotation.x = Math.PI / 2; scissors.add(screw);
-  const scissorsWrap = new THREE.Group();
-  scissorsWrap.add(scissors);
-  scene.add(scissorsWrap);
+  /* ---------- Tint brush (shape of Florin's Framar colour brush) ---------- */
+  const bristleWhite = new THREE.MeshStandardMaterial({ color: 0xf4f1ea, metalness: 0.05, roughness: 0.45 });
+  const bristleTip = new THREE.MeshStandardMaterial({ color: 0xf1e2c0, metalness: 0.3, roughness: 0.3, emissive: 0x3a2c12, emissiveIntensity: 0.35 });
+  function makeTintBrush() {
+    const g = new THREE.Group();
+    const sh = new THREE.Shape();
+    sh.moveTo(-0.19, 2.05);
+    sh.quadraticCurveTo(0, 2.5, 0.19, 2.05);
+    sh.lineTo(0.15, 0.95);
+    sh.quadraticCurveTo(0.15, 0.48, 0.5, 0.28);
+    sh.lineTo(0.5, -0.35);
+    sh.lineTo(-0.5, -0.35);
+    sh.lineTo(-0.5, 0.28);
+    sh.quadraticCurveTo(-0.15, 0.48, -0.15, 0.95);
+    sh.lineTo(-0.19, 2.05);
+    const hole = new THREE.Path(); hole.absarc(0, 2.06, 0.075, 0, Math.PI * 2, true); sh.holes.push(hole);
+    const hg = new THREE.ExtrudeGeometry(sh, { depth: 0.1, bevelEnabled: true, bevelThickness: 0.035, bevelSize: 0.03, bevelSegments: 4, curveSegments: 24 });
+    hg.translate(0, 0, -0.05);
+    g.add(new THREE.Mesh(hg, gold));
+    // bristles: 3 rows, white with pearl-blond tips (freshly dipped in lightener)
+    for (let r = 0; r < 3; r++) {
+      for (let i = 0; i < 24; i++) {
+        const x = -0.46 + i * (0.92 / 23) + (Math.random() - 0.5) * 0.01;
+        const L = 0.62 + Math.random() * 0.12 - Math.abs(x) * 0.08;
+        const z = (r - 1) * 0.038;
+        const b1 = new THREE.Mesh(new THREE.BoxGeometry(0.034, L * 0.7, 0.03), bristleWhite);
+        b1.position.set(x, -0.35 - L * 0.35, z);
+        const b2 = new THREE.Mesh(new THREE.BoxGeometry(0.03, L * 0.3, 0.028), bristleTip);
+        b2.position.set(x, -0.35 - L * 0.7 - L * 0.15, z);
+        g.add(b1, b2);
+      }
+    }
+    return g;
+  }
+  const brushInner = new THREE.Group();
+  const brushModel = makeTintBrush();
+  brushModel.position.y = -0.55; // pivot near the middle of the handle
+  brushInner.add(brushModel);
+  const brushWrap = new THREE.Group();
+  brushWrap.add(brushInner);
+  scene.add(brushWrap);
 
   /* ---------- Ritual: exploded 3D stack of salon objects ---------- */
   const lacquer = new THREE.MeshStandardMaterial({ color: 0x0d0c0b, metalness: 0.55, roughness: 0.18, envMapIntensity: 1.2 });
@@ -267,16 +300,13 @@
     }
     return g;
   }
-  function makeFlatScissors() {
+  function makeFlatBrush() {
     const w = new THREE.Group();
-    const s = new THREE.Group();
-    const a = makeHalf(1), b = makeHalf(-1);
-    s.add(a, b);
-    const sc = new THREE.Mesh(new THREE.CylinderGeometry(0.11, 0.11, 0.34, 32), goldBright); sc.rotation.x = Math.PI / 2; s.add(sc);
-    s.scale.setScalar(0.5); s.position.x = -0.18;
-    s.rotation.x = -Math.PI / 2; // lie flat
-    w.add(s);
-    w.userData.halves = [a, b];
+    const m = makeTintBrush();
+    m.scale.setScalar(0.62);
+    m.rotation.set(-Math.PI / 2, 0, Math.PI / 2 + 0.15); // lie flat, pointing sideways
+    m.position.x = -0.15;
+    w.add(m);
     return w;
   }
 
@@ -286,7 +316,7 @@
   const ritualNum = document.querySelector('.ritual__num');
   const ritualBar = document.querySelector('.ritual__bar i');
   const ritual = new THREE.Group();
-  const layers = [makeComb(), makeBowl(), makeFlatScissors(), makeBottle(), makeCrown()]; // bottom → top
+  const layers = [makeComb(), makeBowl(), makeFlatBrush(), makeBottle(), makeCrown()]; // bottom → top
   layers.forEach((l) => ritual.add(l));
   ritual.visible = false;
   scene.add(ritual);
@@ -595,7 +625,7 @@
 
     // coin
     const show = state.coinVisible && state.intro > 0.001;
-    coin.visible = show; scissorsWrap.visible = show;
+    coin.visible = show; brushWrap.visible = show;
     if (show) {
       const R = state.coinR * (0.92 + 0.08 * ease(state.intro));
       coin.position.set(state.coinX, state.coinY, 0);
@@ -617,31 +647,30 @@
       coinSpin.rotation.x = state.my * 0.22 + Math.cos(t * 0.5) * 0.04;
       coinSpin.position.y = Math.sin(t * 0.9) * 0.025;
 
-      // scissors orbit
+      // tint brush orbit, painting strokes as it travels
       const k = Math.min(1, Math.max(0, (state.intro - 0.35) / 0.65));
       const th = t * (reduced ? 0 : 0.42) + 0.9;
       const orx = R * (isSmall ? 1.0 : 1.12), orz = R * 1.0;
-      scissorsWrap.position.set(
+      brushWrap.position.set(
         state.coinX + Math.cos(th) * orx,
         state.coinY + Math.sin(th) * R * 0.32 + R * 0.3,
         Math.sin(th) * orz + R * 0.55
       );
-      // keep the blades facing the viewer; point the tip along the on-screen orbit direction
-      scissorsWrap.rotation.order = 'ZYX';
-      scissorsWrap.rotation.z = Math.atan2(Math.cos(th) * R * 0.32, -Math.sin(th) * orx);
-      scissorsWrap.rotation.y = Math.sin(th) * 0.45;
-      scissorsWrap.rotation.x = 0.25 + Math.sin(t * 0.7) * 0.2;
-      const sc = (R * 1.35 / 4.7) * ease(k);
-      scissorsWrap.scale.setScalar(Math.max(0.0001, sc));
-      const open = 0.06 + 0.32 * (reduced ? 0.5 : snip(t * 0.55));
-      halfA.rotation.z = open; halfB.rotation.z = -open;
-      scissors.rotation.x = Math.sin(t * 0.8) * 0.4;
+      // bristles lead along the on-screen orbit direction
+      brushWrap.rotation.order = 'ZYX';
+      brushWrap.rotation.z = Math.atan2(Math.cos(th) * R * 0.32, -Math.sin(th) * orx) + Math.PI / 2;
+      brushWrap.rotation.y = Math.sin(th) * 0.5 + 0.35;
+      brushWrap.rotation.x = 0.2 + Math.sin(t * 0.7) * 0.15;
+      const sc = (R * 1.0 / 3.2) * ease(k);
+      brushWrap.scale.setScalar(Math.max(0.0001, sc));
+      brushInner.rotation.z = reduced ? 0 : Math.sin(t * 2.4) * 0.22; // painting stroke
+      brushInner.rotation.x = reduced ? 0 : Math.sin(t * 2.4 + 1.2) * 0.12;
     }
 
     updateRitual(t);
     updateStrands(t);
     const lockOp = state.intro < 0.5 ? 0 : (state.hero < 0.5 ? 0.5 : (ritual.visible ? 0.4 : 0.55));
-    for (const L of locks) updateLock(L, t, lockOp, dt);
+    for (const L of locks) updateLock(L, t, (L.side < 0 && (state.hero < 0.5 || ritual.visible)) ? 0 : lockOp, dt);
     dMat.uniforms.uTime.value = t;
     dMat.uniforms.uScroll.value = 0;
     dMat.uniforms.uAlpha.value = Math.min(1, state.strandsIn * 1.2);

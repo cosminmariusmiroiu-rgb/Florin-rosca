@@ -26,10 +26,9 @@
   <!-- ===== PRELOADER ===== -->
   <div class="loader" aria-hidden="true">
     <div class="loader__inner">
-      <svg class="loader__scissors" viewBox="0 0 120 120">
-        <g class="blade blade--a"><path d="M60 60 L112 30 L114 34 Z"/><circle cx="34" cy="78" r="13"/></g>
-        <g class="blade blade--b"><path d="M60 60 L112 90 L114 86 Z"/><circle cx="34" cy="42" r="13"/></g>
-        <circle class="pivot" cx="60" cy="60" r="3"/>
+      <svg class="loader__brush" viewBox="0 0 160 120">
+        <path class="loader__stroke" d="M10 96 C 40 70, 70 104, 100 80 S 140 74, 150 70"/>
+        <g class="loader__tool"><use href="#i-tint" width="64" height="64" x="-32" y="-60"/></g>
       </svg>
       <div class="loader__mono">FR</div>
       <div class="loader__bar"><span></span></div>
@@ -39,7 +38,7 @@
     <div class="loader__curtain loader__curtain--bottom"></div>
   </div>
 
-  <!-- Fixed WebGL stage: 3D scissors, gold hair strands, particles -->
+  <!-- Fixed WebGL stage: 3D logo, tint brush, hair locks, particles -->
   <canvas id="stage" aria-hidden="true"></canvas>
   <div class="grain" aria-hidden="true"></div>
   <div class="cursor" aria-hidden="true"><span class="cursor__dot"></span><span class="cursor__ring"></span></div>
@@ -54,14 +53,14 @@
       <a href="#despre" data-magnetic>Despre</a>
       <a href="#servicii" data-magnetic>Servicii</a>
       <a href="#lucrari" data-magnetic>Lucrări</a>
-      <a href="#magazin" data-magnetic>Magazin</a>
+      <a href="magazin.html" class="nav__shop" data-magnetic>Magazin</a>
       <a href="#contact" data-magnetic>Contact</a>
     </nav>
     <a href="#contact" class="btn btn--gold btn--sm nav__cta" data-magnetic><span>Programează-te</span></a>
     <button class="nav__burger" aria-label="Meniu" aria-expanded="false"><span></span><span></span></button>
   </header>
   <div class="menu" aria-hidden="true">
-    <a href="#despre">Despre</a><a href="#servicii">Servicii</a><a href="#lucrari">Lucrări</a><a href="#magazin">Magazin</a><a href="#contact">Contact</a>
+    <a href="#despre">Despre</a><a href="#servicii">Servicii</a><a href="#lucrari">Lucrări</a><a href="magazin.html">Magazin</a><a href="#contact">Contact</a>
     <a href="tel:+40732937622" class="menu__tel">0732 937 622</a>
   </div>
 
@@ -81,6 +80,7 @@
           <a href="#lucrari" class="btn btn--ghost" data-magnetic><span>Vezi lucrările</span></a>
         </div>
         <p class="hero__note reveal-hero"><span class="dot"></span> Consultație inițială gratuită · 15 minute</p>
+        <p class="hero__badge reveal-hero"><span class="hero__badge-star">★</span> Primul hair-stylist publicat pe paginile lui <strong>Mounir</strong></p>
       </div>
 
       <div class="hero__medal" data-tilt>
@@ -93,6 +93,19 @@
       </div>
 
       <a href="#despre" class="scroll-cue" aria-label="Derulează"><span></span>Scroll</a>
+    </section>
+
+    <!-- ===== SHOP BANNER ===== -->
+    <section class="shopbanner" aria-label="Magazinul Florin Roșca">
+      <a href="magazin.html" class="shopbanner__card">
+        <div class="shopbanner__media"><img src="assets/img/shop-luxury-repair.webp" alt="Gama Luxury Repair Florin Roșca: șampon, ser și mască" width="1448" height="1086"></div>
+        <div class="shopbanner__copy">
+          <p class="eyebrow">Magazin · Îngrijire profesională</p>
+          <h2 class="h2">Părul tău merită<br><em>îngrijire de salon.</em></h2>
+          <p>Descoperă produsele Luxury Repair pentru rutina ta de acasă și continuă îngrijirea din salon, zi de zi.</p>
+          <span class="btn btn--gold shopbanner__btn"><span>Intră în magazin →</span></span>
+        </div>
+      </a>
     </section>
 
     <!-- ===== MARQUEE ===== -->
@@ -116,7 +129,7 @@
         <ol class="ritual__labels">
           <li class="ritual__label" data-i="4"><b>Rezultatul</b><span>Culoarea se vede. Detaliile se simt.</span></li>
           <li class="ritual__label" data-i="3"><b>Tratamente intensive</b><span>Hair Botox, reparare și hidratare profundă</span></li>
-          <li class="ritual__label" data-i="2"><b>Tunsoare personalizată</b><span>Adaptată părului și stilului tău</span></li>
+          <li class="ritual__label" data-i="2"><b>Culoare</b><span>Corecții de culoare și nuanțe adaptate părului tău</span></li>
           <li class="ritual__label" data-i="1"><b>Balayage Premium Dubai</b><span>Nuanțe adaptate tipologiei părului, tehnici Mounir Academy</span></li>
           <li class="ritual__label" data-i="0"><b>Consultație</b><span>Gratuită, 15 minute · analiza tipologiei și a stilului</span></li>
         </ol>
@@ -157,7 +170,7 @@
         </div>
       </div>
       <div class="floaters" aria-hidden="true">
-        <svg class="floater f1" viewBox="0 0 64 64"><use href="#i-scissors"/></svg>
+        <svg class="floater f1" viewBox="0 0 64 64"><use href="#i-tint"/></svg>
         <svg class="floater f2" viewBox="0 0 64 64"><use href="#i-brush"/></svg>
         <svg class="floater f3" viewBox="0 0 64 64"><use href="#i-comb"/></svg>
         <svg class="floater f4" viewBox="0 0 64 64"><use href="#i-drop"/></svg>
@@ -180,7 +193,7 @@
           <div class="card__glow"></div>
         </article>
         <article class="card" data-tilt>
-          <div class="card__icon"><svg viewBox="0 0 64 64"><use href="#i-scissors"/></svg></div>
+          <div class="card__icon"><svg viewBox="0 0 64 64"><use href="#i-tint"/></svg></div>
           <span class="card__num">02</span>
           <h3>Transformări complete de lux</h3>
           <p>Schimbări de look, corecții de culoare și tunsori personalizate. Transformarea pornește de la analiza părului, a stilului și a rezultatului pe care îl dorești.</p>
@@ -245,7 +258,11 @@
         <p class="eyebrow reveal">Formare · Mounir Academy Dubai</p>
         <h2 class="h2 reveal-lines">Tehnică internațională.<br><em>Perfecționare continuă.</em></h2>
         <p class="reveal">La Mounir Academy Dubai, Florin s-a format în tehnici de culoare și balayage pe care le folosește în salon. Seminariile, demonstrațiile și întâlnirile profesionale completează practica de zi cu zi.</p>
-      </div>
+                <blockquote class="mounir reveal">
+            <span class="mounir__mark">★</span>
+            <p>Florin Roșca este <strong>primul hair-stylist care a reușit să fie publicat pe paginile lui Mounir</strong>, considerat cel mai bun hair-stylist la ora actuală.</p>
+          </blockquote>
+        </div>
       <div class="mosaic">
         <figure class="parallax" data-speed="-0.08"><img src="assets/img/seminar-3.webp" alt="Demonstrație de culoare la seminar" loading="lazy"></figure>
         <figure class="parallax" data-speed="0.1"><img src="assets/img/seminar-1.webp" alt="Florin Roșca prezentând la seminar" loading="lazy"></figure>
@@ -286,7 +303,7 @@
           <p class="price"><s>250 lei</s> 190 lei</p>
         </a>
       </div>
-      <div class="center reveal"><a href="https://florinrosca.ro/magazin/" target="_blank" rel="noopener" class="btn btn--ghost" data-magnetic><span>Vezi tot magazinul</span></a></div>
+      <div class="center reveal"><a href="magazin.html" class="btn btn--gold" data-magnetic><span>Intră în magazin</span></a></div>
     </section>
 
     <!-- ===== REVIEWS ===== -->
@@ -334,26 +351,13 @@
           </div>
         </div>
 
-        <form class="booking reveal" id="booking" novalidate>
-          <h3>Programează o vizită</h3>
-          <p class="booking__sub">Completează și trimite direct pe WhatsApp.</p>
-          <label><span>Nume</span><input name="nume" id="f-nume" required autocomplete="name" placeholder="Numele tău"></label>
-          <label><span>Serviciu</span>
-            <select name="serviciu" id="f-serviciu">
-              <option>Consultație gratuită (15 min)</option>
-              <option>Balayage Premium Dubai</option>
-              <option>Culoare / corecție de culoare</option>
-              <option>Tuns personalizat</option>
-              <option>Tratament (Hair Botox)</option>
-            </select>
-          </label>
-          <label><span>Data preferată</span><input name="data" id="f-data" type="date"></label>
-          <label><span>Mesaj</span><textarea name="mesaj" id="f-mesaj" rows="2" placeholder="Ce îți dorești pentru părul tău?"></textarea></label>
-          <a href="https://wa.me/40732937622" id="waSend" class="btn btn--pulse" target="_blank" rel="noopener" data-magnetic>
-            <span>Trimite pe WhatsApp</span>
-          </a>
-          <a class="booking__call" href="tel:+40732937622">sau sună: 0732 937 622</a>
-        </form>
+        <div class="booking callcard reveal">
+          <h3>Programează-te telefonic</h3>
+          <p class="booking__sub">Programările se fac doar prin apel telefonic.</p>
+          <p class="callcard__num">0732 937 622</p>
+          <a href="tel:+40732937622" class="btn btn--pulse" data-magnetic><span>Sună acum</span></a>
+          <p class="callcard__hours">Luni – Joi · 10:00 – 21:00<br>Vineri – Duminică · 10:00 – 20:00</p>
+        </div>
       </div>
     </section>
   </main>
@@ -365,8 +369,8 @@
     <small>© <span id="year">2026</span> Florin Roșca Luxury Hair. Toate drepturile rezervate.</small>
   </footer>
 
-  <a href="https://wa.me/40732937622" class="wa" target="_blank" rel="noopener" aria-label="Scrie pe WhatsApp">
-    <svg viewBox="0 0 32 32"><path d="M16 3a13 13 0 0 0-11.2 19.6L3 29l6.6-1.7A13 13 0 1 0 16 3zm0 23.6c-2 0-4-.5-5.7-1.6l-.4-.2-3.9 1 1-3.8-.3-.4A10.6 10.6 0 1 1 16 26.6zm5.8-7.9c-.3-.2-1.9-.9-2.2-1-.3-.1-.5-.2-.7.2l-1 1.2c-.2.2-.4.2-.7.1a8.7 8.7 0 0 1-4.3-3.8c-.3-.6.3-.5.9-1.6.1-.2 0-.4 0-.5l-1-2.4c-.3-.6-.5-.5-.7-.5h-.6c-.2 0-.6.1-.9.4-.3.3-1.2 1.1-1.2 2.8s1.2 3.2 1.4 3.5c.2.2 2.4 3.6 5.8 5 2.1.9 3 1 4 .8.7-.1 1.9-.8 2.2-1.5.3-.8.3-1.4.2-1.5l-.4-.3z"/></svg>
+  <a href="tel:+40732937622" class="wa" aria-label="Sună la 0732 937 622">
+    <svg viewBox="0 0 32 32"><path d="M9.6 3.5c.6-.2 1.3 0 1.7.6l2.6 4.1c.4.6.3 1.4-.2 1.9l-1.9 1.9c1.4 2.9 3.8 5.3 6.7 6.7l1.9-1.9c.5-.5 1.3-.6 1.9-.2l4.1 2.6c.6.4.8 1.1.6 1.7l-1.1 3.4c-.3.9-1.2 1.5-2.2 1.4C12.8 25 7 19.2 6.3 10.2c-.1-1 .5-1.9 1.4-2.2z"/></svg>
   </a>
 
   <!-- Icon sprites -->
@@ -374,7 +378,7 @@
     <defs>
       <linearGradient id="g-gold" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#f6e3a1"/><stop offset=".45" stop-color="#d4a945"/><stop offset="1" stop-color="#8a6420"/></linearGradient>
     </defs>
-    <symbol id="i-scissors" viewBox="0 0 64 64"><g fill="none" stroke="url(#g-gold)" stroke-width="2.4" stroke-linecap="round"><circle cx="16" cy="46" r="8"/><circle cx="16" cy="18" r="8"/><path d="M22 41 L56 14M22 23 L56 50"/><circle cx="33" cy="32" r="1.8" fill="url(#g-gold)"/></g></symbol>
+    <symbol id="i-tint" viewBox="0 0 64 64"><g fill="none" stroke="url(#g-gold)" stroke-width="2.4" stroke-linejoin="round" stroke-linecap="round"><path d="M28 4 Q32 1 36 4 L35 24 Q35 30 44 33 L44 42 L20 42 L20 33 Q29 30 29 24 Z"/><circle cx="32" cy="7" r="1.6"/><path d="M21 42 L20 60M25 42 L25 61M29 42 L29 61M33 42 L33 61M37 42 L37 61M41 42 L42 60"/></g></symbol>
     <symbol id="i-brush" viewBox="0 0 64 64"><g fill="none" stroke="url(#g-gold)" stroke-width="2.4" stroke-linejoin="round"><path d="M40 6 L50 16 L30 36 L24 30 Z"/><path d="M24 30 L30 36 L22 44 C18 48 12 50 8 56 C10 48 12 42 16 38 Z"/><path d="M14 46 L18 50M18 42 L22 46"/></g></symbol>
     <symbol id="i-comb" viewBox="0 0 64 64"><g fill="none" stroke="url(#g-gold)" stroke-width="2.4" stroke-linecap="round"><rect x="6" y="22" width="52" height="10" rx="3"/><path d="M12 32v16M18 32v16M24 32v16M30 32v16M36 32v16M42 32v16M48 32v16M54 32v12"/></g></symbol>
     <symbol id="i-drop" viewBox="0 0 64 64"><g fill="none" stroke="url(#g-gold)" stroke-width="2.4" stroke-linejoin="round"><path d="M30 8 C30 8 14 28 14 40 a16 16 0 0 0 32 0 C46 28 30 8 30 8 Z"/><path d="M22 40 a8 8 0 0 0 8 8"/><path d="M50 8v8M46 12h8"/></g></symbol>
