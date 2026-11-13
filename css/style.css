@@ -683,3 +683,10 @@ html:not(.webgl) .ritual__stage, html:not(.webgl) .ritual__hint { display: none;
 /* canvas version of the transformation (hand of light through the hair) */
 .cine__canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
 .cine__bg.has-canvas > img, .cine__bg.has-canvas .studio__band { display: none; }
+
+/* real transformation video in the hero */
+.cine__video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: 50% 18%; transform: scale(1.04) translateX(9%); transition: opacity .7s ease; }
+.cine__bg.has-video > .cine__after, .cine__bg.has-video .studio__band { display: none; }
+.cine__bg.has-video .studio__before { -webkit-mask-image: none; mask-image: none; opacity: 1 !important; }
+.cine__bg.is-rewinding .cine__video { opacity: 0; }
+@media (max-width: 860px) { .cine__video { transform: none; object-position: 50% 20%; } }

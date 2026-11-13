@@ -13,6 +13,21 @@
   const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   if (reduced) { frame.classList.add('is-after'); return; }
 
+  // Real video version: plays the transformation, holds the result, then starts again from "before".
+  const vid = frame.querySelector('.cine__video');
+  if (vid) {
+    frame.classList.add('has-video');
+    const HOLD = 3500;
+    const sync = () => frame.classList.toggle('is-after', vid.duration ? vid.currentTime > vid.duration * 0.55 : false);
+    vid.addEventListener('timeupdate', sync);
+    vid.addEventListener('ended', () => {
+      frame.classList.add('is-after');
+      setTimeout(() => { frame.classList.add('is-rewinding'); setTimeout(() => { vid.currentTime = 0; frame.classList.remove('is-after', 'is-rewinding'); vid.play().catch(() => {}); }, 700); }, HOLD);
+    });
+    vid.play().catch(() => {});
+    return;
+  }
+
   const canvas = document.createElement('canvas');
   canvas.className = 'cine__canvas';
   frame.insertBefore(canvas, frame.querySelector('.cine__shade'));
