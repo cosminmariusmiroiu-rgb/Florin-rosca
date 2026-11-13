@@ -242,10 +242,6 @@
     return tween;
   })();
 
-  /* ---------- Hero parallax on scroll ---------- */
-  gsap.to('.hero__copy', { yPercent: -18, opacity: 0.2, ease: 'none', scrollTrigger: { trigger: '.hero', start: 'top top', end: 'bottom top', scrub: true } });
-  gsap.to('.hero__medal', { yPercent: 14, ease: 'none', scrollTrigger: { trigger: '.hero', start: 'top top', end: 'bottom top', scrub: true } });
-
   /* ---------- Generic reveals ---------- */
   $$('.reveal').forEach((el) => {
     gsap.from(el, { y: 40, opacity: 0, duration: 1.1, ease: 'power3.out', scrollTrigger: { trigger: el, start: 'top 88%' } });
@@ -258,13 +254,11 @@
     ScrollTrigger.create({ trigger: el, start: 'top 90%', once: true, onEnter: () => runCounter(el) });
   });
 
-  /* ---------- Parallax images ---------- */
-  $$('.parallax').forEach((fig) => {
-    const speed = parseFloat(fig.dataset.speed || '0.1');
-    gsap.to(fig, { yPercent: speed * 100, ease: 'none', scrollTrigger: { trigger: fig, start: 'top bottom', end: 'bottom top', scrub: true } });
-    const img = $('img', fig);
-    if (img) gsap.fromTo(img, { scale: 1.25 }, { scale: 1.05, ease: 'none', scrollTrigger: { trigger: fig, start: 'top bottom', end: 'bottom top', scrub: true } });
+  /* ---------- Images: reveal once, then a slow self-running drift ---------- */
+  $$('.parallax').forEach((fig, i) => {
     gsap.from(fig, { clipPath: 'inset(100% 0 0 0)', duration: 1.4, ease: 'expo.out', scrollTrigger: { trigger: fig, start: 'top 90%' } });
+    const img = $('img', fig);
+    if (img) gsap.fromTo(img, { scale: 1.12, yPercent: -2 }, { scale: 1.04, yPercent: 2, duration: 7 + i, ease: 'sine.inOut', yoyo: true, repeat: -1 });
   });
   gsap.to('[data-float]', { y: -16, rotate: -4, duration: 3, ease: 'sine.inOut', yoyo: true, repeat: -1 });
 
@@ -274,10 +268,9 @@
     scrollTrigger: { trigger: '.cards', start: 'top 85%' }
   });
   $$('.floater').forEach((f, i) => {
-    gsap.to(f, { y: () => -60 - i * 25, rotate: (i % 2 ? 1 : -1) * (40 + i * 15), ease: 'none', scrollTrigger: { trigger: '.services', start: 'top bottom', end: 'bottom top', scrub: true } });
+    gsap.to(f, { y: -30 - i * 8, rotate: (i % 2 ? 1 : -1) * (25 + i * 8), duration: 4 + i * 0.7, yoyo: true, repeat: -1, ease: 'sine.inOut' });
     gsap.to(f, { x: (i % 2 ? 14 : -14), duration: 3 + i * 0.6, yoyo: true, repeat: -1, ease: 'sine.inOut' });
   });
-  gsap.fromTo('.services__ring', { rotateZ: -12, scale: 0.85 }, { rotateZ: 12, scale: 1.05, ease: 'none', scrollTrigger: { trigger: '.services', start: 'top bottom', end: 'bottom top', scrub: true } });
   // place ring words in 3D
   const ringWords = $$('.ring3d span');
   ringWords.forEach((s, i) => {
@@ -290,7 +283,7 @@
   if (path) {
     const len = path.getTotalLength();
     gsap.set(path, { strokeDasharray: len, strokeDashoffset: len });
-    gsap.to(path, { strokeDashoffset: 0, ease: 'none', scrollTrigger: { trigger: '.process', start: 'top 70%', end: 'center 50%', scrub: true } });
+    gsap.to(path, { strokeDashoffset: 0, duration: 2.4, ease: 'power2.inOut', scrollTrigger: { trigger: '.process', start: 'top 70%' } });
   }
 
   /* ---------- Portfolio: user-controlled strip (drag / swipe / arrows) ---------- */

@@ -32,6 +32,7 @@ body {
   font-size: clamp(15px, .35vw + 14px, 17px);
   line-height: 1.7;
   font-weight: 300;
+  overflow-x: clip;
   -webkit-font-smoothing: antialiased;
 }
 body.is-loading { overflow: hidden; }
@@ -423,8 +424,8 @@ strong { color: var(--ink); font-weight: 500; }
 
 
 /* ---------- Ritual: exploded 3D stack (sticky, follows the scroll exactly) ---------- */
-.ritual { position: relative; z-index: 2; height: 460vh; }
-.ritual__sticky { position: sticky; top: 0; height: 100vh; height: 100svh; overflow: hidden; }
+.ritual { position: relative; z-index: 2; }
+.ritual__sticky { position: relative; height: 100vh; height: 100svh; min-height: 640px; overflow: hidden; }
 .ritual__copy { position: absolute; left: var(--pad); top: 50%; transform: translateY(-50%); width: min(30vw, 420px); z-index: 2; }
 .ritual__lead { max-width: 340px; }
 .ritual__step { display: flex; align-items: center; gap: 14px; margin-top: 30px; font-family: var(--f-display); font-size: 13px; letter-spacing: .2em; color: var(--muted); }
@@ -450,7 +451,7 @@ html:not(.webgl) .ritual__labels { display: grid; gap: 22px; }
 html:not(.webgl) .ritual__stage, html:not(.webgl) .ritual__hint { display: none; }
 
 @media (max-width: 860px) {
-  .ritual { height: 420vh; }
+  .ritual__sticky { min-height: 700px; }
   .ritual__copy { top: 84px; transform: none; width: auto; right: var(--pad); }
   .ritual__copy .h2 { font-size: 28px; margin-bottom: 8px; }
   .ritual__lead { display: none; }

@@ -226,6 +226,7 @@
   ritual.visible = false;
   scene.add(ritual);
   const tmpV = new THREE.Vector3();
+  let ritualStart = -1;
 
   /* ---------- Gold hair strands ---------- */
   const STRANDS = isSmall ? 16 : 30;
@@ -300,7 +301,7 @@
     strandsIn: 0,
     hero: 0,           // scroll progress through hero 0..1
     scroll: 0,
-    coinR: 1, coinX: 0, coinY: 0, coinVisible: true
+    dim: 1, coinR: 1, coinX: 0, coinY: 0, coinVisible: true
   };
   const medalEl = document.querySelector('.medal');
 
@@ -338,13 +339,13 @@
 
   function updateStrands(t) {
     const W = state.viewW * 0.62;
-    const baseY = -state.viewH * 0.3 + state.hero * state.viewH * 0.2;
-    const fade = state.strandsIn * (1 - state.hero * 0.72) * (ritual.visible ? 0.45 : 1);
+    const baseY = -state.viewH * 0.3;
+    const fade = state.strandsIn * state.dim;
     for (let i = 0; i < strands.length; i++) {
       const s = strands[i];
       const pos = s.line.geometry.attributes.position.array;
       const col = s.line.geometry.attributes.color.array;
-      const tt = t * s.speed + s.phase + state.scroll * 0.0012;
+      const tt = t * s.speed + s.phase;
       for (let j = 0; j < PTS; j++) {
         const u = j / (PTS - 1);
         const x = -W + u * W * 2;
@@ -369,25 +370,28 @@
     const r = ritualEl.getBoundingClientRect();
     const inView = r.top < state.h && r.bottom > 0;
     ritual.visible = inView;
-    if (!inView) return;
-    const p = Math.min(1, Math.max(0, -r.top / Math.max(1, r.height - state.h)));
+    if (!inView) { ritualStart = -1; return; }
+    // time-driven loop (independent of scrolling): stack -> explode -> hold -> re-stack
+    if (ritualStart < 0) ritualStart = t;
+    const CYCLE = 11;
+    const c = ((t - ritualStart) % CYCLE) / CYCLE;
+    const p = c;
     const sr = ritualStage.getBoundingClientRect();
     const k = state.viewH / state.h;
     const cx = ((sr.left + sr.width / 2) / state.w - 0.5) * state.viewW;
     const cy = -((sr.top + sr.height / 2) / state.h - 0.5) * state.viewH;
-    // explode 0.06 → 0.62, hold, gentle re-stack at the very end
-    const e1 = Math.min(1, Math.max(0, (p - 0.06) / 0.56));
-    const e2 = Math.min(1, Math.max(0, (p - 0.9) / 0.1));
-    const ex = ease(e1) * (1 - ease(e2) * 0.6);
+    const ex = c < 0.1 ? 0 : c < 0.3 ? ease((c - 0.1) / 0.2) : c < 0.84 ? 1 : 1 - ease((c - 0.84) / 0.16);
+    const e1 = Math.min(1, Math.max(0, (c - 0.1) / 0.32));
+    const e2 = Math.min(1, Math.max(0, (c - 0.8) / 0.05));
     const gapMax = 1.3, gapMin = 0.36;
     const gap = gapMin + (gapMax - gapMin) * ex;
     const fitH = (sr.height * k) / (4 * gapMax + 2.8);
     const fitW = (sr.width * k) / 2.6;
     const S = Math.min(fitH, fitW);
     ritual.position.set(cx, cy - S * 0.25, 0);
-    ritual.scale.setScalar(S * (0.85 + 0.15 * Math.min(1, p / 0.06)));
+    ritual.scale.setScalar(S);
     ritual.rotation.x = 0.42 - ex * 0.12;
-    ritual.rotation.y = -0.5 + p * 1.1 + state.mx * 0.15;
+    ritual.rotation.y = Math.sin(t * 0.35) * 0.6 + state.mx * 0.15;
     layers.forEach((l, i) => {
       const dir = i % 2 ? 1 : -1;
       l.position.y = (i - 2) * gap;
@@ -426,6 +430,8 @@
     state.my += (state.tmy - state.my) * Math.min(1, dt * 4);
     state.scroll = window.scrollY || 0;
     state.hero = Math.min(1, state.scroll / Math.max(1, state.h));
+    const dimTarget = ritual.visible ? 0.4 : (state.hero > 0.5 ? 0.3 : 1);
+    state.dim += (dimTarget - state.dim) * Math.min(1, dt * 1.5);
 
     trackMedal();
 
@@ -442,7 +448,7 @@
       const R = state.coinR * (0.92 + 0.08 * ease(state.intro));
       coin.position.set(state.coinX, state.coinY, 0);
       coin.scale.setScalar(R * ease(Math.min(1, state.intro * 1.2)));
-      coinSpin.rotation.y = (1 - ease(state.intro)) * Math.PI * 2.2 + state.mx * 0.45 + Math.sin(t * 0.6) * 0.08 + state.hero * Math.PI * 0.9;
+      coinSpin.rotation.y = (1 - ease(state.intro)) * Math.PI * 2.2 + state.mx * 0.45 + Math.sin(t * 0.6) * 0.08;
       coinSpin.rotation.x = state.my * 0.32 + Math.cos(t * 0.5) * 0.05;
       coinSpin.position.y = Math.sin(t * 0.9) * 0.025;
 
@@ -470,7 +476,7 @@
     updateRitual(t);
     updateStrands(t);
     dMat.uniforms.uTime.value = t;
-    dMat.uniforms.uScroll.value = state.scroll / Math.max(1, state.h);
+    dMat.uniforms.uScroll.value = 0;
     dMat.uniforms.uAlpha.value = Math.min(1, state.strandsIn * 1.2);
 
     renderer.render(scene, camera);
