@@ -227,7 +227,7 @@
 
   function finishLoader(instant) {
     const loader = $('.loader');
-    const done = () => { document.body.classList.remove('is-loading'); if (window.Stage) window.Stage.intro(); };
+    const done = () => { document.body.classList.remove('is-loading'); if (window.Stage) window.Stage.intro(); window.__entered = true; window.dispatchEvent(new Event('fr:entered')); };
     if (instant || !hasGsap) { loader.remove(); done(); return; }
     const tl = gsap.timeline({ onComplete: () => loader.remove() });
     tl.to('.loader__inner', { opacity: 0, scale: 0.92, duration: 0.5, ease: 'power2.in' })

@@ -30,7 +30,16 @@
         frame.classList.remove('is-after', 'is-rewinding'); vid.play().catch(() => {});
       }, 700); }, HOLD);
     });
-    vid.play().catch(() => {});
+    // Start only once the visitor is actually on the page: first the "before" (damaged red hair)
+    // is shown for a moment, then the video plays from the very beginning.
+    vid.pause();
+    const begin = () => {
+      try { vid.currentTime = 0; } catch (e) {}
+      frame.classList.remove('is-after');
+      setTimeout(() => { vid.play().catch(() => {}); }, 1600);
+    };
+    if (window.__entered || !document.querySelector('.loader')) begin();
+    else window.addEventListener('fr:entered', begin, { once: true });
     return;
   }
 
