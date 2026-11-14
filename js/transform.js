@@ -22,7 +22,13 @@
     vid.addEventListener('timeupdate', sync);
     vid.addEventListener('ended', () => {
       frame.classList.add('is-after');
-      setTimeout(() => { frame.classList.add('is-rewinding'); setTimeout(() => { vid.currentTime = 0; frame.classList.remove('is-after', 'is-rewinding'); vid.play().catch(() => {}); }, 700); }, HOLD);
+      setTimeout(() => { frame.classList.add('is-rewinding'); setTimeout(() => {
+        // alternate between the takes listed in data-videos
+        const list = (vid.dataset.videos || '').split(',').map((x) => x.trim()).filter(Boolean);
+        if (list.length > 1) { vid.dataset.i = String(((+vid.dataset.i || 0) + 1) % list.length); vid.src = list[+vid.dataset.i]; }
+        else vid.currentTime = 0;
+        frame.classList.remove('is-after', 'is-rewinding'); vid.play().catch(() => {});
+      }, 700); }, HOLD);
     });
     vid.play().catch(() => {});
     return;
