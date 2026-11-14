@@ -768,3 +768,15 @@ html:not(.webgl) .ritual__stage, html:not(.webgl) .ritual__hint { display: none;
 @keyframes avSpin { 0%, 100% { transform: rotateY(-28deg) rotateX(6deg); } 50% { transform: rotateY(28deg) rotateX(-4deg); } }
 @keyframes avShine { 0% { background-position: 150% 0; } 60%, 100% { background-position: -100% 0; } }
 @media (prefers-reduced-motion: reduce) { .credit__mark, .credit__shine { animation: none; } }
+
+/* ---------- Credit v2: small, horizontal, always spinning ---------- */
+.credit { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 10px 12px; width: auto; margin-top: 22px; padding-top: 16px; }
+.credit__by { font-size: 9px; letter-spacing: .35em; }
+.credit__logo { display: flex; align-items: center; gap: 10px; perspective: 400px; }
+.credit__mark { width: 46px; animation: avSpin360 4s linear infinite !important; animation-duration: 4s !important; animation-iteration-count: infinite !important; }
+.credit__mark img { transform: translateZ(6px); filter: drop-shadow(0 0 8px rgba(214,90,220,.6)); }
+.credit__shine { transform: translateZ(7px); animation: avShine 2.6s ease-in-out infinite !important; animation-duration: 2.6s !important; animation-iteration-count: infinite !important; }
+.credit__word { width: 150px; animation: avGlow 3s ease-in-out infinite !important; animation-duration: 3s !important; animation-iteration-count: infinite !important; }
+@keyframes avSpin360 { from { transform: rotateY(0deg); } to { transform: rotateY(360deg); } }
+@keyframes avGlow { 0%, 100% { filter: drop-shadow(0 0 4px rgba(214,90,220,.25)); } 50% { filter: drop-shadow(0 0 12px rgba(214,90,220,.7)); } }
+@media (max-width: 420px) { .credit__word { width: 130px; } .credit__mark { width: 40px; } }
