@@ -18,7 +18,7 @@
   if (vid) {
     frame.classList.add('has-video');
     const HOLD = 3500;
-    const sync = () => frame.classList.toggle('is-after', vid.duration ? vid.currentTime > vid.duration * 0.6 : false);
+    const sync = () => frame.classList.toggle('is-after', vid.duration ? vid.currentTime > vid.duration * 0.68 : false);
     vid.addEventListener('timeupdate', sync);
     vid.addEventListener('ended', () => {
       frame.classList.add('is-after');
