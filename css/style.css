@@ -824,3 +824,5 @@ html:not(.webgl) .ritual__stage, html:not(.webgl) .ritual__hint { display: none;
 .aur-send { width: 42px; height: 42px; flex: none; border-radius: 50%; border: 0; background: var(--gold-grad); color: #120d02; font-size: 16px; cursor: pointer; }
 .aur-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
 @media (max-width: 560px) { .aur-win { width: calc(100vw - 24px); right: -8px; height: calc(100svh - 170px); } }
+
+.music-credit { margin: 6px 0 0; font-size: 11px; letter-spacing: .06em; color: #7d776d; }
