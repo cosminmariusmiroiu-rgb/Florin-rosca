@@ -125,10 +125,29 @@
       $('.sound__label', soundBtn).textContent = label;
       soundBtn.setAttribute('aria-label', label);
     };
-    soundBtn.addEventListener('click', () => {
-      if (theme.paused) theme.play().then(() => setState(true)).catch(() => setState(false));
-      else { theme.pause(); setState(false); }
+    // remember if this visitor switched the music off
+    const KEY = 'fr-music-off';
+    const get = () => { try { return localStorage.getItem(KEY) === '1'; } catch (e) { return false; } };
+    const put = (v) => { try { v ? localStorage.setItem(KEY, '1') : localStorage.removeItem(KEY); } catch (e) {} };
+    const start = () => theme.play().then(() => { setState(true); return true; }).catch(() => false);
+
+    soundBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (theme.paused) { put(false); start(); }
+      else { theme.pause(); setState(false); put(true); }
     });
+
+    // Autostart: try right away; browsers that block sound without a gesture
+    // start it on the visitor's first tap / click / key press anywhere on the page.
+    if (!get()) {
+      theme.preload = 'auto';
+      const events = ['pointerdown', 'touchend', 'keydown'];
+      const onFirst = () => {
+        events.forEach((ev) => window.removeEventListener(ev, onFirst, true));
+        if (theme.paused && !get()) start();
+      };
+      start().then((ok) => { if (!ok) events.forEach((ev) => window.addEventListener(ev, onFirst, true)); });
+    }
   }
 
   /* ---------- Portfolio lightbox ---------- */
