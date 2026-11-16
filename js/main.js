@@ -330,3 +330,18 @@
 
   window.addEventListener('load', () => ScrollTrigger.refresh());
 })();
+
+/* TikTok creator embed: loaded only when the section comes into view */
+(function () {
+  const box = document.querySelector('.tt__embed');
+  if (!box) return;
+  const load = () => {
+    const u = box.dataset.tt;
+    box.innerHTML = '<blockquote class="tiktok-embed" cite="https://www.tiktok.com/@' + u + '" data-unique-id="' + u + '" data-embed-type="creator" style="max-width:780px;min-width:288px;"><section><a target="_blank" rel="noopener" href="https://www.tiktok.com/@' + u + '?refer=creator_embed">@' + u + '</a></section></blockquote>';
+    const s = document.createElement('script'); s.async = true; s.src = 'https://www.tiktok.com/embed.js'; document.body.appendChild(s);
+  };
+  if ('IntersectionObserver' in window) {
+    const io = new IntersectionObserver((e) => { if (e.some((x) => x.isIntersecting)) { io.disconnect(); load(); } }, { rootMargin: '400px' });
+    io.observe(box);
+  } else load();
+})();

@@ -835,3 +835,20 @@ html:not(.webgl) .ritual__stage, html:not(.webgl) .ritual__hint { display: none;
 .credit__word { width: 220px; }
 .music-credit { margin-top: 14px; }
 @media (max-width: 420px) { .credit { padding: 12px 16px; } .credit__mark { width: 54px; } .credit__word { width: 180px; } }
+
+/* ===== TikTok ===== */
+.tt { padding-top: 0; }
+.tt__card { max-width: 1100px; margin: 0 auto; border: 1px solid rgba(212,169,69,.35); border-radius: 28px; padding: clamp(18px,3vw,34px); background: radial-gradient(120% 140% at 0% 0%, rgba(212,169,69,.12), transparent 55%), rgba(255,255,255,.02); }
+.tt__head { display: flex; align-items: center; gap: clamp(14px,2.4vw,26px); flex-wrap: wrap; text-decoration: none; color: inherit; }
+.tt__badge { position: relative; flex: none; width: 74px; height: 74px; border-radius: 22px; display: grid; place-items: center; background: #0b0b0b; border: 1px solid rgba(212,169,69,.55); box-shadow: 0 12px 34px -12px rgba(212,169,69,.55); }
+.tt__badge .tt-ico { width: 38px; height: 38px; fill: var(--gold-hi, #f3d589); filter: drop-shadow(2px 2px 0 rgba(37,244,238,.55)) drop-shadow(-2px -2px 0 rgba(254,44,85,.55)); }
+.tt__txt { display: flex; flex-direction: column; gap: 4px; flex: 1 1 260px; }
+.tt__txt b { font-size: clamp(22px,3vw,32px); font-weight: 500; letter-spacing: .01em; }
+.tt__txt span:last-child { opacity: .72; font-size: 14px; }
+.tt__btn { flex: none; }
+.tt__embed { margin-top: 22px; display: flex; justify-content: center; min-height: 0; }
+.tt__embed blockquote { margin: 0 !important; width: 100%; }
+.soc-tt { display: inline-flex; align-items: center; gap: 8px; }
+.soc-tt .tt-ico { width: 15px; height: 15px; fill: currentColor; }
+@media (max-width: 600px) { .tt__btn { width: 100%; justify-content: center; } }
+.tt__embed blockquote > section { display: none; }
