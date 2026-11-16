@@ -1,0 +1,9 @@
+{
+  "name": "florin-rosca-site",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Site Florin Roșca Luxury Hair + panou de administrare + magazin cu SmartBill",
+  "main": "server/server.js",
+  "scripts": { "start": "node server/server.js" },
+  "engines": { "node": ">=20" }
+}

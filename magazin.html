@@ -170,16 +170,18 @@
         try { if (document.referrer && new URL(document.referrer).origin === location.origin && history.length > 1) { e.preventDefault(); history.back(); } } catch (err) {}
       });
       // category filter
-      var chips = document.querySelectorAll('.chip'), cards = document.querySelectorAll('.pcard');
+      var chips = document.querySelectorAll('.chip');
       chips.forEach(function (c) {
         c.addEventListener('click', function () {
           chips.forEach(function (x) { x.classList.toggle('is-active', x === c); });
           var f = c.getAttribute('data-f');
-          cards.forEach(function (card) { card.hidden = !(f === 'all' || card.getAttribute('data-cat') === f); });
+          document.querySelectorAll('.pcard').forEach(function (card) { card.hidden = !(f === 'all' || card.getAttribute('data-cat') === f); });
         });
       });
     })();
   </script>
+  <script src="js/shop.js"></script>
+  <script src="js/content.js"></script>
   <script src="js/chat.js"></script>
 </body>
 </html>

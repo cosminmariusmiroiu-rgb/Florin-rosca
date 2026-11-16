@@ -1,0 +1,394 @@
+'use strict';
+// Florin Roșca – site + panou de administrare + magazin + SmartBill.
+// Pornire: node server/server.js   (variabile: PORT, ADMIN_PASSWORD, DATA_DIR, SESSION_SECRET)
+const http = require('http');
+const fs = require('fs');
+const path = require('path');
+const crypto = require('crypto');
+const store = require('./store');
+const auth = require('./auth');
+const sb = require('./smartbill');
+
+const PORT = Number(process.env.PORT) || 3000;
+const ROOT = store.ROOT;
+const UPLOADS = path.join(store.DATA_DIR, 'uploads');
+fs.mkdirSync(UPLOADS, { recursive: true });
+
+const TYPES = {
+  '.html': 'text/html; charset=utf-8', '.css': 'text/css; charset=utf-8', '.js': 'text/javascript; charset=utf-8',
+  '.json': 'application/json; charset=utf-8', '.webp': 'image/webp', '.png': 'image/png', '.jpg': 'image/jpeg',
+  '.jpeg': 'image/jpeg', '.svg': 'image/svg+xml', '.mp4': 'video/mp4', '.mp3': 'audio/mpeg', '.ico': 'image/x-icon',
+  '.woff2': 'font/woff2', '.webmanifest': 'application/manifest+json'
+};
+// never served as static files
+const BLOCKED = /^\/(server|data|\.git|node_modules)(\/|$)|\/\.[^/]/;
+
+/* ---------- helpers ---------- */
+function send(res, code, data, headers = {}) {
+  const body = typeof data === 'string' || Buffer.isBuffer(data) ? data : JSON.stringify(data);
+  res.writeHead(code, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store', ...headers });
+  res.end(body);
+}
+const ok = (res, data) => send(res, 200, data);
+const fail = (res, code, msg) => send(res, code, { error: msg });
+
+function readBody(req, limit = 1e6) {
+  return new Promise((resolve, reject) => {
+    let size = 0; const chunks = [];
+    req.on('data', (c) => { size += c.length; if (size > limit) { reject(new Error('too_large')); req.destroy(); } else chunks.push(c); });
+    req.on('end', () => {
+      if (!chunks.length) return resolve({});
+      try { resolve(JSON.parse(Buffer.concat(chunks).toString('utf8'))); } catch (e) { reject(new Error('bad_json')); }
+    });
+    req.on('error', reject);
+  });
+}
+
+const ip = (req) => (req.headers['x-forwarded-for'] || '').split(',')[0].trim() || req.socket.remoteAddress;
+const str = (v, max = 300) => String(v == null ? '' : v).trim().slice(0, max);
+const num = (v) => { const n = Number(String(v).replace(',', '.')); return Number.isFinite(n) ? n : null; };
+const money = (n) => Math.round(n * 100) / 100;
+
+// texts edited in the panel: plain text + <br>, <em>, <strong>
+function cleanText(v) {
+  const esc = String(v || '').slice(0, 2000).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  return esc.replace(/&lt;(\/?)(br|em|strong)\s*\/?&gt;/gi, '<$1$2>').replace(/\n/g, '<br>');
+}
+
+/* ---------- products ---------- */
+function publicProducts() {
+  return store.products()
+    .filter((p) => p.active)
+    .sort((a, b) => (a.order || 0) - (b.order || 0))
+    .map(({ smartbillCode, ...p }) => ({ ...p, inStock: p.stock == null ? true : p.stock > 0 }));
+}
+
+function cleanProduct(input, existing) {
+  const p = { ...(existing || {}) };
+  p.name = str(input.name, 160);
+  if (!p.name) throw new Error('Numele produsului este obligatoriu.');
+  p.size = str(input.size, 40);
+  p.category = ['repair', 'anti', 'kit'].includes(input.category) ? input.category : 'repair';
+  p.price = num(input.price);
+  if (p.price == null || p.price <= 0) throw new Error('Prețul trebuie să fie un număr mai mare ca 0.');
+  p.oldPrice = input.oldPrice === '' || input.oldPrice == null ? null : num(input.oldPrice);
+  p.description = str(input.description, 2000);
+  p.smartbillCode = str(input.smartbillCode, 60);
+  p.image = /^(assets\/img\/|uploads\/)[\w\-./]+$/.test(input.image || '') ? input.image : (p.image || '');
+  p.alt = p.name + (p.size ? ', ' + p.size : '');
+  p.active = input.active !== false;
+  if (input.stock !== undefined) p.stock = input.stock === '' || input.stock == null ? null : Math.max(0, Math.round(num(input.stock) || 0));
+  if (!p.id) p.id = (p.name + '-' + p.size).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 80) + '-' + crypto.randomBytes(2).toString('hex');
+  return p;
+}
+
+/* ---------- SmartBill stock sync ---------- */
+async function syncStock() {
+  const settings = store.settings();
+  const token = store.secrets().smartbillToken;
+  try {
+    const list = await sb.stocks(settings.smartbill, token);
+    const byCode = new Map(), byName = new Map();
+    for (const s of list) {
+      if (s.code) byCode.set(s.code.toLowerCase(), (byCode.get(s.code.toLowerCase()) || 0) + s.quantity);
+      byName.set(s.name.toLowerCase(), (byName.get(s.name.toLowerCase()) || 0) + s.quantity);
+    }
+    let matched = 0;
+    const products = store.products().map((p) => {
+      const q = p.smartbillCode ? byCode.get(p.smartbillCode.toLowerCase()) : byName.get((p.name + (p.size ? ' ' + p.size : '')).toLowerCase());
+      if (q === undefined) return p;
+      matched++;
+      return { ...p, stock: Math.max(0, Math.floor(q)) };
+    });
+    store.write('products', products);
+    settings.smartbill.lastSync = new Date().toISOString();
+    settings.smartbill.lastSyncError = null;
+    store.write('settings', settings);
+    return { matched, total: products.length, smartbillProducts: list.length };
+  } catch (e) {
+    settings.smartbill.lastSyncError = e.message;
+    store.write('settings', settings);
+    throw e;
+  }
+}
+setInterval(() => {
+  const s = store.settings().smartbill;
+  if (!s.syncMinutes || !store.secrets().smartbillToken) return;
+  if (s.lastSync && Date.now() - Date.parse(s.lastSync) < s.syncMinutes * 60e3) return;
+  syncStock().catch(() => {});
+}, 60e3).unref();
+
+/* ---------- orders ---------- */
+function nextOrderNumber(orders) {
+  return orders.reduce((m, o) => Math.max(m, o.number || 0), 1000) + 1;
+}
+
+async function issueInvoice(order) {
+  const settings = store.settings();
+  const inv = await sb.invoice(settings.smartbill, store.secrets().smartbillToken, order);
+  order.invoice = { ...inv, issuedAt: new Date().toISOString() };
+  order.invoiceError = null;
+  return order;
+}
+
+async function placeOrder(body) {
+  const settings = store.settings();
+  if (!settings.shopEnabled) throw new Error('Comenzile online sunt momentan oprite. Te rugăm să suni la 0732 937 622.');
+  const c = body.customer || {};
+  const customer = {
+    name: str(c.name, 120), phone: str(c.phone, 30), email: str(c.email, 120),
+    address: str(c.address, 250), city: str(c.city, 80), county: str(c.county, 60),
+    company: str(c.company, 160), cui: str(c.cui, 30), notes: str(c.notes, 600)
+  };
+  if (!customer.name || !customer.phone || !customer.address || !customer.city || !customer.county) throw new Error('Completează numele, telefonul și adresa de livrare.');
+  if (!/^[+0-9 ()-]{9,20}$/.test(customer.phone)) throw new Error('Numărul de telefon nu pare corect.');
+  if (customer.email && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(customer.email)) throw new Error('Adresa de e-mail nu pare corectă.');
+  if (!body.acceptTerms) throw new Error('Trebuie să accepți termenii și condițiile.');
+
+  const products = store.products();
+  const items = [];
+  for (const line of Array.isArray(body.items) ? body.items.slice(0, 50) : []) {
+    const p = products.find((x) => x.id === line.id && x.active);
+    const qty = Math.min(50, Math.max(1, Math.round(num(line.qty) || 0)));
+    if (!p) throw new Error('Un produs din coș nu mai este disponibil.');
+    if (p.stock != null && p.stock < qty) throw new Error(`Stoc insuficient pentru „${p.name}” (disponibil: ${p.stock}).`);
+    items.push({ id: p.id, name: p.name, size: p.size, price: p.price, qty, smartbillCode: p.smartbillCode || '' });
+  }
+  if (!items.length) throw new Error('Coșul este gol.');
+
+  const subtotal = money(items.reduce((s, i) => s + i.price * i.qty, 0));
+  const shipping = settings.freeShippingFrom && subtotal >= settings.freeShippingFrom ? 0 : money(settings.shippingCost || 0);
+  const orders = store.read('orders', []);
+  const order = {
+    id: crypto.randomUUID(), number: nextOrderNumber(orders), createdAt: new Date().toISOString(),
+    status: 'noua', payment: 'ramburs', customer, items, subtotal, shipping, total: money(subtotal + shipping),
+    invoice: null, invoiceError: null
+  };
+  // reserve stock locally until the next SmartBill sync
+  store.write('products', products.map((p) => {
+    const it = items.find((i) => i.id === p.id);
+    return it && p.stock != null ? { ...p, stock: Math.max(0, p.stock - it.qty) } : p;
+  }));
+  orders.push(order);
+  store.write('orders', orders);
+
+  if (settings.smartbill.autoInvoice && store.secrets().smartbillToken) {
+    try { await issueInvoice(order); } catch (e) { order.invoiceError = e.message; }
+    store.write('orders', store.read('orders', []).map((o) => (o.id === order.id ? order : o)));
+  }
+  return { number: order.number, total: order.total };
+}
+
+/* ---------- routes ---------- */
+async function api(req, res, url) {
+  const p = url.pathname, m = req.method;
+
+  // public
+  if (p === '/api/products' && m === 'GET') return ok(res, publicProducts());
+  if (p === '/api/content' && m === 'GET') return ok(res, store.read('content', {}));
+  if (p === '/api/shop' && m === 'GET') {
+    const s = store.settings();
+    return ok(res, { enabled: s.shopEnabled, shippingCost: s.shippingCost, freeShippingFrom: s.freeShippingFrom, cod: s.codEnabled });
+  }
+  if (p === '/api/order' && m === 'POST') {
+    try { return ok(res, await placeOrder(await readBody(req))); }
+    catch (e) { return fail(res, 400, e.message); }
+  }
+
+  // login
+  if (p === '/api/admin/status' && m === 'GET') return ok(res, { loggedIn: auth.isAdmin(req), needsSetup: !auth.passwordHash() });
+  if (p === '/api/admin/login' && m === 'POST') {
+    if (auth.tooMany(ip(req))) return fail(res, 429, 'Prea multe încercări. Încearcă din nou peste 15 minute.');
+    const b = await readBody(req);
+    let hash = auth.passwordHash();
+    if (!hash) {
+      if (typeof b.password !== 'string' || b.password.length < 8) return fail(res, 400, 'Alege o parolă de minim 8 caractere.');
+      auth.setPassword(b.password); hash = auth.passwordHash();
+    }
+    if (!auth.checkPassword(b.password, hash)) { auth.failed(ip(req)); return fail(res, 401, 'Parolă greșită.'); }
+    auth.succeeded(ip(req));
+    return send(res, 200, { ok: true }, { 'Set-Cookie': auth.sessionCookie(req) });
+  }
+  if (p === '/api/admin/logout' && m === 'POST') return send(res, 200, { ok: true }, { 'Set-Cookie': auth.clearCookie() });
+
+  // everything below needs the admin session
+  if (!p.startsWith('/api/admin/')) return fail(res, 404, 'Nu există.');
+  if (!auth.isAdmin(req)) return fail(res, 401, 'Trebuie să te autentifici.');
+  if (m !== 'GET' && req.headers['x-fr-admin'] !== '1') return fail(res, 403, 'Cerere respinsă.');
+
+  if (p === '/api/admin/password' && m === 'POST') {
+    const b = await readBody(req);
+    if (!auth.checkPassword(b.current, auth.passwordHash())) return fail(res, 400, 'Parola actuală este greșită.');
+    if (typeof b.next !== 'string' || b.next.length < 8) return fail(res, 400, 'Parola nouă trebuie să aibă minim 8 caractere.');
+    auth.setPassword(b.next);
+    return send(res, 200, { ok: true }, { 'Set-Cookie': auth.sessionCookie(req) });
+  }
+
+  // dashboard
+  if (p === '/api/admin/summary' && m === 'GET') {
+    const orders = store.read('orders', []), products = store.products(), s = store.settings();
+    const since = Date.now() - 30 * 864e5;
+    const recent = orders.filter((o) => Date.parse(o.createdAt) > since && o.status !== 'anulata');
+    return ok(res, {
+      newOrders: orders.filter((o) => o.status === 'noua').length,
+      orders30: recent.length,
+      revenue30: money(recent.reduce((a, o) => a + o.total, 0)),
+      lowStock: products.filter((x) => x.active && x.stock != null && x.stock <= 3).map((x) => ({ name: x.name, size: x.size, stock: x.stock })),
+      smartbill: { configured: !!(s.smartbill.email && s.smartbill.cif && store.secrets().smartbillToken), lastSync: s.smartbill.lastSync, lastSyncError: s.smartbill.lastSyncError }
+    });
+  }
+
+  // products
+  if (p === '/api/admin/products' && m === 'GET') return ok(res, store.products().sort((a, b) => (a.order || 0) - (b.order || 0)));
+  if (p === '/api/admin/products' && m === 'POST') {
+    try {
+      const b = await readBody(req), list = store.products();
+      const prod = cleanProduct(b, null); prod.order = list.reduce((mx, x) => Math.max(mx, x.order || 0), 0) + 1;
+      if (prod.stock === undefined) prod.stock = null;
+      list.push(prod); store.write('products', list); return ok(res, prod);
+    } catch (e) { return fail(res, 400, e.message); }
+  }
+  const pm = p.match(/^\/api\/admin\/products\/([\w-]+)$/);
+  if (pm && m === 'PUT') {
+    try {
+      const list = store.products(), i = list.findIndex((x) => x.id === pm[1]);
+      if (i < 0) return fail(res, 404, 'Produsul nu există.');
+      list[i] = cleanProduct(await readBody(req), list[i]); store.write('products', list); return ok(res, list[i]);
+    } catch (e) { return fail(res, 400, e.message); }
+  }
+  if (pm && m === 'DELETE') {
+    store.write('products', store.products().filter((x) => x.id !== pm[1])); return ok(res, { ok: true });
+  }
+  if (p === '/api/admin/products/order' && m === 'POST') {
+    const ids = (await readBody(req)).ids || [];
+    store.write('products', store.products().map((x) => ({ ...x, order: ids.indexOf(x.id) < 0 ? 999 : ids.indexOf(x.id) + 1 })));
+    return ok(res, { ok: true });
+  }
+
+  // image upload (base64 from the browser)
+  if (p === '/api/admin/upload' && m === 'POST') {
+    try {
+      const b = await readBody(req, 8e6);
+      const mt = /^data:image\/(png|jpe?g|webp);base64,([A-Za-z0-9+/=]+)$/.exec(b.data || '');
+      if (!mt) return fail(res, 400, 'Sunt acceptate doar imagini JPG, PNG sau WEBP.');
+      const buf = Buffer.from(mt[2], 'base64');
+      if (buf.length > 5e6) return fail(res, 400, 'Imaginea este prea mare (max. 5 MB).');
+      const name = Date.now().toString(36) + '-' + crypto.randomBytes(4).toString('hex') + '.' + mt[1].replace('jpeg', 'jpg');
+      fs.writeFileSync(path.join(UPLOADS, name), buf);
+      return ok(res, { path: 'uploads/' + name });
+    } catch (e) { return fail(res, 400, 'Încărcarea a eșuat.'); }
+  }
+
+  // site texts
+  if (p === '/api/admin/content' && m === 'GET') return ok(res, store.read('content', {}));
+  if (p === '/api/admin/content' && m === 'PUT') {
+    const b = await readBody(req), out = {};
+    for (const [k, v] of Object.entries(b || {})) if (/^[\w.-]{1,60}$/.test(k) && String(v).trim() !== '') out[k] = cleanText(v);
+    store.write('content', out); return ok(res, out);
+  }
+
+  // orders
+  if (p === '/api/admin/orders' && m === 'GET') return ok(res, store.read('orders', []).slice().reverse());
+  const om = p.match(/^\/api\/admin\/orders\/([\w-]+)(\/invoice|\/invoice\.pdf)?$/);
+  if (om && !om[2] && m === 'PUT') {
+    const b = await readBody(req), orders = store.read('orders', []), o = orders.find((x) => x.id === om[1]);
+    if (!o) return fail(res, 404, 'Comanda nu există.');
+    if (['noua', 'confirmata', 'expediata', 'livrata', 'anulata'].includes(b.status)) o.status = b.status;
+    if (b.awb !== undefined) o.awb = str(b.awb, 60);
+    if (b.adminNote !== undefined) o.adminNote = str(b.adminNote, 1000);
+    store.write('orders', orders); return ok(res, o);
+  }
+  if (om && om[2] === '/invoice' && m === 'POST') {
+    const orders = store.read('orders', []), o = orders.find((x) => x.id === om[1]);
+    if (!o) return fail(res, 404, 'Comanda nu există.');
+    if (o.invoice) return fail(res, 400, 'Comanda are deja factură.');
+    try { await issueInvoice(o); store.write('orders', orders); return ok(res, o); }
+    catch (e) { o.invoiceError = e.message; store.write('orders', orders); return fail(res, 400, e.message); }
+  }
+  if (om && om[2] === '/invoice.pdf' && m === 'GET') {
+    const o = store.read('orders', []).find((x) => x.id === om[1]);
+    if (!o || !o.invoice) return fail(res, 404, 'Comanda nu are factură.');
+    try {
+      const pdf = await sb.invoicePdf(store.settings().smartbill, store.secrets().smartbillToken, o.invoice.series, o.invoice.number);
+      return send(res, 200, pdf, { 'Content-Type': 'application/pdf', 'Content-Disposition': `inline; filename="factura-${o.invoice.series}${o.invoice.number}.pdf"` });
+    } catch (e) { return fail(res, 400, e.message); }
+  }
+
+  // settings + SmartBill
+  if (p === '/api/admin/settings' && m === 'GET') {
+    return ok(res, { ...store.settings(), smartbillTokenSet: !!store.secrets().smartbillToken });
+  }
+  if (p === '/api/admin/settings' && m === 'PUT') {
+    const b = await readBody(req), s = store.settings(), x = b.smartbill || {};
+    s.shopEnabled = !!b.shopEnabled; s.codEnabled = b.codEnabled !== false;
+    s.shippingCost = Math.max(0, num(b.shippingCost) || 0); s.freeShippingFrom = Math.max(0, num(b.freeShippingFrom) || 0);
+    s.orderEmail = str(b.orderEmail, 120);
+    Object.assign(s.smartbill, {
+      email: str(x.email, 120), cif: str(x.cif, 20).toUpperCase().replace(/\s/g, ''), seriesName: str(x.seriesName, 20),
+      warehouseName: str(x.warehouseName, 80), vatName: str(x.vatName, 40) || 'Normala', vatPercent: num(x.vatPercent) ?? 21,
+      useStock: !!x.useStock, autoInvoice: !!x.autoInvoice, sendEmail: !!x.sendEmail,
+      syncMinutes: Math.max(0, Math.min(1440, Math.round(num(x.syncMinutes) || 0)))
+    });
+    store.write('settings', s);
+    if (typeof b.smartbillToken === 'string' && b.smartbillToken.trim()) {
+      const sec = store.secrets(); sec.smartbillToken = b.smartbillToken.trim().slice(0, 200); store.saveSecrets(sec);
+    }
+    return ok(res, { ...s, smartbillTokenSet: !!store.secrets().smartbillToken });
+  }
+  if (p === '/api/admin/smartbill/test' && m === 'POST') {
+    try { return ok(res, { series: await sb.test(store.settings().smartbill, store.secrets().smartbillToken) }); }
+    catch (e) { return fail(res, 400, e.message); }
+  }
+  if (p === '/api/admin/smartbill/sync' && m === 'POST') {
+    try { return ok(res, await syncStock()); } catch (e) { return fail(res, 400, e.message); }
+  }
+
+  return fail(res, 404, 'Nu există.');
+}
+
+/* ---------- static files ---------- */
+function serveStatic(req, res, url) {
+  let rel = decodeURIComponent(url.pathname);
+  if (rel === '/admin') { res.writeHead(301, { Location: '/admin/' }); return res.end(); }
+  if (rel.endsWith('/')) rel += 'index.html';
+  if (BLOCKED.test(rel)) return send(res, 404, 'Nu există.', { 'Content-Type': 'text/plain; charset=utf-8' });
+  const base = rel.startsWith('/uploads/') ? store.DATA_DIR : ROOT;
+  const full = path.normalize(path.join(base, rel));
+  if (!full.startsWith(base + path.sep)) return send(res, 400, 'Cerere invalidă', { 'Content-Type': 'text/plain' });
+  fs.stat(full, (err, st) => {
+    if (err || !st.isFile()) return send(res, 404, 'Pagina nu există.', { 'Content-Type': 'text/plain; charset=utf-8' });
+    const type = TYPES[path.extname(full).toLowerCase()] || 'application/octet-stream';
+    const headers = {
+      'Content-Type': type, 'X-Content-Type-Options': 'nosniff', 'Referrer-Policy': 'strict-origin-when-cross-origin',
+      'Cache-Control': /\.(html)$/.test(full) || rel.startsWith('/admin/') ? 'no-cache' : 'public, max-age=86400'
+    };
+    if (rel.startsWith('/admin/')) { headers['X-Frame-Options'] = 'DENY'; headers['X-Robots-Tag'] = 'noindex'; }
+    // video/audio need byte ranges for seeking on iOS
+    const range = /bytes=(\d*)-(\d*)/.exec(req.headers.range || '');
+    if (range && /^(video|audio)\//.test(type)) {
+      const start = range[1] ? +range[1] : 0, end = range[2] ? Math.min(+range[2], st.size - 1) : st.size - 1;
+      res.writeHead(206, { ...headers, 'Accept-Ranges': 'bytes', 'Content-Range': `bytes ${start}-${end}/${st.size}`, 'Content-Length': end - start + 1 });
+      return fs.createReadStream(full, { start, end }).pipe(res);
+    }
+    res.writeHead(200, { ...headers, 'Content-Length': st.size, 'Accept-Ranges': 'bytes' });
+    if (req.method === 'HEAD') return res.end();
+    fs.createReadStream(full).pipe(res);
+  });
+}
+
+const server = http.createServer(async (req, res) => {
+  const url = new URL(req.url, 'http://localhost');
+  try {
+    if (url.pathname.startsWith('/api/')) return await api(req, res, url);
+    if (req.method !== 'GET' && req.method !== 'HEAD') return fail(res, 405, 'Metodă nepermisă.');
+    serveStatic(req, res, url);
+  } catch (e) {
+    console.error(e);
+    if (!res.headersSent) fail(res, e.message === 'too_large' ? 413 : 500, e.message === 'bad_json' ? 'Date invalide.' : 'Eroare internă.');
+  }
+});
+
+if (require.main === module) {
+  server.listen(PORT, () => console.log(`Florin Roșca: http://localhost:${PORT}  ·  admin: http://localhost:${PORT}/admin/`));
+}
+module.exports = { server };

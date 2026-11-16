@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="ro">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <title>Administrare · Florin Roșca</title>
+  <link rel="icon" href="../assets/img/favicon.png">
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="admin.css">
+</head>
+<body>
+  <!-- login -->
+  <section class="login" id="login" hidden>
+    <form class="login__box" id="loginForm">
+      <img src="../assets/img/logo-mark.webp" alt="" width="64" height="64">
+      <h1>Florin Roșca</h1>
+      <p class="muted" id="loginHint">Panou de administrare</p>
+      <label>Parolă<input type="password" name="password" autocomplete="current-password" required minlength="8"></label>
+      <label id="loginRepeat" hidden>Repetă parola<input type="password" name="repeat" autocomplete="new-password" minlength="8"></label>
+      <button class="btn btn--gold" type="submit">Intră</button>
+      <p class="err" id="loginErr" role="alert"></p>
+    </form>
+  </section>
+
+  <!-- app -->
+  <div class="app" id="app" hidden>
+    <aside class="side">
+      <a class="side__brand" href="../" target="_blank" rel="noopener"><img src="../assets/img/logo-mark.webp" alt="" width="34" height="34"><span>Florin Roșca<small>Administrare</small></span></a>
+      <nav class="side__nav" id="nav">
+        <button data-tab="acasa" class="is-on">🏠 <span>Acasă</span></button>
+        <button data-tab="comenzi">🧾 <span>Comenzi</span><b class="pill" id="navNew" hidden></b></button>
+        <button data-tab="produse">🛍️ <span>Produse &amp; stoc</span></button>
+        <button data-tab="texte">✏️ <span>Texte site</span></button>
+        <button data-tab="smartbill">🔗 <span>SmartBill</span></button>
+        <button data-tab="setari">⚙️ <span>Magazin &amp; cont</span></button>
+      </nav>
+      <div class="side__foot">
+        <a href="../" target="_blank" rel="noopener">Vezi site-ul ↗</a>
+        <button id="logout" type="button">Ieșire</button>
+      </div>
+    </aside>
+
+    <main class="main">
+      <!-- ACASĂ -->
+      <section data-view="acasa">
+        <h2>Bun venit, Florin 👋</h2>
+        <div class="cards" id="sumCards"></div>
+        <div class="panel" id="sumAlerts"></div>
+      </section>
+
+      <!-- COMENZI -->
+      <section data-view="comenzi" hidden>
+        <div class="bar"><h2>Comenzi</h2>
+          <select id="ordFilter"><option value="">Toate</option><option value="noua">Noi</option><option value="confirmata">Confirmate</option><option value="expediata">Expediate</option><option value="livrata">Livrate</option><option value="anulata">Anulate</option></select>
+        </div>
+        <div id="ordList" class="list"></div>
+      </section>
+
+      <!-- PRODUSE -->
+      <section data-view="produse" hidden>
+        <div class="bar"><h2>Produse &amp; stoc</h2>
+          <div><button class="btn" id="syncBtn" type="button">↻ Sincronizează stocul din SmartBill</button>
+          <button class="btn btn--gold" id="addProd" type="button">+ Produs nou</button></div>
+        </div>
+        <p class="muted">Stocul se ia automat din SmartBill după <b>codul produsului</b>. Dacă un produs nu are cod, se caută după nume. Câmpul gol la stoc înseamnă „stoc nelimitat”.</p>
+        <div id="prodList" class="plist"></div>
+      </section>
+
+      <!-- TEXTE -->
+      <section data-view="texte" hidden>
+        <div class="bar"><h2>Texte de pe site</h2><button class="btn btn--gold" id="saveTexts" type="button">Salvează textele</button></div>
+        <p class="muted">Modifici textul și apeși „Salvează”. Pentru rând nou apasă Enter. Poți scrie <code>&lt;em&gt;cuvânt&lt;/em&gt;</code> pentru auriu-italic. Câmpul lăsat cum era rămâne neschimbat.</p>
+        <div id="textList" class="tlist"></div>
+      </section>
+
+      <!-- SMARTBILL -->
+      <section data-view="smartbill" hidden>
+        <h2>Legătura cu SmartBill</h2>
+        <form class="panel form" id="sbForm">
+          <div class="grid2">
+            <label>E-mailul contului SmartBill<input name="email" type="email" placeholder="contabilitate@firma.ro"></label>
+            <label>CIF firmă<input name="cif" placeholder="RO12345678"></label>
+            <label>Token API <small>(SmartBill → Contul meu → Integrări → API)</small><input name="token" type="password" autocomplete="off" placeholder="lasă gol ca să păstrezi token-ul salvat"></label>
+            <label>Seria facturilor<input name="seriesName" placeholder="ex. FR"></label>
+            <label>Gestiune <small>(opțional)</small><input name="warehouseName" placeholder="ex. Magazin"></label>
+            <label>Sincronizare automată stoc<select name="syncMinutes"><option value="0">Oprită</option><option value="15">la 15 minute</option><option value="30">la 30 minute</option><option value="60">la o oră</option><option value="360">la 6 ore</option></select></label>
+            <label>Cotă TVA (%)<input name="vatPercent" type="number" step="1" min="0" max="30"></label>
+            <label>Denumire cotă TVA în SmartBill<input name="vatName" placeholder="Normala"></label>
+          </div>
+          <label class="check"><input type="checkbox" name="useStock"> Descarcă produsele din gestiune la facturare</label>
+          <label class="check"><input type="checkbox" name="autoInvoice"> Emite factura automat la fiecare comandă nouă</label>
+          <label class="check"><input type="checkbox" name="sendEmail"> SmartBill trimite factura pe e-mail clientului</label>
+          <p class="muted" id="sbTokenState"></p>
+          <div class="row"><button class="btn btn--gold" type="submit">Salvează</button><button class="btn" type="button" id="sbTest">Testează conexiunea</button></div>
+          <p class="note" id="sbMsg" role="status"></p>
+        </form>
+      </section>
+
+      <!-- SETĂRI -->
+      <section data-view="setari" hidden>
+        <h2>Magazin &amp; cont</h2>
+        <form class="panel form" id="shopForm">
+          <h3>Magazin online</h3>
+          <label class="check"><input type="checkbox" name="shopEnabled"> Clienții pot plasa comenzi pe site</label>
+          <label class="check"><input type="checkbox" name="codEnabled"> Plata ramburs (la livrare)</label>
+          <div class="grid2">
+            <label>Cost livrare (lei)<input name="shippingCost" type="number" step="0.01" min="0"></label>
+            <label>Livrare gratuită de la (lei, 0 = niciodată)<input name="freeShippingFrom" type="number" step="1" min="0"></label>
+            <label>E-mail pentru comenzi<input name="orderEmail" type="email"></label>
+          </div>
+          <div class="row"><button class="btn btn--gold" type="submit">Salvează</button></div>
+          <p class="note" id="shopMsg" role="status"></p>
+        </form>
+        <form class="panel form" id="pwForm">
+          <h3>Schimbă parola</h3>
+          <div class="grid2">
+            <label>Parola actuală<input type="password" name="current" autocomplete="current-password" required></label>
+            <label>Parola nouă (minim 8 caractere)<input type="password" name="next" autocomplete="new-password" minlength="8" required></label>
+          </div>
+          <div class="row"><button class="btn" type="submit">Schimbă parola</button></div>
+          <p class="note" id="pwMsg" role="status"></p>
+        </form>
+      </section>
+    </main>
+  </div>
+
+  <!-- product editor -->
+  <dialog class="dlg" id="prodDlg">
+    <form method="dialog" class="form" id="prodForm">
+      <h3 id="prodTitle">Produs</h3>
+      <div class="pimg"><img id="prodImg" alt=""><label class="btn">Schimbă poza<input type="file" accept="image/png,image/jpeg,image/webp" id="prodFile" hidden></label></div>
+      <label>Nume<input name="name" required maxlength="160"></label>
+      <div class="grid2">
+        <label>Cantitate / mărime<input name="size" placeholder="ex. 1000 ml"></label>
+        <label>Categorie<select name="category"><option value="repair">Luxury Repair</option><option value="anti">Anti-Yellow · păr blond</option><option value="kit">Kituri &amp; seturi</option></select></label>
+        <label>Preț (lei)<input name="price" type="number" step="0.01" min="0" required></label>
+        <label>Preț vechi tăiat (lei, opțional)<input name="oldPrice" type="number" step="0.01" min="0"></label>
+        <label>Cod produs în SmartBill<input name="smartbillCode" placeholder="ex. LR-SPRAY-200"></label>
+        <label>Stoc (gol = nelimitat)<input name="stock" type="number" step="1" min="0"></label>
+      </div>
+      <label>Descriere (opțional)<textarea name="description" rows="3"></textarea></label>
+      <label class="check"><input type="checkbox" name="active"> Afișat pe site</label>
+      <p class="err" id="prodErr" role="alert"></p>
+      <div class="row row--end"><button class="btn btn--danger" type="button" id="prodDel">Șterge</button><span class="sp"></span><button class="btn" value="cancel" type="button" id="prodCancel">Renunță</button><button class="btn btn--gold" type="submit" id="prodSave">Salvează</button></div>
+    </form>
+  </dialog>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  <script src="admin.js"></script>
+</body>
+</html>

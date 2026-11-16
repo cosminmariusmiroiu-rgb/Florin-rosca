@@ -14,16 +14,12 @@ async function call(cfg, token, method, path, { query, body, raw } = {}) {
   if (!cfg.email || !token || !cfg.cif) throw new SmartBillError('SmartBill nu este configurat (lipsesc e-mailul, token-ul sau CIF-ul).');
   const url = new URL(BASE + path);
   for (const [k, v] of Object.entries(query || {})) if (v !== undefined && v !== '') url.searchParams.set(k, v);
-  const res = await fetch(url, {
-    method,
-    headers: {
-      Authorization: 'Basic ' + Buffer.from(cfg.email + ':' + token).toString('base64'),
-      Accept: raw ? 'application/octet-stream' : 'application/json',
-      'Content-Type': 'application/json'
-    },
-    body: body ? JSON.stringify(body) : undefined,
-    signal: AbortSignal.timeout(20000)
-  });
+  let res;
+  try {
+    res = await doFetch(url, method, cfg, token, body, raw);
+  } catch (e) {
+    throw new SmartBillError('Nu mă pot conecta la SmartBill (' + (e.name === 'TimeoutError' ? 'timpul a expirat' : 'rețea indisponibilă') + '). Încearcă din nou.');
+  }
   if (raw) {
     if (!res.ok) throw new SmartBillError('SmartBill a răspuns cu eroarea ' + res.status);
     return Buffer.from(await res.arrayBuffer());
@@ -35,6 +31,19 @@ async function call(cfg, token, method, path, { query, body, raw } = {}) {
     throw new SmartBillError('SmartBill: ' + msg);
   }
   return data;
+}
+
+function doFetch(url, method, cfg, token, body, raw) {
+  return fetch(url, {
+    method,
+    headers: {
+      Authorization: 'Basic ' + Buffer.from(cfg.email + ':' + token).toString('base64'),
+      Accept: raw ? 'application/octet-stream' : 'application/json',
+      'Content-Type': 'application/json'
+    },
+    body: body ? JSON.stringify(body) : undefined,
+    signal: AbortSignal.timeout(20000)
+  });
 }
 
 // test connection: lists invoice series
