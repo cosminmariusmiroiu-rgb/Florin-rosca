@@ -109,45 +109,75 @@
     document.querySelectorAll('[data-go3]').forEach((a) => a.addEventListener('click', (e) => { e.preventDefault(); go(a.dataset.go3); }));
   }
 
-  /* ---------- sales in the salon ---------- */
+  /* ---------- sales in the salon: all products as tiles, by category ---------- */
   const PAY = { cash: 'Numerar', card: 'Card', transfer: 'Transfer' };
-  let saleProducts = [], saleLines = [], sales = [];
+  const CATS = { all: 'Toate', repair: 'Luxury Repair', anti: 'Anti-Yellow', kit: 'Kituri & seturi', salon: 'Alte produse salon' };
+  let saleProducts = [], picked = {}, sales = [], saleCat = 'all';
   const prodLabel = (p) => `${p.name}${p.size ? ' · ' + p.size : ''}`;
   loaders.vanzare = async () => {
     saleProducts = await api('admin/products');
     const st = await api('admin/settings').catch(() => null);
     $('#saleInvWrap').hidden = !(st && st.smartbillTokenSet && st.smartbill.cif);
-    $('#saleProd').innerHTML = saleProducts.map((p) => `<option value="${esc(p.id)}">${esc(prodLabel(p))} — ${lei(p.price)}${p.stock != null ? ' · stoc ' + p.stock : ''}</option>`).join('');
-    syncPrice(); renderSaleLines();
+    const used = ['all', ...Object.keys(CATS).filter((k) => k !== 'all' && saleProducts.some((p) => p.category === k))];
+    $('#saleCats').innerHTML = used.map((k) => `<button type="button" class="chip${k === saleCat ? ' is-on' : ''}" data-cat="${k}">${CATS[k]}</button>`).join('');
+    $$('#saleCats .chip').forEach((c) => c.addEventListener('click', () => { saleCat = c.dataset.cat; $$('#saleCats .chip').forEach((x) => x.classList.toggle('is-on', x === c)); renderGrid(); }));
+    renderGrid();
     sales = await api('admin/sales'); renderSales();
   };
-  function syncPrice() { const p = saleProducts.find((x) => x.id === $('#saleProd').value); if (p) $('#salePrice').value = p.price; }
-  $('#saleProd').addEventListener('change', syncPrice);
-  $$('[data-qd]').forEach((b) => b.addEventListener('click', () => { const q = $('#saleQty'); q.value = Math.max(1, (+q.value || 1) + +b.dataset.qd); }));
-  $('#saleAdd').addEventListener('click', () => {
-    const p = saleProducts.find((x) => x.id === $('#saleProd').value); if (!p) return;
-    const qty = Math.max(1, Math.round(+$('#saleQty').value || 1)), price = +$('#salePrice').value || p.price;
-    const ex = saleLines.find((l) => l.id === p.id && l.price === price);
-    if (ex) ex.qty += qty; else saleLines.push({ id: p.id, name: prodLabel(p), qty, price });
-    $('#saleQty').value = 1; renderSaleLines();
-  });
-  function renderSaleLines() {
-    $('#saleLines').innerHTML = saleLines.length ? saleLines.map((l, i) => `<div class="sline"><span>${l.qty} × ${esc(l.name)}</span><b>${lei(l.qty * l.price)}</b><button type="button" class="btn btn--sm" data-rm="${i}" aria-label="Scoate">✕</button></div>`).join('')
-      : '<p class="muted">Alege produsul și cantitatea, apoi apasă „Vândut”. (Poți adăuga mai multe produse cu „+ Adaugă în vânzare”.)</p>';
-    $$('[data-rm]').forEach((b) => b.addEventListener('click', () => { saleLines.splice(+b.dataset.rm, 1); renderSaleLines(); }));
-    const pending = saleLines.length ? saleLines : [];
-    const t = pending.reduce((a, l) => a + l.qty * l.price, 0);
-    $('#saleTotal').innerHTML = saleLines.length ? `Total: <b>${lei(t)}</b>` : '';
+  $('#saleSearch').addEventListener('input', renderGrid);
+  function renderGrid() {
+    const q = $('#saleSearch').value.trim().toLowerCase();
+    const list = saleProducts.filter((p) => (saleCat === 'all' || p.category === saleCat) && (!q || prodLabel(p).toLowerCase().includes(q)));
+    // group by category so it reads like a menu
+    const groups = {};
+    list.forEach((p) => { (groups[p.category] = groups[p.category] || []).push(p); });
+    $('#saleGrid').innerHTML = Object.keys(groups).length ? Object.entries(groups).map(([cat, items]) => `<h3 class="sgrid__h">${esc(CATS[cat] || cat)}</h3><div class="sgrid__g">${items.map((p) => {
+      const sel = picked[p.id], out = p.stock != null && p.stock <= 0;
+      return `<div class="tile${sel ? ' is-on' : ''}${out ? ' is-out' : ''}" data-pick="${p.id}" role="button" tabindex="0" aria-pressed="${!!sel}">
+        <span class="tile__ck">✓</span>
+        <img src="${esc(img(p.image))}" alt="" loading="lazy">
+        <div class="tile__n">${esc(p.name)}</div>
+        <div class="tile__m"><b>${lei(p.price)}</b><span>${p.stock == null ? '' : out ? 'epuizat' : 'stoc ' + p.stock}</span></div>
+        ${sel ? `<div class="tile__q"><button type="button" data-q="-1" data-id="${p.id}" aria-label="Scade">−</button><b>${sel.qty}</b><button type="button" data-q="1" data-id="${p.id}" aria-label="Adaugă">+</button></div>` : ''}
+      </div>`; }).join('')}</div>`).join('') : '<div class="empty">Niciun produs găsit.</div>';
+    $$('#saleGrid [data-pick]').forEach((t) => {
+      const toggle = (e) => {
+        if (e.target.closest('[data-q]')) return;
+        const p = saleProducts.find((x) => x.id === t.dataset.pick);
+        if (p.stock != null && p.stock <= 0) { toast('Produsul este epuizat. Adaugă stoc din secțiunea Stoc.'); return; }
+        if (picked[p.id]) delete picked[p.id]; else picked[p.id] = { qty: 1, price: p.price };
+        renderGrid();
+      };
+      t.addEventListener('click', toggle);
+      t.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(e); } });
+    });
+    $$('#saleGrid [data-q]').forEach((bt) => bt.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const p = saleProducts.find((x) => x.id === bt.dataset.id), it = picked[bt.dataset.id];
+      it.qty = Math.max(0, it.qty + +bt.dataset.q);
+      if (p.stock != null && it.qty > p.stock) { it.qty = p.stock; toast(`În stoc sunt doar ${p.stock} bucăți.`); }
+      if (!it.qty) delete picked[bt.dataset.id];
+      renderGrid();
+    }));
+    summary();
   }
+  function summary() {
+    const ids = Object.keys(picked), n = ids.reduce((a, id) => a + picked[id].qty, 0);
+    const t = ids.reduce((a, id) => a + picked[id].qty * picked[id].price, 0);
+    $('#saleCount').textContent = n ? `${n} ${n === 1 ? 'bucată' : 'bucăți'} · ${ids.length} ${ids.length === 1 ? 'produs' : 'produse'}` : 'Niciun produs bifat';
+    $('#saleTotal').textContent = lei(t);
+    $('#saleBar').classList.toggle('has', n > 0);
+  }
+  $('#saleClear').addEventListener('click', () => { picked = {}; renderGrid(); });
   $('#saleForm').addEventListener('submit', async (e) => {
     e.preventDefault();
-    // nothing added yet: sell the selected product directly
-    let items = saleLines.map((l) => ({ id: l.id, qty: l.qty, price: l.price }));
-    if (!items.length) { const p = saleProducts.find((x) => x.id === $('#saleProd').value); if (p) items = [{ id: p.id, qty: Math.max(1, Math.round(+$('#saleQty').value || 1)), price: +$('#salePrice').value || p.price }]; }
+    const items = Object.keys(picked).map((id) => ({ id, qty: picked[id].qty, price: picked[id].price }));
+    if (!items.length) { note($('#saleMsg'), 'Bifează mai întâi produsele vândute.', false); return; }
     try {
       const s = await busy($('#saleGo'), () => api('admin/sales', { method: 'POST', body: { items, payment: $('#salePay').value, client: $('#saleClient').value, invoice: $('#saleInv').checked } }));
-      note($('#saleMsg'), `✓ Vânzarea #${s.number} a fost salvată: ${lei(s.total)}. Stocul a fost scăzut.` + (s.invoice ? ` Factura ${s.invoice.series} ${s.invoice.number} a fost emisă în SmartBill.` : s.invoiceError ? ` Factura SmartBill NU s-a emis: ${s.invoiceError}` : ''), !s.invoiceError);
-      saleLines = []; $('#saleClient').value = ''; $('#saleQty').value = 1;
+      note($('#saleMsg'), `✓ Vânzarea #${s.number} a fost salvată: ${lei(s.total)}. Stocul a fost scăzut.` + (s.invoice ? ` Factura ${s.invoice.series} ${s.invoice.number} emisă în SmartBill.` : s.invoiceError ? ` Factura SmartBill NU s-a emis: ${s.invoiceError}` : ''), !s.invoiceError);
+      toast('Vânzare salvată ✓');
+      picked = {}; $('#saleClient').value = '';
       await loaders.vanzare();
     } catch (x) { note($('#saleMsg'), x.message, false); }
   });
@@ -314,7 +344,7 @@
 
   /* ---------- products ---------- */
   let products = [], editing = null, newImage = null;
-  const CAT = { repair: 'Luxury Repair', anti: 'Anti-Yellow', kit: 'Kituri & seturi' };
+  const CAT = { repair: 'Luxury Repair', anti: 'Anti-Yellow', kit: 'Kituri & seturi', salon: 'Alte produse salon' };
   loaders.produse = async () => { products = await api('admin/products'); renderProducts(); };
   function stockLabel(p) {
     if (p.stock == null) return 'Stoc: <b>nelimitat</b>';

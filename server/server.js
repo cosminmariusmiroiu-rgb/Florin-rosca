@@ -68,7 +68,7 @@ function cleanProduct(input, existing) {
   p.name = str(input.name, 160);
   if (!p.name) throw new Error('Numele produsului este obligatoriu.');
   p.size = str(input.size, 40);
-  p.category = ['repair', 'anti', 'kit'].includes(input.category) ? input.category : 'repair';
+  p.category = ['repair', 'anti', 'kit', 'salon'].includes(input.category) ? input.category : 'repair';
   p.price = num(input.price);
   if (p.price == null || p.price <= 0) throw new Error('Prețul trebuie să fie un număr mai mare ca 0.');
   p.oldPrice = input.oldPrice === '' || input.oldPrice == null ? null : num(input.oldPrice);

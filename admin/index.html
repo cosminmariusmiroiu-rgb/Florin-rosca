@@ -68,24 +68,23 @@
       <!-- VÂNZARE ÎN SALON -->
       <section data-view="vanzare" hidden>
         <h2>Vânzare în salon</h2>
-        <form class="panel form sale" id="saleForm">
-          <label>Produs<select id="saleProd"></select></label>
-          <div class="grid2">
-            <label>Cantitate
-              <span class="qty"><button type="button" data-qd="-1" aria-label="Scade">−</button><input id="saleQty" type="number" min="1" value="1" inputmode="numeric"><button type="button" data-qd="1" aria-label="Adaugă">+</button></span>
-            </label>
-            <label>Preț pe bucată (lei)<input id="salePrice" type="number" step="0.01" min="0" inputmode="decimal"></label>
+        <form class="sale" id="saleForm">
+          <div class="sale__top">
+            <input id="saleSearch" type="search" placeholder="🔎 Caută produsul">
+            <div class="chips" id="saleCats"></div>
           </div>
-          <div class="row"><button class="btn" type="button" id="saleAdd">+ Adaugă în vânzare</button></div>
-          <div id="saleLines" class="sale__lines"></div>
-          <div class="grid2">
-            <label>Plată<select id="salePay"><option value="cash">Numerar</option><option value="card">Card</option><option value="transfer">Transfer</option></select></label>
-            <label>Clientă <small>(opțional)</small><input id="saleClient" placeholder="nume"></label>
+          <p class="muted">Atinge produsele vândute ca să le bifezi, apoi alege cantitatea cu − și +.</p>
+          <div id="saleGrid" class="sgrid"></div>
+          <div class="sale__bar" id="saleBar">
+            <div class="sale__sum"><span id="saleCount">Niciun produs bifat</span><b id="saleTotal">0,00 lei</b></div>
+            <div class="sale__opts">
+              <select id="salePay" aria-label="Plata"><option value="cash">💵 Numerar</option><option value="card">💳 Card</option><option value="transfer">🏦 Transfer</option></select>
+              <input id="saleClient" placeholder="Clientă (opțional)" aria-label="Clientă">
+            </div>
+            <label class="check" id="saleInvWrap" hidden><input type="checkbox" id="saleInv"> Emite și factură în SmartBill</label>
+            <div class="row"><button class="btn" type="button" id="saleClear">Golește</button><button class="btn btn--gold sale__go" type="submit" id="saleGo">✓ Vândut</button></div>
+            <p class="note" id="saleMsg" role="status"></p>
           </div>
-          <label class="check" id="saleInvWrap" hidden><input type="checkbox" id="saleInv"> Emite și factură în SmartBill (scade stocul și în SmartBill)</label>
-          <div class="sale__total" id="saleTotal"></div>
-          <button class="btn btn--gold sale__go" type="submit" id="saleGo">✓ Vândut</button>
-          <p class="note" id="saleMsg" role="status"></p>
         </form>
         <div class="panel">
           <div class="bar"><h3>Vânzări</h3><select id="saleRange"><option value="today">Azi</option><option value="7">Ultimele 7 zile</option><option value="30">Ultimele 30 de zile</option><option value="all">Toate</option></select></div>
@@ -196,7 +195,7 @@
       <label>Nume<input name="name" required maxlength="160"></label>
       <div class="grid2">
         <label>Cantitate / mărime<input name="size" placeholder="ex. 1000 ml"></label>
-        <label>Categorie<select name="category"><option value="repair">Luxury Repair</option><option value="anti">Anti-Yellow · păr blond</option><option value="kit">Kituri &amp; seturi</option></select></label>
+        <label>Categorie<select name="category"><option value="repair">Luxury Repair</option><option value="anti">Anti-Yellow · păr blond</option><option value="kit">Kituri &amp; seturi</option><option value="salon">Alte produse salon</option></select></label>
         <label>Preț (lei)<input name="price" type="number" step="0.01" min="0" required></label>
         <label>Preț vechi tăiat (lei, opțional)<input name="oldPrice" type="number" step="0.01" min="0"></label>
         <label>Cod produs în SmartBill<input name="smartbillCode" placeholder="ex. LR-SPRAY-200"></label>
