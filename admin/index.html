@@ -2,11 +2,18 @@
 <html lang="ro">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#0b0b0c">
+  <link rel="manifest" href="manifest.webmanifest">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Florin Admin">
+  <link rel="apple-touch-icon" href="icon-192.png">
   <meta name="robots" content="noindex, nofollow">
   <title>Administrare · Florin Roșca</title>
   <link rel="icon" href="../assets/img/favicon.png">
-  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600&family=Cormorant+Garamond:ital,wght@1,400;1,500&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="admin.css">
 </head>
 <body>
@@ -29,6 +36,8 @@
       <a class="side__brand" href="../" target="_blank" rel="noopener"><img src="../assets/img/logo-mark.webp" alt="" width="34" height="34"><span>Florin Roșca<small>Administrare</small></span></a>
       <nav class="side__nav" id="nav">
         <button data-tab="acasa" class="is-on">🏠 <span>Acasă</span></button>
+        <button data-tab="vanzare">💳 <span>Vânzare salon</span></button>
+        <button data-tab="stoc">📦 <span>Stoc</span></button>
         <button data-tab="fise">📋 <span>Fișe cliente</span><b class="pill" id="navFise" hidden></b></button>
         <button data-tab="comenzi">🧾 <span>Comenzi</span><b class="pill" id="navNew" hidden></b></button>
         <button data-tab="produse">🛍️ <span>Produse &amp; stoc</span></button>
@@ -37,7 +46,8 @@
         <button data-tab="setari">⚙️ <span>Magazin &amp; cont</span></button>
       </nav>
       <div class="side__foot">
-        <a href="../" target="_blank" rel="noopener">Vezi site-ul ↗</a>
+        <a href="../" target="_blank" rel="noopener" class="ibtn ibtn--gold" title="Vezi site-ul" aria-label="Vezi site-ul">🌐</a>
+        <button id="installBtn" type="button" class="ibtn" title="Instalează aplicația" aria-label="Instalează aplicația" hidden>📲</button>
         <button id="logout" type="button">Ieșire</button>
       </div>
     </aside>
@@ -45,9 +55,51 @@
     <main class="main">
       <!-- ACASĂ -->
       <section data-view="acasa">
-        <h2>Bun venit, Florin 👋</h2>
+        <div class="hero">
+          <div><p class="hero__eyebrow">Florin Roșca · Luxury Hair</p><h2>Bun venit, <em>Florin</em> 👋</h2><p class="hero__sub" id="heroDate"></p></div>
+          <div class="hero__act"><a href="../" target="_blank" rel="noopener" class="btn btn--gold">🌐 Mergi la site</a><button class="btn btn--glass" type="button" data-go2="vanzare">💳 Vânzare nouă</button></div>
+        </div>
+        <div class="install-tip" id="installTip" hidden></div>
+        <div class="split" id="sumSplit"></div>
         <div class="cards" id="sumCards"></div>
         <div class="panel" id="sumAlerts"></div>
+      </section>
+
+      <!-- VÂNZARE ÎN SALON -->
+      <section data-view="vanzare" hidden>
+        <h2>Vânzare în salon</h2>
+        <form class="panel form sale" id="saleForm">
+          <label>Produs<select id="saleProd"></select></label>
+          <div class="grid2">
+            <label>Cantitate
+              <span class="qty"><button type="button" data-qd="-1" aria-label="Scade">−</button><input id="saleQty" type="number" min="1" value="1" inputmode="numeric"><button type="button" data-qd="1" aria-label="Adaugă">+</button></span>
+            </label>
+            <label>Preț pe bucată (lei)<input id="salePrice" type="number" step="0.01" min="0" inputmode="decimal"></label>
+          </div>
+          <div class="row"><button class="btn" type="button" id="saleAdd">+ Adaugă în vânzare</button></div>
+          <div id="saleLines" class="sale__lines"></div>
+          <div class="grid2">
+            <label>Plată<select id="salePay"><option value="cash">Numerar</option><option value="card">Card</option><option value="transfer">Transfer</option></select></label>
+            <label>Clientă <small>(opțional)</small><input id="saleClient" placeholder="nume"></label>
+          </div>
+          <label class="check" id="saleInvWrap" hidden><input type="checkbox" id="saleInv"> Emite și factură în SmartBill (scade stocul și în SmartBill)</label>
+          <div class="sale__total" id="saleTotal"></div>
+          <button class="btn btn--gold sale__go" type="submit" id="saleGo">✓ Vândut</button>
+          <p class="note" id="saleMsg" role="status"></p>
+        </form>
+        <div class="panel">
+          <div class="bar"><h3>Vânzări</h3><select id="saleRange"><option value="today">Azi</option><option value="7">Ultimele 7 zile</option><option value="30">Ultimele 30 de zile</option><option value="all">Toate</option></select></div>
+          <div class="cards" id="saleStats"></div>
+          <div id="saleList" class="list"></div>
+        </div>
+      </section>
+
+      <!-- STOC -->
+      <section data-view="stoc" hidden>
+        <div class="bar"><h2>Stoc</h2><div><input id="stockSearch" type="search" placeholder="Caută produsul"><button class="btn" id="stockSync" type="button">↻ Din SmartBill</button></div></div>
+        <div class="cards" id="stockCards"></div>
+        <div id="stockList" class="stock"></div>
+        <div class="panel"><h3>Ultimele mișcări de stoc</h3><div id="stockMoves" class="moves"></div></div>
       </section>
 
       <!-- FIȘE CLIENTE -->
@@ -110,7 +162,7 @@
 
       <!-- SETĂRI -->
       <section data-view="setari" hidden>
-        <h2>Magazin &amp; cont</h2>
+        <div class="bar"><h2>Magazin &amp; cont</h2><button class="btn btn--sm" type="button" id="logout2">Ieșire din cont</button></div>
         <form class="panel form" id="shopForm">
           <h3>Magazin online</h3>
           <label class="check"><input type="checkbox" name="shopEnabled"> Clienții pot plasa comenzi pe site</label>
@@ -151,7 +203,8 @@
         <label>Stoc (gol = nelimitat)<input name="stock" type="number" step="1" min="0"></label>
       </div>
       <label>Descriere (opțional)<textarea name="description" rows="3"></textarea></label>
-      <label class="check"><input type="checkbox" name="active"> Afișat pe site</label>
+      <label class="check"><input type="checkbox" name="active"> Afișat pe site (se vinde online)</label>
+      <label class="check"><input type="checkbox" name="salonOnly"> Doar în salon (nu apare pe site, se vinde doar la Vânzare salon)</label>
       <p class="err" id="prodErr" role="alert"></p>
       <div class="row row--end"><button class="btn btn--danger" type="button" id="prodDel">Șterge</button><span class="sp"></span><button class="btn" value="cancel" type="button" id="prodCancel">Renunță</button><button class="btn btn--gold" type="submit" id="prodSave">Salvează</button></div>
     </form>

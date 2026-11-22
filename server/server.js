@@ -77,6 +77,8 @@ function cleanProduct(input, existing) {
   p.image = /^(assets\/img\/|uploads\/)[\w\-./]+$/.test(input.image || '') ? input.image : (p.image || '');
   p.alt = p.name + (p.size ? ', ' + p.size : '');
   p.active = input.active !== false;
+  p.salonOnly = !!input.salonOnly;
+  if (p.salonOnly) p.active = false; // not on the website
   if (input.stock !== undefined) p.stock = input.stock === '' || input.stock == null ? null : Math.max(0, Math.round(num(input.stock) || 0));
   if (!p.id) p.id = (p.name + '-' + p.size).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 80) + '-' + crypto.randomBytes(2).toString('hex');
   return p;
@@ -177,6 +179,24 @@ async function placeOrder(body) {
     store.write('orders', store.read('orders', []).map((o) => (o.id === order.id ? order : o)));
   }
   return { number: order.number, total: order.total };
+}
+
+/* ---------- sales statistics (online orders vs salon sales) ---------- */
+function periodStats(list) {
+  const day = (d) => new Date(d).toISOString().slice(0, 10);
+  const today = day(Date.now());
+  const sum = (arr) => money(arr.reduce((a, x) => a + (x.total || 0), 0));
+  const pieces = (arr) => arr.reduce((a, x) => a + (x.items || []).reduce((b, i) => b + (i.qty || 0), 0), 0);
+  const within = (n) => list.filter((x) => Date.now() - Date.parse(x.createdAt) < n * 864e5);
+  const t = list.filter((x) => day(x.createdAt) === today), w = within(7), m = within(30);
+  const days = [];
+  for (let i = 6; i >= 0; i--) {
+    const d = day(Date.now() - i * 864e5);
+    days.push({ day: d, total: sum(list.filter((x) => day(x.createdAt) === d)) });
+  }
+  return { today: sum(t), todayCount: t.length, week: sum(w), month: sum(m), monthCount: m.length, monthPieces: pieces(m), days,
+    // kept for older panel code
+    todayTotal: sum(t), monthTotal: sum(m) };
 }
 
 /* ---------- consultation form (fișa clientei) ---------- */
@@ -286,6 +306,8 @@ async function api(req, res, url) {
       newConsults: store.read('consultations', []).filter((c) => c.status === 'noua').length,
       orders30: recent.length,
       revenue30: money(recent.reduce((a, o) => a + o.total, 0)),
+      salon: periodStats(store.read('sales', []).filter((x) => !x.cancelled)),
+      online: periodStats(orders.filter((o) => o.status !== 'anulata')),
       lowStock: products.filter((x) => x.active && x.stock != null && x.stock <= 3).map((x) => ({ name: x.name, size: x.size, stock: x.stock })),
       smartbill: { configured: !!(s.smartbill.email && s.smartbill.cif && store.secrets().smartbillToken), lastSync: s.smartbill.lastSync, lastSyncError: s.smartbill.lastSyncError }
     });
@@ -330,6 +352,67 @@ async function api(req, res, url) {
       fs.writeFileSync(path.join(UPLOADS, name), buf);
       return ok(res, { path: 'uploads/' + name });
     } catch (e) { return fail(res, 400, 'Încărcarea a eșuat.'); }
+  }
+
+  // stock movements (manual in / out)
+  const sm = p.match(/^\/api\/admin\/products\/([\w-]+)\/stock$/);
+  if (sm && m === 'POST') {
+    const b = await readBody(req), list = store.products(), prod = list.find((x) => x.id === sm[1]);
+    if (!prod) return fail(res, 404, 'Produsul nu există.');
+    const delta = Math.round(num(b.delta) || 0);
+    if (!delta) return fail(res, 400, 'Scrie câte bucăți adaugi sau scazi.');
+    const before = prod.stock == null ? 0 : prod.stock;
+    prod.stock = Math.max(0, before + delta);
+    store.write('products', list);
+    const moves = store.read('stock-moves', []);
+    moves.push({ at: new Date().toISOString(), productId: prod.id, name: prod.name + (prod.size ? ' ' + prod.size : ''), delta, before, after: prod.stock, reason: str(b.reason, 120) || (delta > 0 ? 'Intrare marfă' : 'Ieșire') });
+    store.write('stock-moves', moves.slice(-2000));
+    return ok(res, prod);
+  }
+  if (p === '/api/admin/stock-moves' && m === 'GET') return ok(res, store.read('stock-moves', []).slice(-200).reverse());
+
+  // sales in the salon
+  if (p === '/api/admin/sales' && m === 'GET') return ok(res, store.read('sales', []).slice().reverse().slice(0, 500));
+  if (p === '/api/admin/sales' && m === 'POST') {
+    const b = await readBody(req), list = store.products(), items = [];
+    for (const line of Array.isArray(b.items) ? b.items.slice(0, 50) : []) {
+      const prod = list.find((x) => x.id === line.id);
+      const qty = Math.max(1, Math.min(500, Math.round(num(line.qty) || 0)));
+      if (!prod) return fail(res, 400, 'Un produs nu mai există.');
+      if (prod.stock != null && prod.stock < qty) return fail(res, 400, `Stoc insuficient pentru „${prod.name}” (în stoc: ${prod.stock}).`);
+      const price = num(line.price); 
+      items.push({ id: prod.id, name: prod.name, size: prod.size, qty, price: price != null && price >= 0 ? money(price) : prod.price });
+    }
+    if (!items.length) return fail(res, 400, 'Alege cel puțin un produs.');
+    for (const it of items) { const prod = list.find((x) => x.id === it.id); if (prod.stock != null) prod.stock = Math.max(0, prod.stock - it.qty); }
+    store.write('products', list);
+    const sales = store.read('sales', []);
+    const sale = { id: crypto.randomUUID(), number: sales.reduce((mx, x) => Math.max(mx, x.number || 0), 0) + 1, createdAt: new Date().toISOString(),
+      items, total: money(items.reduce((a, i) => a + i.price * i.qty, 0)), payment: ['cash', 'card', 'transfer'].includes(b.payment) ? b.payment : 'cash',
+      client: str(b.client, 120), note: str(b.note, 300), cancelled: false };
+    sales.push(sale); store.write('sales', sales);
+    if (b.invoice && store.secrets().smartbillToken) {
+      try {
+        const inv = await sb.invoice(store.settings().smartbill, store.secrets().smartbillToken, {
+          number: 'S' + sale.number, shipping: 0,
+          customer: { name: sale.client || 'Client salon', address: '-', city: 'București', county: 'București', email: '', phone: '' },
+          items: items.map((it) => ({ ...it, smartbillCode: (list.find((x) => x.id === it.id) || {}).smartbillCode || '' }))
+        });
+        sale.invoice = { ...inv, issuedAt: new Date().toISOString() };
+      } catch (e) { sale.invoiceError = e.message; }
+      store.write('sales', sales.map((x) => (x.id === sale.id ? sale : x)));
+    }
+    return ok(res, sale);
+  }
+  const sl = p.match(/^\/api\/admin\/sales\/([\w-]+)\/cancel$/);
+  if (sl && m === 'POST') {
+    const sales = store.read('sales', []), sale = sales.find((x) => x.id === sl[1]);
+    if (!sale || sale.cancelled) return fail(res, 400, 'Vânzarea nu există sau e deja anulată.');
+    const list = store.products();
+    for (const it of sale.items) { const prod = list.find((x) => x.id === it.id); if (prod && prod.stock != null) prod.stock += it.qty; }
+    store.write('products', list);
+    sale.cancelled = true; sale.cancelledAt = new Date().toISOString();
+    store.write('sales', sales); return ok(res, sale);
   }
 
   // site texts

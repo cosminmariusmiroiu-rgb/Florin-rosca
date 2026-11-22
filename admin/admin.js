@@ -51,6 +51,7 @@
     catch (x) { err.textContent = x.message; }
   });
   $('#logout').addEventListener('click', async () => { await api('admin/logout', { method: 'POST' }).catch(() => {}); location.reload(); });
+  $('#logout2').addEventListener('click', () => $('#logout').click());
 
   /* ---------- tabs ---------- */
   const loaders = {};
@@ -69,12 +70,15 @@
 
   /* ---------- dashboard ---------- */
   loaders.acasa = async () => {
+    $('#heroDate').textContent = new Date().toLocaleDateString('ro-RO', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+    document.querySelectorAll('[data-go2]').forEach((b) => { b.onclick = () => go(b.dataset.go2); });
     const s = await api('admin/summary');
     $('#navNew').hidden = !s.newOrders; $('#navNew').textContent = s.newOrders;
     $('#sumCards').innerHTML = [
-      ['Fișe noi', s.newConsults], ['Comenzi noi', s.newOrders], ['Comenzi în ultimele 30 de zile', s.orders30], ['Vânzări 30 de zile', lei(s.revenue30)],
+      ['Total azi (online + salon)', lei(s.online.today + s.salon.today)], ['Total 30 de zile', lei(s.online.month + s.salon.month)], ['Fișe noi', s.newConsults], ['Comenzi online noi', s.newOrders],
       ['SmartBill', s.smartbill.configured ? (s.smartbill.lastSyncError ? 'Eroare' : 'Configurat') : 'Neconfigurat']
     ].map(([l, v]) => `<div class="card"><b>${esc(v)}</b><span>${esc(l)}</span></div>`).join('');
+    renderSplit(s);
     const al = [];
     $('#navFise').hidden = !s.newConsults; $('#navFise').textContent = s.newConsults;
     if (s.newConsults) al.push(`📋 Ai <b>${s.newConsults}</b> fișe de consultație noi. <a href="#fise" data-go="fise">Vezi fișele →</a>`);
@@ -86,6 +90,150 @@
     $('#sumAlerts').innerHTML = al.length ? al.map((x) => `<div class="alert">${x}</div>`).join('') : '<div class="alert">Totul e în regulă. ✨</div>';
     $$('[data-go]', $('#sumAlerts')).forEach((a) => a.addEventListener('click', (e) => { e.preventDefault(); go(a.dataset.go); }));
   };
+
+  /* ---------- online vs salon, side by side ---------- */
+  function renderSplit(s) {
+    const box = (title, icon, d, cls, extra) => `<div class="sbox sbox--${cls}">
+      <div class="sbox__h"><span class="sbox__i">${icon}</span><h3>${title}</h3></div>
+      <div class="sbox__big">${lei(d.today)}<small>azi · ${d.todayCount} ${cls === 'online' ? 'comenzi' : 'vânzări'}</small></div>
+      <div class="sbox__row"><div><b>${lei(d.week)}</b><span>7 zile</span></div><div><b>${lei(d.month)}</b><span>30 de zile</span></div><div><b>${d.monthPieces}</b><span>bucăți / 30 z</span></div></div>
+      ${extra}</div>`;
+    const max = Math.max(1, ...s.online.days.map((d, i) => d.total + s.salon.days[i].total));
+    const chart = `<div class="sbox sbox--chart"><div class="sbox__h"><span class="sbox__i">📊</span><h3>Ultimele 7 zile</h3>
+        <span class="legend"><i class="lg-on"></i>Online <i class="lg-sa"></i>Salon</span></div>
+      <div class="chart">${s.online.days.map((d, i) => { const sa = s.salon.days[i].total, on = d.total;
+        const dn = new Date(d.day).toLocaleDateString('ro-RO', { weekday: 'short' });
+        return `<div class="chart__c" title="${dn}: online ${lei(on)}, salon ${lei(sa)}"><div class="chart__s"><i class="on" style="height:${on / max * 100}%"></i><i class="sa" style="height:${sa / max * 100}%"></i></div><span>${dn}</span></div>`; }).join('')}</div></div>`;
+    $('#sumSplit').innerHTML = box('Vânzări online', '🛒', s.online, 'online', '<a href="#comenzi" data-go3="comenzi" class="sbox__lnk">Vezi comenzile →</a>')
+      + box('Vânzări în salon', '💳', s.salon, 'salon', '<a href="#vanzare" data-go3="vanzare" class="sbox__lnk">Vânzare nouă →</a>') + chart;
+    document.querySelectorAll('[data-go3]').forEach((a) => a.addEventListener('click', (e) => { e.preventDefault(); go(a.dataset.go3); }));
+  }
+
+  /* ---------- sales in the salon ---------- */
+  const PAY = { cash: 'Numerar', card: 'Card', transfer: 'Transfer' };
+  let saleProducts = [], saleLines = [], sales = [];
+  const prodLabel = (p) => `${p.name}${p.size ? ' · ' + p.size : ''}`;
+  loaders.vanzare = async () => {
+    saleProducts = await api('admin/products');
+    const st = await api('admin/settings').catch(() => null);
+    $('#saleInvWrap').hidden = !(st && st.smartbillTokenSet && st.smartbill.cif);
+    $('#saleProd').innerHTML = saleProducts.map((p) => `<option value="${esc(p.id)}">${esc(prodLabel(p))} — ${lei(p.price)}${p.stock != null ? ' · stoc ' + p.stock : ''}</option>`).join('');
+    syncPrice(); renderSaleLines();
+    sales = await api('admin/sales'); renderSales();
+  };
+  function syncPrice() { const p = saleProducts.find((x) => x.id === $('#saleProd').value); if (p) $('#salePrice').value = p.price; }
+  $('#saleProd').addEventListener('change', syncPrice);
+  $$('[data-qd]').forEach((b) => b.addEventListener('click', () => { const q = $('#saleQty'); q.value = Math.max(1, (+q.value || 1) + +b.dataset.qd); }));
+  $('#saleAdd').addEventListener('click', () => {
+    const p = saleProducts.find((x) => x.id === $('#saleProd').value); if (!p) return;
+    const qty = Math.max(1, Math.round(+$('#saleQty').value || 1)), price = +$('#salePrice').value || p.price;
+    const ex = saleLines.find((l) => l.id === p.id && l.price === price);
+    if (ex) ex.qty += qty; else saleLines.push({ id: p.id, name: prodLabel(p), qty, price });
+    $('#saleQty').value = 1; renderSaleLines();
+  });
+  function renderSaleLines() {
+    $('#saleLines').innerHTML = saleLines.length ? saleLines.map((l, i) => `<div class="sline"><span>${l.qty} × ${esc(l.name)}</span><b>${lei(l.qty * l.price)}</b><button type="button" class="btn btn--sm" data-rm="${i}" aria-label="Scoate">✕</button></div>`).join('')
+      : '<p class="muted">Alege produsul și cantitatea, apoi apasă „Vândut”. (Poți adăuga mai multe produse cu „+ Adaugă în vânzare”.)</p>';
+    $$('[data-rm]').forEach((b) => b.addEventListener('click', () => { saleLines.splice(+b.dataset.rm, 1); renderSaleLines(); }));
+    const pending = saleLines.length ? saleLines : [];
+    const t = pending.reduce((a, l) => a + l.qty * l.price, 0);
+    $('#saleTotal').innerHTML = saleLines.length ? `Total: <b>${lei(t)}</b>` : '';
+  }
+  $('#saleForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    // nothing added yet: sell the selected product directly
+    let items = saleLines.map((l) => ({ id: l.id, qty: l.qty, price: l.price }));
+    if (!items.length) { const p = saleProducts.find((x) => x.id === $('#saleProd').value); if (p) items = [{ id: p.id, qty: Math.max(1, Math.round(+$('#saleQty').value || 1)), price: +$('#salePrice').value || p.price }]; }
+    try {
+      const s = await busy($('#saleGo'), () => api('admin/sales', { method: 'POST', body: { items, payment: $('#salePay').value, client: $('#saleClient').value, invoice: $('#saleInv').checked } }));
+      note($('#saleMsg'), `✓ Vânzarea #${s.number} a fost salvată: ${lei(s.total)}. Stocul a fost scăzut.` + (s.invoice ? ` Factura ${s.invoice.series} ${s.invoice.number} a fost emisă în SmartBill.` : s.invoiceError ? ` Factura SmartBill NU s-a emis: ${s.invoiceError}` : ''), !s.invoiceError);
+      saleLines = []; $('#saleClient').value = ''; $('#saleQty').value = 1;
+      await loaders.vanzare();
+    } catch (x) { note($('#saleMsg'), x.message, false); }
+  });
+  $('#saleRange').addEventListener('change', renderSales);
+  function renderSales() {
+    const r = $('#saleRange').value, now = Date.now(), today = new Date().toISOString().slice(0, 10);
+    const list = sales.filter((x) => r === 'all' ? true : r === 'today' ? x.createdAt.slice(0, 10) === today : now - Date.parse(x.createdAt) < +r * 864e5);
+    const ok = list.filter((x) => !x.cancelled);
+    const sum = (f) => ok.filter(f).reduce((a, x) => a + x.total, 0);
+    const pieces = ok.reduce((a, x) => a + x.items.reduce((b, i) => b + i.qty, 0), 0);
+    $('#saleStats').innerHTML = [['Total vândut', lei(sum(() => true))], ['Bucăți', pieces], ['Numerar', lei(sum((x) => x.payment === 'cash'))], ['Card / transfer', lei(sum((x) => x.payment !== 'cash'))]]
+      .map(([l, v]) => `<div class="card"><b>${esc(v)}</b><span>${l}</span></div>`).join('');
+    $('#saleList').innerHTML = list.length ? list.map((x) => `<div class="ord${x.cancelled ? ' off' : ''}"><div class="ord__head"><h3>#${x.number} · ${lei(x.total)}</h3><span class="status">${x.cancelled ? 'Anulată' : PAY[x.payment]}</span></div>
+      <div class="ord__meta">${when(x.createdAt)}${x.client ? ' · ' + esc(x.client) : ''}</div>
+      <div class="muted">${x.items.map((i) => `${i.qty} × ${esc(i.name)} ${esc(i.size || '')}`).join('<br>')}</div>
+      ${x.cancelled ? '' : `<div class="row row--end"><span class="sp"></span><button class="btn btn--sm btn--danger" data-cancel="${x.id}" type="button">Anulează (pune stocul înapoi)</button></div>`}</div>`).join('')
+      : '<div class="empty">Nicio vânzare în perioada aleasă.</div>';
+    $$('[data-cancel]').forEach((b) => b.addEventListener('click', async () => {
+      if (!confirm('Anulezi vânzarea? Produsele se pun înapoi în stoc.')) return;
+      try { await api('admin/sales/' + b.dataset.cancel + '/cancel', { method: 'POST' }); toast('Vânzarea a fost anulată.'); loaders.vanzare(); } catch (x) { toast(x.message); }
+    }));
+  }
+
+  /* ---------- stock overview ---------- */
+  let stockProducts = [];
+  loaders.stoc = async () => {
+    stockProducts = await api('admin/products');
+    renderStock();
+    const moves = await api('admin/stock-moves');
+    $('#stockMoves').innerHTML = moves.length ? moves.slice(0, 40).map((m) => `<div class="move"><span>${when(m.at)}</span><b class="${m.delta > 0 ? 'up' : 'down'}">${m.delta > 0 ? '+' : ''}${m.delta}</b><span>${esc(m.name)} · ${esc(m.reason)} (${m.before} → ${m.after})</span></div>`).join('') : '<p class="muted">Nicio mișcare manuală încă.</p>';
+  };
+  $('#stockSearch').addEventListener('input', renderStock);
+  function renderStock() {
+    const q = $('#stockSearch').value.trim().toLowerCase();
+    const counted = stockProducts.filter((p) => p.stock != null);
+    const units = counted.reduce((a, p) => a + p.stock, 0), value = counted.reduce((a, p) => a + p.stock * p.price, 0);
+    const low = counted.filter((p) => p.stock <= 3).length;
+    $('#stockCards').innerHTML = [['Bucăți în stoc', units], ['Valoare stoc (preț vânzare)', lei(value)], ['Produse', stockProducts.length], ['Stoc mic (≤ 3)', low]]
+      .map(([l, v], i) => `<div class="card${i === 3 && low ? ' card--warn' : ''}"><b>${esc(v)}</b><span>${l}</span></div>`).join('');
+    const max = Math.max(1, ...counted.map((p) => p.stock));
+    const list = stockProducts.filter((p) => !q || prodLabel(p).toLowerCase().includes(q));
+    $('#stockList').innerHTML = list.map((p) => {
+      const st = p.stock, pct = st == null ? 100 : Math.max(2, Math.round(st / max * 100));
+      const cls = st == null ? 'inf' : st === 0 ? 'zero' : st <= 3 ? 'low' : 'ok';
+      return `<div class="srow"><img src="${esc(img(p.image))}" alt="" loading="lazy">
+        <div class="srow__b"><div class="srow__n">${esc(p.name)} <small>${esc(p.size)}</small> ${p.salonOnly ? '<em class="tag tag--salon">doar salon</em>' : p.active === false ? '<em class="tag">ascuns</em>' : '<em class="tag tag--on">online + salon</em>'}</div>
+          <div class="bar-s"><i class="${cls}" style="width:${pct}%"></i></div>
+          <div class="srow__m">${st == null ? 'Stoc necompletat' : st === 0 ? '<b class="zero">Epuizat</b>' : `<b class="${cls}">${st} buc.</b> · valoare ${lei(st * p.price)}`}</div></div>
+        <div class="srow__a"><input type="number" inputmode="numeric" placeholder="buc." aria-label="Bucăți" data-sq="${p.id}">
+          <button class="btn btn--sm btn--gold" data-sin="${p.id}" type="button">+ Intrare</button>
+          <button class="btn btn--sm" data-sout="${p.id}" type="button">− Ieșire</button></div></div>`;
+    }).join('');
+    const move = async (id, sign) => {
+      const inp = $(`[data-sq="${id}"]`), n = Math.round(+inp.value || 0);
+      if (!n) { inp.focus(); toast('Scrie câte bucăți.'); return; }
+      try { await api('admin/products/' + id + '/stock', { method: 'POST', body: { delta: sign * n, reason: sign > 0 ? 'Intrare marfă' : 'Ieșire manuală' } }); toast('Stocul a fost actualizat.'); loaders.stoc(); }
+      catch (x) { toast(x.message); }
+    };
+    $$('[data-sin]').forEach((b) => b.addEventListener('click', () => move(b.dataset.sin, 1)));
+    $$('[data-sout]').forEach((b) => b.addEventListener('click', () => move(b.dataset.sout, -1)));
+  }
+  $('#stockSync').addEventListener('click', (e) => busy(e.currentTarget, async () => {
+    try { const r = await api('admin/smartbill/sync', { method: 'POST' }); toast(`Stoc actualizat din SmartBill: ${r.matched} din ${r.total} produse.`); loaders.stoc(); } catch (x) { toast(x.message); }
+  }));
+
+  /* ---------- install as an app (PWA) ---------- */
+  if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
+  let deferredPrompt = null;
+  const standalone = window.matchMedia('(display-mode: standalone)').matches || navigator.standalone;
+  window.addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); deferredPrompt = e; $('#installBtn').hidden = false; showInstallTip(); });
+  $('#installBtn').addEventListener('click', async () => {
+    if (!deferredPrompt) return showInstallTip(true);
+    deferredPrompt.prompt(); await deferredPrompt.userChoice.catch(() => {}); deferredPrompt = null; $('#installBtn').hidden = true;
+  });
+  function showInstallTip(force) {
+    if (standalone) return;
+    const ios = /iphone|ipad|ipod/i.test(navigator.userAgent);
+    const t = $('#installTip');
+    t.innerHTML = ios
+      ? '📲 <b>Instalează panoul ca aplicație pe iPhone:</b> apasă butonul <b>Partajare</b> (pătratul cu săgeată) din Safari, apoi <b>„Adaugă pe ecranul principal”</b>.'
+      : deferredPrompt ? '📲 <b>Poți instala panoul ca aplicație:</b> <button class="btn btn--sm btn--gold" type="button" id="installNow">Instalează aplicația</button>'
+      : (force ? '📲 Deschide meniul browserului (⋮) și alege <b>„Instalează aplicația”</b> sau <b>„Adaugă pe ecranul de pornire”</b>.' : '');
+    t.hidden = !t.innerHTML;
+    const b = $('#installNow'); if (b) b.addEventListener('click', () => $('#installBtn').click());
+  }
+  if (/iphone|ipad|ipod/i.test(navigator.userAgent)) { $('#installBtn').hidden = standalone; showInstallTip(); }
 
   /* ---------- client files (consultations) ---------- */
   const FS = { noua: 'Nouă', contactata: 'Contactată', programata: 'Programată', finalizata: 'Finalizată' };
@@ -178,7 +326,7 @@
       <div class="prod__b">
         <div class="prod__n">${esc(p.name)} <small>${esc(p.size)}</small></div>
         <div class="prod__p">${p.oldPrice ? '<s>' + lei(p.oldPrice) + '</s>' : ''}${lei(p.price)}</div>
-        <div class="prod__s">${stockLabel(p)} · ${esc(CAT[p.category] || '')}${p.smartbillCode ? ' · cod ' + esc(p.smartbillCode) : ' · <i>fără cod SmartBill</i>'}${p.active ? '' : ' · <b>ascuns</b>'}</div>
+        <div class="prod__s">${stockLabel(p)} · ${esc(CAT[p.category] || '')}${p.smartbillCode ? ' · cod ' + esc(p.smartbillCode) : ' · <i>fără cod SmartBill</i>'}${p.salonOnly ? ' · <b>doar în salon</b>' : p.active ? '' : ' · <b>ascuns</b>'}</div>
         <div class="prod__a"><button class="btn btn--sm btn--gold" data-edit="${p.id}" type="button">Modifică</button>
           <button class="btn btn--sm" data-up="${i}" type="button" aria-label="Mută mai sus" ${i ? '' : 'disabled'}>↑</button>
           <button class="btn btn--sm" data-down="${i}" type="button" aria-label="Mută mai jos" ${i < products.length - 1 ? '' : 'disabled'}>↓</button></div>
@@ -200,6 +348,7 @@
     for (const k of ['name', 'size', 'category', 'price', 'oldPrice', 'smartbillCode', 'description']) f[k].value = v[k] == null ? '' : v[k];
     f.stock.value = v.stock == null ? '' : v.stock;
     f.active.checked = v.active !== false;
+    f.salonOnly.checked = !!v.salonOnly;
     $('#prodImg').src = img(v.image);
     $('#prodDlg').showModal();
   }
@@ -217,7 +366,7 @@
     const f = e.target;
     const body = {
       name: f.name.value, size: f.size.value, category: f.category.value, price: f.price.value, oldPrice: f.oldPrice.value,
-      smartbillCode: f.smartbillCode.value, description: f.description.value, stock: f.stock.value, active: f.active.checked,
+      smartbillCode: f.smartbillCode.value, description: f.description.value, stock: f.stock.value, active: f.active.checked && !f.salonOnly.checked, salonOnly: f.salonOnly.checked,
       image: newImage || (editing && editing.image) || ''
     };
     try {
