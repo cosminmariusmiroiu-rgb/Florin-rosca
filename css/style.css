@@ -60,7 +60,7 @@ main, .footer, .nav { position: relative; z-index: 2; }
 .cursor__dot { width: 6px; height: 6px; background: var(--gold-hi); }
 .cursor__ring { width: 38px; height: 38px; border: 1px solid var(--gold); transition: width .35s var(--ease), height .35s var(--ease), background .35s; }
 .cursor.is-hover .cursor__ring { width: 72px; height: 72px; background: rgba(212,169,69,.12); }
-@media (hover: hover) and (pointer: fine) { .cursor { display: block; } body, a, button, summary { cursor: none; } input, textarea, select { cursor: text; } }
+/* custom cursor removed: the normal system cursor is used */
 
 /* ---------- Preloader ---------- */
 .loader { position: fixed; inset: 0; z-index: 200; display: grid; place-items: center; }
@@ -626,10 +626,12 @@ html:not(.webgl) .ritual__stage, html:not(.webgl) .ritual__hint { display: none;
   linear-gradient(90deg, rgba(7,7,7,.94) 0%, rgba(7,7,7,.78) 26%, rgba(7,7,7,.15) 52%, rgba(7,7,7,0) 70%, rgba(7,7,7,.45) 100%),
   linear-gradient(0deg, rgba(7,7,7,.95) 0%, rgba(7,7,7,0) 30%),
   linear-gradient(180deg, rgba(7,7,7,.7) 0%, rgba(7,7,7,0) 18%); }
-.cine__content { position: relative; z-index: 2; max-width: min(560px, 44vw); padding: 120px 0 190px var(--pad); }
+.cine__content { position: relative; z-index: 2; max-width: min(720px, 46vw); padding: 120px 0 190px var(--pad); }
 .cine .hero__medal { margin-bottom: 4px; }
 .cine .medal { width: clamp(110px, 10vw, 150px); }
-.cine .hero__title { font-size: clamp(48px, 7vw, 116px); }
+.cine .hero__title { font-size: clamp(44px, 6.4vw, 104px); }
+.hero__title .line { display: block; white-space: nowrap; }
+.cine .hero__lead, .cine .hero__actions { max-width: 460px; }
 .cine .hero__lead { max-width: 440px; color: #e6dccb; }
 .cine__card { position: absolute; z-index: 2; right: var(--pad); top: 120px; width: 270px; padding: 20px 20px 18px; border-radius: 12px;
   background: rgba(10,10,10,.55); border: 1px solid rgba(212,169,69,.35); backdrop-filter: blur(14px) saturate(1.2); -webkit-backdrop-filter: blur(14px);

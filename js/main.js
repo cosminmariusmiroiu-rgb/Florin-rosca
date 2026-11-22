@@ -55,23 +55,6 @@
     document.body.classList.toggle('menu-open', open);
   });
 
-  /* ---------- Custom cursor ---------- */
-  if (finePointer && !reduced) {
-    const cursor = $('.cursor'), dot = $('.cursor__dot'), ring = $('.cursor__ring');
-    let x = innerWidth / 2, y = innerHeight / 2, rx = x, ry = y;
-    window.addEventListener('pointermove', (e) => { x = e.clientX; y = e.clientY; }, { passive: true });
-    (function loop() {
-      rx += (x - rx) * 0.18; ry += (y - ry) * 0.18;
-      dot.style.transform = `translate(${x}px, ${y}px) translate(-50%,-50%)`;
-      ring.style.transform = `translate(${rx}px, ${ry}px) translate(-50%,-50%)`;
-      requestAnimationFrame(loop);
-    })();
-    $$('a, button, summary, [data-tilt]').forEach((el) => {
-      el.addEventListener('pointerenter', () => cursor.classList.add('is-hover'));
-      el.addEventListener('pointerleave', () => cursor.classList.remove('is-hover'));
-    });
-  }
-
   /* ---------- Magnetic buttons ---------- */
   if (finePointer && !reduced) {
     $$('[data-magnetic]').forEach((el) => {
