@@ -239,9 +239,18 @@
 
   // Entrance: the music starts the moment the site opens. Browsers only allow sound after a tap,
   // so when autoplay is blocked we show an "Intră în salon" button; tapping it starts the music and opens the site.
-  // No waiting screen: the site opens straight away. If the browser blocks sound,
-  // the music starts on the visitor's first tap (see the music block above).
-  function enterGate() { finishLoader(false); }
+  // Entrance: if the browser blocks sound, show the "Intră în salon" button; one tap starts the music and opens the site.
+  async function enterGate() {
+    const m = window.__music;
+    if (!m || m.off() || m.playing()) return finishLoader(false);
+    if (await m.start()) return finishLoader(false);
+    const loader = $('.loader'), btn = $('.loader__enter');
+    if (!btn) return finishLoader(false);
+    loader.setAttribute('aria-hidden', 'false');
+    loader.classList.add('is-gate');
+    btn.hidden = false; btn.focus();
+    btn.addEventListener('click', () => { m.start(); btn.disabled = true; finishLoader(false); }, { once: true });
+  }
 
   (function runLoader() {
     const bar = $('.loader__bar span'), count = $('.loader__count');
