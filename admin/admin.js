@@ -81,6 +81,7 @@
     renderSplit(s);
     const al = [];
     $('#navFise').hidden = !s.newConsults; $('#navFise').textContent = s.newConsults;
+    if (s.parcels) al.push(`🚚 Ai <b>${s.parcels}</b> colete de pregătit. <a href="#colete" data-go="colete">Vezi coletele →</a>`);
     if (s.newConsults) al.push(`📋 Ai <b>${s.newConsults}</b> fișe de consultație noi. <a href="#fise" data-go="fise">Vezi fișele →</a>`);
     if (s.newOrders) al.push(`🧾 Ai <b>${s.newOrders}</b> comenzi noi. <a href="#comenzi" data-go="comenzi">Vezi comenzile →</a>`);
     if (!s.smartbill.configured) al.push('🔗 SmartBill nu este conectat încă. <a href="#smartbill" data-go="smartbill">Conectează acum →</a>');
@@ -200,6 +201,125 @@
       try { await api('admin/sales/' + b.dataset.cancel + '/cancel', { method: 'POST' }); toast('Vânzarea a fost anulată.'); loaders.vanzare(); } catch (x) { toast(x.message); }
     }));
   }
+
+  /* ---------- parcels to prepare + courier (Sameday) ---------- */
+  const PROV = { sameday: 'Sameday', fan: 'FAN Courier', cargus: 'Cargus', manual: 'fără legătură' };
+  let parcels = { open: [], shippedToday: [] };
+  const dayName = (d) => {
+    const t = new Date().toISOString().slice(0, 10), tm = new Date(Date.now() + 864e5).toISOString().slice(0, 10);
+    const nice = new Date(d).toLocaleDateString('ro-RO', { weekday: 'long', day: 'numeric', month: 'long' });
+    return d < t ? '⚠️ Întârziate (trebuiau să plece ' + nice + ')' : d === t ? 'Pleacă AZI' : d === tm ? 'Pleacă MÂINE' : 'Pleacă ' + nice;
+  };
+  loaders.colete = async () => {
+    parcels = await api('admin/parcels');
+    const st = await api('admin/settings'); fillCourier(st);
+    $('#navColete').hidden = !parcels.open.length; $('#navColete').textContent = parcels.open.length;
+    $('#courierInfo').innerHTML = parcels.provider === 'manual'
+      ? '🚚 Legătura automată cu curierul e oprită: scrii AWB-ul de mână la fiecare colet.'
+      : parcels.configured ? `🚚 Conectat la <b>${PROV[parcels.provider]}</b>: cu un clic generezi AWB-ul și printezi eticheta. Comenzile de după ora <b>${esc(st.courier.cutoff)}</b> pleacă a doua zi lucrătoare.`
+      : `🚚 Ca să generezi AWB-uri direct din panou, completează jos <b>Setări curier</b> cu datele de API primite de la <b>${PROV[parcels.provider]}</b>.`;
+    const ready = parcels.open.filter((o) => o.awb).length;
+    const cod = parcels.open.reduce((a, o) => a + (o.payment === 'ramburs' ? o.total : 0), 0);
+    $('#parcelCards').innerHTML = [['Colete de pregătit', parcels.open.length], ['Cu AWB generat', ready + ' / ' + parcels.open.length], ['Ramburs de încasat', lei(cod)], ['Expediate azi', parcels.shippedToday.length]]
+      .map(([l, v]) => `<div class="card"><b>${esc(v)}</b><span>${l}</span></div>`).join('');
+    // pick list: how many of each product to take from stock
+    const pick = {};
+    parcels.open.forEach((o) => o.items.forEach((i) => { const k = i.id; pick[k] = pick[k] || { name: i.name + (i.size ? ' · ' + i.size : ''), qty: 0 }; pick[k].qty += i.qty; }));
+    const pl = Object.values(pick).sort((a, b) => b.qty - a.qty);
+    $('#pickPanel').hidden = !pl.length;
+    $('#pickList').innerHTML = pl.map((x) => `<div class="pick"><b>${x.qty}×</b><span>${esc(x.name)}</span></div>`).join('');
+    // groups by day
+    const groups = {};
+    parcels.open.forEach((o) => { (groups[o.shipDay] = groups[o.shipDay] || []).push(o); });
+    const days = Object.keys(groups).sort();
+    $('#parcelGroups').innerHTML = days.length ? days.map((d) => `<h3 class="sgrid__h">${dayName(d)} · ${groups[d].length} ${groups[d].length === 1 ? 'colet' : 'colete'}</h3>
+      <div class="parcels">${groups[d].map(parcelCard).join('')}</div>`).join('')
+      : '<div class="empty">🎉 Nu ai colete de pregătit. Comenzile noi de pe site apar aici automat.</div>';
+    bindParcels();
+  };
+  function parcelCard(o) {
+    const c = o.customer;
+    return `<article class="parcel${o.awb ? ' has-awb' : ''}">
+      <div class="parcel__h"><b>#${o.number}</b><span class="status status--${o.status}">${o.awb ? 'AWB ' + esc(o.awb) : 'fără AWB'}</span></div>
+      <div class="parcel__who"><b>${esc(c.name)}</b> · <a href="tel:${esc(c.phone)}">${esc(c.phone)}</a><br>${esc(c.address)}, ${esc(c.city)}, jud. ${esc(c.county)}</div>
+      <ul class="parcel__items">${o.items.map((i) => `<li><b>${i.qty}×</b> ${esc(i.name)} ${esc(i.size || '')}</li>`).join('')}</ul>
+      <div class="parcel__cod">${o.payment === 'ramburs' ? `Ramburs: <b>${lei(o.total)}</b>` : 'Plătită'}</div>
+      ${c.notes ? `<div class="muted">„${esc(c.notes)}”</div>` : ''}
+      <div class="parcel__a">
+        ${o.awb ? `<a class="btn btn--sm" href="/api/admin/orders/${o.id}/label.pdf" target="_blank" rel="noopener">🖨️ Etichetă</a><button class="btn btn--sm" type="button" data-track="${o.id}">📍 Unde e?</button>`
+          : parcels.provider === 'manual' ? `<input data-awbman="${o.id}" placeholder="Scrie AWB-ul">` : `<button class="btn btn--sm btn--gold" type="button" data-awb="${o.id}">🏷️ Generează AWB</button>`}
+        <button class="btn btn--sm" type="button" data-ship="${o.id}">✓ Predat curierului</button>
+      </div></article>`;
+  }
+  function bindParcels() {
+    $$('[data-awb]').forEach((b) => b.addEventListener('click', () => busy(b, async () => {
+      try { const o = await api('admin/orders/' + b.dataset.awb + '/awb', { method: 'POST' }); toast('AWB generat: ' + o.awb); loaders.colete(); } catch (x) { toast(x.message); }
+    })));
+    $$('[data-awbman]').forEach((i) => i.addEventListener('change', async () => {
+      try { await api('admin/orders/' + i.dataset.awbman, { method: 'PUT', body: { awb: i.value } }); toast('AWB salvat.'); loaders.colete(); } catch (x) { toast(x.message); }
+    }));
+    $$('[data-track]').forEach((b) => b.addEventListener('click', () => busy(b, async () => {
+      try { const r = await api('admin/orders/' + b.dataset.track + '/track'); toast('📍 ' + r.status); } catch (x) { toast(x.message); }
+    })));
+    $$('[data-ship]').forEach((b) => b.addEventListener('click', () => busy(b, async () => {
+      try { await api('admin/orders/' + b.dataset.ship + '/shipped', { method: 'POST' }); toast('Coletul a fost marcat ca expediat.'); loaders.colete(); } catch (x) { toast(x.message); }
+    })));
+  }
+  $('#awbAll').addEventListener('click', (e) => busy(e.currentTarget, async () => {
+    const todo = parcels.open.filter((o) => !o.awb);
+    if (!todo.length) return toast('Toate coletele au deja AWB.');
+    let okN = 0, err = '';
+    for (const o of todo) { try { await api('admin/orders/' + o.id + '/awb', { method: 'POST' }); okN++; } catch (x) { err = x.message; break; } }
+    toast(err ? `Generate ${okN}. Oprit la o eroare: ${err}` : `Am generat ${okN} AWB-uri.`);
+    loaders.colete();
+  }));
+  $('#pickPrint').addEventListener('click', () => {
+    const w = window.open('', '_blank');
+    if (!w) return toast('Permite ferestrele pop-up ca să printezi.');
+    const rows = parcels.open.map((o) => `<tr><td>#${o.number}</td><td>${esc(o.customer.name)}<br>${esc(o.customer.city)}</td><td>${o.items.map((i) => i.qty + '× ' + esc(i.name) + ' ' + esc(i.size || '')).join('<br>')}</td><td>${o.payment === 'ramburs' ? lei(o.total) : '—'}</td><td>${esc(o.awb || '')}</td></tr>`).join('');
+    w.document.write(`<html><head><meta charset="utf-8"><title>Colete de pregătit</title><style>body{font:14px Arial;padding:20px}table{border-collapse:collapse;width:100%}td,th{border:1px solid #999;padding:6px;text-align:left;vertical-align:top}h1{font-size:20px}</style></head><body><h1>Colete de pregătit · ${new Date().toLocaleDateString('ro-RO')}</h1>
+      <h2>De scos din stoc</h2><ul>${$('#pickList').innerText.split('\n').filter(Boolean).map((l) => '<li>' + esc(l) + '</li>').join('')}</ul>
+      <table><tr><th>Comandă</th><th>Client</th><th>Produse</th><th>Ramburs</th><th>AWB</th></tr>${rows}</table><script>print()<\/script></body></html>`);
+    w.document.close();
+  });
+  function fillCourier(st) {
+    const f = $('#courierForm'), c = st.courier;
+    f.provider.value = c.provider; f.demo.checked = !!c.demo; f.clientId.value = c.clientId || ''; f.cutoff.value = c.cutoff || '14:00'; f.kgPerItem.value = c.kgPerItem || 0.6;
+    if (c.pickupPoint && !$(`option[value="${c.pickupPoint}"]`, f.pickupPoint)) f.pickupPoint.insertAdjacentHTML('beforeend', `<option value="${esc(c.pickupPoint)}">Punct ${esc(c.pickupPoint)}</option>`);
+    if (c.service && !$(`option[value="${c.service}"]`, f.service)) f.service.insertAdjacentHTML('beforeend', `<option value="${esc(c.service)}">Serviciu ${esc(c.service)}</option>`);
+    f.pickupPoint.value = c.pickupPoint || ''; f.service.value = c.service || '';
+    $('#courierCred').textContent = st.courierUserSet ? '🔒 Datele de API sunt salvate (parola nu se afișează).' : 'Datele de API nu sunt salvate încă. Le ceri de la Sameday (managerul de cont / „API Sameday”).';
+    $('#courierSet').querySelector('summary b').textContent = `⚙️ Setări curier (${PROV[c.provider]})`;
+    showOnly();
+  }
+  function showOnly() { const v = $('#courierForm').provider.value; $$('#courierForm [data-only]').forEach((el) => { el.hidden = el.dataset.only !== v; }); }
+  $('#courierForm').provider.addEventListener('change', showOnly);
+  function courierBody() {
+    const f = $('#courierForm');
+    return { courier: { provider: f.provider.value, demo: f.demo.checked, pickupPoint: f.pickupPoint.value, service: f.service.value, clientId: f.clientId.value, cutoff: f.cutoff.value, kgPerItem: f.kgPerItem.value },
+      courierSecrets: { user: f.user.value, pass: f.pass.value, key: f.key.value } };
+  }
+  $('#courierForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    try { await busy($('button[type=submit]', e.target), () => api('admin/settings', { method: 'PUT', body: courierBody() })); e.target.pass.value = ''; e.target.key.value = ''; note($('#courierMsg'), 'Setările curierului au fost salvate.', true); loaders.colete(); }
+    catch (x) { note($('#courierMsg'), x.message, false); }
+  });
+  $('#courierTest').addEventListener('click', (e) => busy(e.currentTarget, async () => {
+    try { await api('admin/settings', { method: 'PUT', body: courierBody() }); const r = await api('admin/courier/test', { method: 'POST' }); note($('#courierMsg'), '✅ ' + r.message, true); }
+    catch (x) { note($('#courierMsg'), x.message, false); }
+  }));
+  $('#courierLoad').addEventListener('click', (e) => busy(e.currentTarget, async () => {
+    try {
+      await api('admin/settings', { method: 'PUT', body: courierBody() });
+      const o = await api('admin/courier/options'), f = $('#courierForm');
+      const cur = { p: f.pickupPoint.value, s: f.service.value };
+      f.pickupPoint.innerHTML = o.pickupPoints.map((x) => `<option value="${x.id}">${esc(x.name)}</option>`).join('') || '<option value="">— niciun punct —</option>';
+      f.service.innerHTML = o.services.map((x) => `<option value="${x.id}">${esc(x.name)}</option>`).join('') || '<option value="">— niciun serviciu —</option>';
+      f.pickupPoint.value = cur.p || (o.pickupPoints.find((x) => x.default) || o.pickupPoints[0] || {}).id || '';
+      f.service.value = cur.s || (o.services.find((x) => x.default) || o.services[0] || {}).id || '';
+      note($('#courierMsg'), `Am încărcat ${o.pickupPoints.length} puncte de ridicare și ${o.services.length} servicii. Alege-le și apasă „Salvează”.`, true);
+    } catch (x) { note($('#courierMsg'), x.message, false); }
+  }));
 
   /* ---------- stock overview ---------- */
   let stockProducts = [];

@@ -8,6 +8,7 @@ const crypto = require('crypto');
 const store = require('./store');
 const auth = require('./auth');
 const sb = require('./smartbill');
+const courier = require('./courier');
 
 const PORT = Number(process.env.PORT) || 3000;
 const ROOT = store.ROOT;
@@ -304,6 +305,7 @@ async function api(req, res, url) {
     return ok(res, {
       newOrders: orders.filter((o) => o.status === 'noua').length,
       newConsults: store.read('consultations', []).filter((c) => c.status === 'noua').length,
+      parcels: orders.filter((o) => o.status === 'noua' || o.status === 'confirmata').length,
       orders30: recent.length,
       revenue30: money(recent.reduce((a, o) => a + o.total, 0)),
       salon: periodStats(store.read('sales', []).filter((x) => !x.cancelled)),
@@ -429,7 +431,13 @@ async function api(req, res, url) {
   if (om && !om[2] && m === 'PUT') {
     const b = await readBody(req), orders = store.read('orders', []), o = orders.find((x) => x.id === om[1]);
     if (!o) return fail(res, 404, 'Comanda nu există.');
-    if (['noua', 'confirmata', 'expediata', 'livrata', 'anulata'].includes(b.status)) o.status = b.status;
+    if (['noua', 'confirmata', 'expediata', 'livrata', 'anulata'].includes(b.status)) {
+      if (b.status === 'anulata' && o.status !== 'anulata' && !o.stockRestored) {
+        store.write('products', store.products().map((p) => { const it = o.items.find((i) => i.id === p.id); return it && p.stock != null ? { ...p, stock: p.stock + it.qty } : p; }));
+        o.stockRestored = true;
+      }
+      o.status = b.status;
+    }
     if (b.awb !== undefined) o.awb = str(b.awb, 60);
     if (b.adminNote !== undefined) o.adminNote = str(b.adminNote, 1000);
     store.write('orders', orders); return ok(res, o);
@@ -473,26 +481,97 @@ async function api(req, res, url) {
     return send(res, 200, fs.readFileSync(full), { 'Content-Type': TYPES['.' + ph[2]], 'Cache-Control': 'private, max-age=3600' });
   }
 
+  // parcels to prepare (courier)
+  if (p === '/api/admin/parcels' && m === 'GET') {
+    const s = store.settings(), orders = store.read('orders', []);
+    const [ch, cm] = String(s.courier.cutoff || '14:00').split(':').map(Number);
+    const nextWork = (d) => { const x = new Date(d); do { x.setDate(x.getDate() + 1); } while (x.getDay() === 0); return x; };
+    const shipDay = (o) => {
+      const d = new Date(o.createdAt), cut = new Date(d); cut.setHours(ch || 14, cm || 0, 0, 0);
+      const day = d <= cut && d.getDay() !== 0 ? d : nextWork(d);
+      return day.toISOString().slice(0, 10);
+    };
+    const open = orders.filter((o) => o.status === 'noua' || o.status === 'confirmata').map((o) => ({ ...o, shipDay: shipDay(o) }));
+    const today = new Date().toISOString().slice(0, 10);
+    const shippedToday = orders.filter((o) => o.status === 'expediata' && (o.shippedAt || '').slice(0, 10) === today);
+    return ok(res, { open, shippedToday, provider: s.courier.provider, configured: !!(store.secrets().courier || {}).user || s.courier.provider === 'manual' });
+  }
+  const aw = p.match(/^\/api\/admin\/orders\/([\w-]+)\/(awb|label\.pdf|shipped|track)$/);
+  if (aw) {
+    const orders = store.read('orders', []), o = orders.find((x) => x.id === aw[1]);
+    if (!o) return fail(res, 404, 'Comanda nu există.');
+    const s = store.settings(), sec = store.secrets().courier || {};
+    try {
+      if (aw[2] === 'awb' && m === 'POST') {
+        if (o.awb) return fail(res, 400, 'Comanda are deja AWB: ' + o.awb);
+        const r = await courier.get(s.courier.provider).createAwb(s.courier, sec, o);
+        o.awb = r.awb; o.awbCourier = s.courier.provider; o.awbAt = new Date().toISOString(); o.awbCost = r.cost || null;
+        if (o.status === 'noua') o.status = 'confirmata';
+        store.write('orders', orders); return ok(res, o);
+      }
+      if (aw[2] === 'label.pdf' && m === 'GET') {
+        if (!o.awb) return fail(res, 400, 'Comanda nu are AWB.');
+        const pdf = await courier.get(o.awbCourier || s.courier.provider).label(s.courier, sec, o.awb);
+        return send(res, 200, pdf, { 'Content-Type': 'application/pdf', 'Content-Disposition': `inline; filename="AWB-${o.awb}.pdf"` });
+      }
+      if (aw[2] === 'track' && m === 'GET') {
+        if (!o.awb) return fail(res, 400, 'Comanda nu are AWB.');
+        return ok(res, { status: await courier.get(o.awbCourier || s.courier.provider).track(s.courier, sec, o.awb) });
+      }
+      if (aw[2] === 'shipped' && m === 'POST') {
+        o.status = 'expediata'; o.shippedAt = new Date().toISOString();
+        store.write('orders', orders); return ok(res, o);
+      }
+    } catch (e) { return fail(res, 400, e.message); }
+    return fail(res, 405, 'Metodă nepermisă.');
+  }
+  if (p === '/api/admin/courier/test' && m === 'POST') {
+    try { const s = store.settings(); return ok(res, { message: await courier.get(s.courier.provider).test(s.courier, store.secrets().courier || {}) }); }
+    catch (e) { return fail(res, 400, e.message); }
+  }
+  if (p === '/api/admin/courier/options' && m === 'GET') {
+    try {
+      const s = store.settings(), c = courier.get(s.courier.provider);
+      if (!c.options) return ok(res, { pickupPoints: [], services: [] });
+      return ok(res, await c.options(s.courier, store.secrets().courier || {}));
+    } catch (e) { return fail(res, 400, e.message); }
+  }
+
   // settings + SmartBill
   if (p === '/api/admin/settings' && m === 'GET') {
-    return ok(res, { ...store.settings(), smartbillTokenSet: !!store.secrets().smartbillToken });
+    return ok(res, { ...store.settings(), smartbillTokenSet: !!store.secrets().smartbillToken, courierUserSet: !!(store.secrets().courier || {}).user });
   }
   if (p === '/api/admin/settings' && m === 'PUT') {
     const b = await readBody(req), s = store.settings(), x = b.smartbill || {};
-    s.shopEnabled = !!b.shopEnabled; s.codEnabled = b.codEnabled !== false;
-    s.shippingCost = Math.max(0, num(b.shippingCost) || 0); s.freeShippingFrom = Math.max(0, num(b.freeShippingFrom) || 0);
-    s.orderEmail = str(b.orderEmail, 120);
-    Object.assign(s.smartbill, {
+    // each form saves only its own part
+    if ('shopEnabled' in b) {
+      s.shopEnabled = !!b.shopEnabled; s.codEnabled = b.codEnabled !== false;
+      s.shippingCost = Math.max(0, num(b.shippingCost) || 0); s.freeShippingFrom = Math.max(0, num(b.freeShippingFrom) || 0);
+      s.orderEmail = str(b.orderEmail, 120);
+    }
+    if (b.smartbill) Object.assign(s.smartbill, {
       email: str(x.email, 120), cif: str(x.cif, 20).toUpperCase().replace(/\s/g, ''), seriesName: str(x.seriesName, 20),
       warehouseName: str(x.warehouseName, 80), vatName: str(x.vatName, 40) || 'Normala', vatPercent: num(x.vatPercent) ?? 21,
       useStock: !!x.useStock, autoInvoice: !!x.autoInvoice, sendEmail: !!x.sendEmail,
       syncMinutes: Math.max(0, Math.min(1440, Math.round(num(x.syncMinutes) || 0)))
     });
+    if (b.courier) {
+      const c = b.courier;
+      s.courier = { ...s.courier,
+        provider: ['sameday', 'fan', 'cargus', 'manual'].includes(c.provider) ? c.provider : s.courier.provider,
+        demo: !!c.demo, pickupPoint: str(c.pickupPoint, 40), service: str(c.service, 40), clientId: str(c.clientId, 40),
+        kgPerItem: Math.max(0.1, Math.min(30, num(c.kgPerItem) || 0.6)), cutoff: /^\d{1,2}:\d{2}$/.test(c.cutoff || '') ? c.cutoff : s.courier.cutoff };
+    }
+    if (b.courierSecrets && (b.courierSecrets.user || b.courierSecrets.pass || b.courierSecrets.key)) {
+      const sec = store.secrets(), old = sec.courier || {};
+      sec.courier = { user: str(b.courierSecrets.user, 120) || old.user, pass: b.courierSecrets.pass ? String(b.courierSecrets.pass).slice(0, 200) : old.pass, key: b.courierSecrets.key ? String(b.courierSecrets.key).slice(0, 200) : old.key };
+      store.saveSecrets(sec);
+    }
     store.write('settings', s);
     if (typeof b.smartbillToken === 'string' && b.smartbillToken.trim()) {
       const sec = store.secrets(); sec.smartbillToken = b.smartbillToken.trim().slice(0, 200); store.saveSecrets(sec);
     }
-    return ok(res, { ...s, smartbillTokenSet: !!store.secrets().smartbillToken });
+    return ok(res, { ...s, smartbillTokenSet: !!store.secrets().smartbillToken, courierUserSet: !!(store.secrets().courier || {}).user });
   }
   if (p === '/api/admin/smartbill/test' && m === 'POST') {
     try { return ok(res, { series: await sb.test(store.settings().smartbill, store.secrets().smartbillToken) }); }

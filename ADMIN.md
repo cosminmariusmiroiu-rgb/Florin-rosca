@@ -10,6 +10,14 @@ Panoul se deschide la adresa **/admin/** a site-ului (de ex. `https://florinrosc
 - **SmartBill**: conectezi contul. Stocul se sincronizează automat, iar factura se emite manual sau automat la fiecare comandă.
 - **Magazin & cont**: oprești sau pornești comenzile online, setezi costul livrării și pragul de livrare gratuită, schimbi parola.
 
+## Colete și curier (Sameday)
+1. Ceri de la Sameday (managerul de cont) **datele de acces pentru API**: utilizator și parolă API. Nu sunt aceleași cu cele de la eAWB.
+2. În panou: **Colete → Setări curier**. Alegi Sameday, completezi utilizatorul și parola, apoi apeși **„Încarcă din cont”** ca să alegi punctul de ridicare și serviciul. Apoi apeși **„Salvează”** și **„Testează conexiunea”**.
+3. Opțional: bifezi „Mod test” ca să încerci întâi pe contul de test Sameday.
+4. La fiecare colet: **Generează AWB**, apoi **Etichetă** (PDF de printat), apoi **Predat curierului**. Poți genera AWB-uri pentru toate coletele odată.
+5. Comenzile venite după **ora limită** (implicit 14:00) apar la „Pleacă MÂINE”. Duminica nu se expediază.
+6. Dacă o comandă se anulează, produsele se pun automat înapoi în stoc.
+
 ## Conectarea SmartBill
 1. În SmartBill intri la **Contul meu → Integrări → API** și copiezi **token-ul**.
 2. În panou, la **SmartBill**, completezi e-mailul contului SmartBill, CIF-ul firmei, token-ul și seria facturilor.

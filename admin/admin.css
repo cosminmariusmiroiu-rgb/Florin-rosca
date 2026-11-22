@@ -269,3 +269,20 @@ label small { font-weight: 400; }
   .sale__bar .row { margin-top: 6px; }
   .sale__bar .sale__go { min-height: 46px; font-size: 16px; }
 }
+
+/* parcels */
+.picks { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 8px; }
+.pick { display: flex; gap: 10px; align-items: center; background: var(--card2); border-radius: 14px; padding: 10px 14px; }
+.pick b { font-size: 18px; color: var(--gold); min-width: 34px; }
+.parcels { display: grid; grid-template-columns: repeat(auto-fill, minmax(290px, 1fr)); gap: 12px; }
+.parcel { background: var(--card); border-radius: 22px; padding: 16px 18px; box-shadow: var(--shadow); display: flex; flex-direction: column; gap: 8px; border-left: 5px solid var(--gold-hi); }
+.parcel.has-awb { border-left-color: var(--green); }
+.parcel__h { display: flex; justify-content: space-between; align-items: center; } .parcel__h b { font-size: 18px; }
+.parcel__who { font-size: 14px; line-height: 1.5; }
+.parcel__items { margin: 0; padding: 10px 12px; list-style: none; background: var(--card2); border-radius: 14px; font-size: 14px; }
+.parcel__items li { padding: 2px 0; }
+.parcel__cod { font-size: 15px; } .parcel__cod b { color: var(--gold); }
+.parcel__a { display: flex; gap: 6px; flex-wrap: wrap; margin-top: auto; }
+.parcel__a input { flex: 1; min-width: 120px; margin: 0; padding: 8px 12px; }
+.courier-set summary { cursor: pointer; list-style: none; } .courier-set summary::-webkit-details-marker { display: none; }
+.courier-set[open] summary { margin-bottom: 14px; }

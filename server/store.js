@@ -36,6 +36,15 @@ const DEFAULT_SETTINGS = {
   freeShippingFrom: 300,      // lei, 0 = never
   codEnabled: true,           // ramburs (plata la livrare)
   orderEmail: '',             // where the salon wants to be notified (informativ)
+  courier: {
+    provider: 'sameday',      // sameday | fan | cargus | manual
+    demo: false,              // Sameday: mediul de test
+    pickupPoint: '',          // punctul de ridicare (Sameday) / locația (Cargus)
+    service: '',              // serviciul de livrare
+    clientId: '',             // FAN Courier: clientId
+    kgPerItem: 0.6,           // greutate estimată pe produs
+    cutoff: '14:00'           // comenzile de după această oră pleacă a doua zi lucrătoare
+  },
   smartbill: {
     email: '',                // e-mailul contului SmartBill
     cif: '',                  // CIF firmă (ex. RO12345678)
@@ -54,7 +63,7 @@ const DEFAULT_SETTINGS = {
 
 function settings() {
   const s = read('settings', {});
-  return { ...DEFAULT_SETTINGS, ...s, smartbill: { ...DEFAULT_SETTINGS.smartbill, ...(s.smartbill || {}) } };
+  return { ...DEFAULT_SETTINGS, ...s, smartbill: { ...DEFAULT_SETTINGS.smartbill, ...(s.smartbill || {}) }, courier: { ...DEFAULT_SETTINGS.courier, ...(s.courier || {}) } };
 }
 
 // secrets are kept apart so they are never sent back to the browser

@@ -37,6 +37,7 @@
       <nav class="side__nav" id="nav">
         <button data-tab="acasa" class="is-on">🏠 <span>Acasă</span></button>
         <button data-tab="vanzare">💳 <span>Vânzare salon</span></button>
+        <button data-tab="colete">🚚 <span>Colete</span><b class="pill" id="navColete" hidden></b></button>
         <button data-tab="stoc">📦 <span>Stoc</span></button>
         <button data-tab="fise">📋 <span>Fișe cliente</span><b class="pill" id="navFise" hidden></b></button>
         <button data-tab="comenzi">🧾 <span>Comenzi</span><b class="pill" id="navNew" hidden></b></button>
@@ -91,6 +92,35 @@
           <div class="cards" id="saleStats"></div>
           <div id="saleList" class="list"></div>
         </div>
+      </section>
+
+      <!-- COLETE -->
+      <section data-view="colete" hidden>
+        <div class="bar"><h2>Colete de pregătit</h2><div><button class="btn" type="button" id="pickPrint">🖨️ Printează lista de pregătire</button><button class="btn btn--gold" type="button" id="awbAll">🏷️ Generează AWB pentru toate</button></div></div>
+        <div class="install-tip" id="courierInfo"></div>
+        <div class="cards" id="parcelCards"></div>
+        <div class="panel" id="pickPanel"><h3>📦 Ce scoți din stoc pentru colete</h3><div id="pickList" class="picks"></div></div>
+        <div id="parcelGroups"></div>
+        <details class="panel courier-set" id="courierSet">
+          <summary><b>⚙️ Setări curier (Sameday)</b></summary>
+          <form class="form" id="courierForm">
+            <div class="grid2">
+              <label>Firma de curierat<select name="provider"><option value="sameday">Sameday</option><option value="fan">FAN Courier</option><option value="cargus">Cargus</option><option value="manual">Fără legătură (scriu AWB-ul de mână)</option></select></label>
+              <label>Utilizator API <small>(primit de la Sameday)</small><input name="user" autocomplete="off"></label>
+              <label>Parolă API<input name="pass" type="password" autocomplete="new-password" placeholder="lasă gol ca s-o păstrezi"></label>
+              <label data-only="cargus">Cheie abonament (Cargus)<input name="key" type="password" autocomplete="off" placeholder="lasă gol ca s-o păstrezi"></label>
+              <label data-only="fan">Client ID (FAN Courier)<input name="clientId"></label>
+              <label>Punct de ridicare<select name="pickupPoint"><option value="">— apasă „Încarcă din cont” —</option></select></label>
+              <label>Serviciu de livrare<select name="service"><option value="">— apasă „Încarcă din cont” —</option></select></label>
+              <label>Ora limită pentru expediere în aceeași zi<input name="cutoff" type="time"></label>
+              <label>Greutate estimată pe produs (kg)<input name="kgPerItem" type="number" step="0.1" min="0.1"></label>
+            </div>
+            <label class="check" data-only="sameday"><input type="checkbox" name="demo"> Mod test (contul de test Sameday – AWB-urile nu sunt reale)</label>
+            <p class="muted" id="courierCred"></p>
+            <div class="row"><button class="btn btn--gold" type="submit">Salvează</button><button class="btn" type="button" id="courierTest">Testează conexiunea</button><button class="btn" type="button" id="courierLoad">Încarcă din cont (puncte și servicii)</button></div>
+            <p class="note" id="courierMsg" role="status"></p>
+          </form>
+        </details>
       </section>
 
       <!-- STOC -->
