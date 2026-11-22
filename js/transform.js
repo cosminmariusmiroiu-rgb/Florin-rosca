@@ -18,7 +18,23 @@
   if (vid) {
     frame.classList.add('has-video');
     const HOLD = 3500;
-    const sync = () => frame.classList.toggle('is-after', vid.duration ? vid.currentTime > vid.duration * 0.6 : false);
+    // "Florin Roșca!" + applause when the balayage appears (only if the visitor has the music on)
+    const cheer = new Audio('assets/audio/aplauze.mp3');
+    cheer.preload = 'auto'; cheer.volume = 1;
+    let cheered = false;
+    function playCheer() {
+      const m = window.__music, theme = document.getElementById('theme');
+      if (!m || !m.playing()) return;
+      if (theme) { theme.volume = 0.35; setTimeout(() => { theme.volume = 0.7; }, 5200); } // lower the music under the voice
+      try { cheer.currentTime = 0; } catch (e) {}
+      cheer.play().catch(() => {});
+    }
+    const sync = () => {
+      const after = vid.duration ? vid.currentTime > vid.duration * 0.6 : false;
+      frame.classList.toggle('is-after', after);
+      if (after && !cheered) { cheered = true; playCheer(); }
+      if (!after && vid.currentTime < 1) cheered = false;
+    };
     vid.addEventListener('timeupdate', sync);
     vid.addEventListener('ended', () => {
       frame.classList.add('is-after');
