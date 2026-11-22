@@ -18,6 +18,19 @@
   ]).then(function (res) {
     products = res[0]; shop = res[1];
     if (!Array.isArray(products) || !products.length) return;
+    fetch('api/categories', { cache: 'no-store' }).then(function (r) { return r.ok ? r.json() : null; }).then(function (cats) {
+      var box = document.querySelector('.chips');
+      if (!cats || !box) return;
+      var used = cats.filter(function (c) { return products.some(function (p) { return p.category === c.id; }); });
+      box.innerHTML = '<button class="chip is-active" data-f="all" type="button">Toate</button>' + used.map(function (c) { return '<button class="chip" data-f="' + esc(c.id) + '" type="button">' + esc(c.name) + '</button>'; }).join('');
+      box.querySelectorAll('.chip').forEach(function (c) {
+        c.addEventListener('click', function () {
+          box.querySelectorAll('.chip').forEach(function (x) { x.classList.toggle('is-active', x === c); });
+          var f = c.getAttribute('data-f');
+          document.querySelectorAll('.pcard').forEach(function (card) { card.hidden = !(f === 'all' || card.getAttribute('data-cat') === f); });
+        });
+      });
+    }).catch(function () {});
     render();
     if (shop.enabled) buildCart();
   }).catch(function () { /* static hosting: keep the HTML products */ });

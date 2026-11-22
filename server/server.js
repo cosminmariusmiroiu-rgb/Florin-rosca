@@ -69,7 +69,8 @@ function cleanProduct(input, existing) {
   p.name = str(input.name, 160);
   if (!p.name) throw new Error('Numele produsului este obligatoriu.');
   p.size = str(input.size, 40);
-  p.category = ['repair', 'anti', 'kit', 'salon'].includes(input.category) ? input.category : 'repair';
+  const cats = store.categories();
+  p.category = cats.some((c) => c.id === input.category) ? input.category : (cats[0] || { id: 'repair' }).id;
   p.price = num(input.price);
   if (p.price == null || p.price <= 0) throw new Error('Prețul trebuie să fie un număr mai mare ca 0.');
   p.oldPrice = input.oldPrice === '' || input.oldPrice == null ? null : num(input.oldPrice);
@@ -253,6 +254,7 @@ async function api(req, res, url) {
 
   // public
   if (p === '/api/products' && m === 'GET') return ok(res, publicProducts());
+  if (p === '/api/categories' && m === 'GET') return ok(res, store.categories());
   if (p === '/api/content' && m === 'GET') return ok(res, store.read('content', {}));
   if (p === '/api/shop' && m === 'GET') {
     const s = store.settings();
@@ -340,6 +342,34 @@ async function api(req, res, url) {
     const ids = (await readBody(req)).ids || [];
     store.write('products', store.products().map((x) => ({ ...x, order: ids.indexOf(x.id) < 0 ? 999 : ids.indexOf(x.id) + 1 })));
     return ok(res, { ok: true });
+  }
+
+  // categories: add / rename / reorder / delete
+  if (p === '/api/admin/categories' && m === 'GET') return ok(res, store.categories());
+  if (p === '/api/admin/categories' && m === 'PUT') {
+    const b = await readBody(req), list = Array.isArray(b.categories) ? b.categories.slice(0, 50) : [];
+    const used = new Set(store.products().map((x) => x.category));
+    const out = [], seen = new Set();
+    list.forEach((c, i) => {
+      const name = str(c.name, 60); if (!name) return;
+      let id = /^[a-z0-9-]{1,40}$/.test(c.id || '') ? c.id : name.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 30) || 'cat';
+      while (seen.has(id)) id += '-2';
+      seen.add(id); out.push({ id, name, order: i + 1 });
+    });
+    if (!out.length) return fail(res, 400, 'Trebuie să existe cel puțin o categorie.');
+    const missing = [...used].filter((id) => !seen.has(id));
+    if (missing.length) {
+      const old = store.categories().filter((c) => missing.includes(c.id)).map((c) => c.name).join(', ');
+      return fail(res, 400, `Nu poți șterge o categorie care are produse (${old}). Mută întâi produsele în altă categorie.`);
+    }
+    store.write('categories', out); return ok(res, out);
+  }
+  const dup = p.match(/^\/api\/admin\/products\/([\w-]+)\/duplicate$/);
+  if (dup && m === 'POST') {
+    const list = store.products(), src = list.find((x) => x.id === dup[1]);
+    if (!src) return fail(res, 404, 'Produsul nu există.');
+    const copy = { ...src, id: src.id.replace(/-[0-9a-f]{4}$/, '') + '-' + crypto.randomBytes(2).toString('hex'), name: src.name + ' (copie)', stock: src.stock == null ? null : 0, active: false, order: list.reduce((mx, x) => Math.max(mx, x.order || 0), 0) + 1 };
+    list.push(copy); store.write('products', list); return ok(res, copy);
   }
 
   // image upload (base64 from the browser)

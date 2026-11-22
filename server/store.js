@@ -61,6 +61,16 @@ const DEFAULT_SETTINGS = {
   }
 };
 
+const DEFAULT_CATEGORIES = [
+  { id: 'repair', name: 'Luxury Repair', order: 1 },
+  { id: 'anti', name: 'Anti-Yellow · păr blond', order: 2 },
+  { id: 'kit', name: 'Kituri & seturi', order: 3 },
+  { id: 'salon', name: 'Alte produse salon', order: 4 }
+];
+function categories() {
+  return read('categories', () => { write('categories', DEFAULT_CATEGORIES); return DEFAULT_CATEGORIES; }).slice().sort((a, b) => (a.order || 0) - (b.order || 0));
+}
+
 function settings() {
   const s = read('settings', {});
   return { ...DEFAULT_SETTINGS, ...s, smartbill: { ...DEFAULT_SETTINGS.smartbill, ...(s.smartbill || {}) }, courier: { ...DEFAULT_SETTINGS.courier, ...(s.courier || {}) } };
@@ -70,4 +80,4 @@ function settings() {
 function secrets() { return read('secrets', {}); }
 function saveSecrets(v) { return write('secrets', v); }
 
-module.exports = { DATA_DIR, ROOT, read, write, products, settings, secrets, saveSecrets };
+module.exports = { DATA_DIR, ROOT, read, write, products, categories, settings, secrets, saveSecrets };

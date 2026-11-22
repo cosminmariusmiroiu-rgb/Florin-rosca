@@ -19,7 +19,7 @@
     frame.classList.add('has-video');
     const HOLD = 3500;
     // "Florin Roșca!" + applause when the balayage appears (only if the visitor has the music on)
-    const cheer = new Audio('assets/audio/aplauze.mp3?v=202611222007');
+    const cheer = new Audio('assets/audio/aplauze.mp3?v=202611222128');
     cheer.preload = 'auto'; cheer.volume = 1;
     let cheered = false;
     function playCheer() {

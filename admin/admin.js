@@ -92,6 +92,11 @@
     $$('[data-go]', $('#sumAlerts')).forEach((a) => a.addEventListener('click', (e) => { e.preventDefault(); go(a.dataset.go); }));
   };
 
+  /* ---------- categories (editable) ---------- */
+  let cats = [];
+  const catName = (id) => (cats.find((c) => c.id === id) || {}).name || id;
+  async function loadCats() { cats = await api('admin/categories'); return cats; }
+
   /* ---------- online vs salon, side by side ---------- */
   function renderSplit(s) {
     const box = (title, icon, d, cls, extra) => `<div class="sbox sbox--${cls}">
@@ -112,15 +117,14 @@
 
   /* ---------- sales in the salon: all products as tiles, by category ---------- */
   const PAY = { cash: 'Numerar', card: 'Card', transfer: 'Transfer' };
-  const CATS = { all: 'Toate', repair: 'Luxury Repair', anti: 'Anti-Yellow', kit: 'Kituri & seturi', salon: 'Alte produse salon' };
   let saleProducts = [], picked = {}, sales = [], saleCat = 'all';
   const prodLabel = (p) => `${p.name}${p.size ? ' · ' + p.size : ''}`;
   loaders.vanzare = async () => {
-    saleProducts = await api('admin/products');
+    saleProducts = await api('admin/products'); await loadCats();
     const st = await api('admin/settings').catch(() => null);
     $('#saleInvWrap').hidden = !(st && st.smartbillTokenSet && st.smartbill.cif);
-    const used = ['all', ...Object.keys(CATS).filter((k) => k !== 'all' && saleProducts.some((p) => p.category === k))];
-    $('#saleCats').innerHTML = used.map((k) => `<button type="button" class="chip${k === saleCat ? ' is-on' : ''}" data-cat="${k}">${CATS[k]}</button>`).join('');
+    const used = ['all', ...cats.map((c) => c.id).filter((k) => saleProducts.some((p) => p.category === k))];
+    $('#saleCats').innerHTML = used.map((k) => `<button type="button" class="chip${k === saleCat ? ' is-on' : ''}" data-cat="${k}">${esc(k === 'all' ? 'Toate' : catName(k))}</button>`).join('');
     $$('#saleCats .chip').forEach((c) => c.addEventListener('click', () => { saleCat = c.dataset.cat; $$('#saleCats .chip').forEach((x) => x.classList.toggle('is-on', x === c)); renderGrid(); }));
     renderGrid();
     sales = await api('admin/sales'); renderSales();
@@ -131,8 +135,9 @@
     const list = saleProducts.filter((p) => (saleCat === 'all' || p.category === saleCat) && (!q || prodLabel(p).toLowerCase().includes(q)));
     // group by category so it reads like a menu
     const groups = {};
-    list.forEach((p) => { (groups[p.category] = groups[p.category] || []).push(p); });
-    $('#saleGrid').innerHTML = Object.keys(groups).length ? Object.entries(groups).map(([cat, items]) => `<h3 class="sgrid__h">${esc(CATS[cat] || cat)}</h3><div class="sgrid__g">${items.map((p) => {
+    cats.forEach((c) => { const it = list.filter((p) => p.category === c.id); if (it.length) groups[c.id] = it; });
+    list.filter((p) => !cats.some((c) => c.id === p.category)).forEach((p) => { (groups[p.category] = groups[p.category] || []).push(p); });
+    $('#saleGrid').innerHTML = Object.keys(groups).length ? Object.entries(groups).map(([cat, items]) => `<h3 class="sgrid__h">${esc(catName(cat))}</h3><div class="sgrid__g">${items.map((p) => {
       const sel = picked[p.id], out = p.stock != null && p.stock <= 0;
       return `<div class="tile${sel ? ' is-on' : ''}${out ? ' is-out' : ''}" data-pick="${p.id}" role="button" tabindex="0" aria-pressed="${!!sel}">
         <span class="tile__ck">✓</span>
@@ -464,19 +469,26 @@
 
   /* ---------- products ---------- */
   let products = [], editing = null, newImage = null;
-  const CAT = { repair: 'Luxury Repair', anti: 'Anti-Yellow', kit: 'Kituri & seturi', salon: 'Alte produse salon' };
-  loaders.produse = async () => { products = await api('admin/products'); renderProducts(); };
+  let prodCat = 'all';
+  loaders.produse = async () => { products = await api('admin/products'); await loadCats(); renderProdCats(); renderProducts(); };
+  function renderProdCats() {
+    $('#prodCats').innerHTML = [['all', 'Toate'], ...cats.map((c) => [c.id, c.name])].map(([k, n]) => `<button type="button" class="chip${k === prodCat ? ' is-on' : ''}" data-pc="${k}">${esc(n)} <small>${k === 'all' ? products.length : products.filter((p) => p.category === k).length}</small></button>`).join('');
+    $$('#prodCats [data-pc]').forEach((c) => c.addEventListener('click', () => { prodCat = c.dataset.pc; renderProdCats(); renderProducts(); }));
+  }
+  $('#prodSearch').addEventListener('input', () => renderProducts());
   function stockLabel(p) {
     if (p.stock == null) return 'Stoc: <b>nelimitat</b>';
     return `Stoc: <b class="${p.stock <= 3 ? 'low' : 'okk'}">${p.stock} buc.</b>`;
   }
   function renderProducts() {
-    $('#prodList').innerHTML = products.map((p, i) => `<article class="prod${p.active ? '' : ' off'}">
+    const q = ($('#prodSearch').value || '').trim().toLowerCase();
+    const filtered = (p) => (prodCat === 'all' || p.category === prodCat) && (!q || (p.name + ' ' + p.size).toLowerCase().includes(q));
+    $('#prodList').innerHTML = products.map((p, i) => !filtered(p) ? '' : `<article class="prod${p.active ? '' : ' off'}">
       <img src="${esc(img(p.image))}" alt="" loading="lazy">
       <div class="prod__b">
         <div class="prod__n">${esc(p.name)} <small>${esc(p.size)}</small></div>
         <div class="prod__p">${p.oldPrice ? '<s>' + lei(p.oldPrice) + '</s>' : ''}${lei(p.price)}</div>
-        <div class="prod__s">${stockLabel(p)} · ${esc(CAT[p.category] || '')}${p.smartbillCode ? ' · cod ' + esc(p.smartbillCode) : ' · <i>fără cod SmartBill</i>'}${p.salonOnly ? ' · <b>doar în salon</b>' : p.active ? '' : ' · <b>ascuns</b>'}</div>
+        <div class="prod__s">${stockLabel(p)} · ${esc(catName(p.category))}${p.smartbillCode ? ' · cod ' + esc(p.smartbillCode) : ' · <i>fără cod SmartBill</i>'}${p.salonOnly ? ' · <b>doar în salon</b>' : p.active ? '' : ' · <b>ascuns</b>'}</div>
         <div class="prod__a"><button class="btn btn--sm btn--gold" data-edit="${p.id}" type="button">Modifică</button>
           <button class="btn btn--sm" data-up="${i}" type="button" aria-label="Mută mai sus" ${i ? '' : 'disabled'}>↑</button>
           <button class="btn btn--sm" data-down="${i}" type="button" aria-label="Mută mai jos" ${i < products.length - 1 ? '' : 'disabled'}>↓</button></div>
@@ -493,8 +505,9 @@
     editing = p || null; newImage = null;
     const f = $('#prodForm'); f.reset(); $('#prodErr').textContent = '';
     $('#prodTitle').textContent = p ? 'Modifică produsul' : 'Produs nou';
-    $('#prodDel').hidden = !p;
-    const v = p || { category: 'repair', active: true, stock: null };
+    $('#prodDel').hidden = !p; $('#prodDup').hidden = !p;
+    f.category.innerHTML = cats.map((c) => `<option value="${esc(c.id)}">${esc(c.name)}</option>`).join('');
+    const v = p || { category: prodCat !== 'all' ? prodCat : (cats[0] || {}).id, active: true, stock: null };
     for (const k of ['name', 'size', 'category', 'price', 'oldPrice', 'smartbillCode', 'description']) f[k].value = v[k] == null ? '' : v[k];
     f.stock.value = v.stock == null ? '' : v.stock;
     f.active.checked = v.active !== false;
@@ -528,6 +541,36 @@
     if (!editing || !confirm(`Ștergi definitiv „${editing.name}”? Poți să-l și ascunzi doar, debifând „Afișat pe site”.`)) return;
     await api('admin/products/' + editing.id, { method: 'DELETE' }).catch((x) => toast(x.message));
     $('#prodDlg').close(); toast('Produsul a fost șters.'); loaders.produse();
+  });
+  $('#prodDup').addEventListener('click', async () => {
+    if (!editing) return;
+    try { const c = await api('admin/products/' + editing.id + '/duplicate', { method: 'POST' }); $('#prodDlg').close(); toast('Am făcut o copie (ascunsă de pe site). Modifică-o și bifeaz-o când e gata.'); await loaders.produse(); openProduct(c); }
+    catch (x) { toast(x.message); }
+  });
+  let catDraft = [];
+  $('#editCats').addEventListener('click', async () => { await loadCats(); catDraft = cats.map((c) => ({ ...c })); renderCatList(); $('#catErr').textContent = ''; $('#catDlg').showModal(); });
+  function renderCatList() {
+    $('#catList').innerHTML = catDraft.map((c, i) => `<div class="catrow"><input value="${esc(c.name)}" data-cn="${i}" aria-label="Nume categorie">
+      <small>${products.filter((p) => p.category === c.id).length} produse</small>
+      <button type="button" class="btn btn--sm" data-cu="${i}" ${i ? '' : 'disabled'} aria-label="Mută mai sus">↑</button>
+      <button type="button" class="btn btn--sm" data-cd="${i}" ${i < catDraft.length - 1 ? '' : 'disabled'} aria-label="Mută mai jos">↓</button>
+      <button type="button" class="btn btn--sm btn--danger" data-cx="${i}" aria-label="Șterge">✕</button></div>`).join('');
+    $$('[data-cn]').forEach((el) => el.addEventListener('input', () => { catDraft[+el.dataset.cn].name = el.value; }));
+    $$('[data-cu]').forEach((el) => el.addEventListener('click', () => { const i = +el.dataset.cu; [catDraft[i - 1], catDraft[i]] = [catDraft[i], catDraft[i - 1]]; renderCatList(); }));
+    $$('[data-cd]').forEach((el) => el.addEventListener('click', () => { const i = +el.dataset.cd; [catDraft[i + 1], catDraft[i]] = [catDraft[i], catDraft[i + 1]]; renderCatList(); }));
+    $$('[data-cx]').forEach((el) => el.addEventListener('click', () => {
+      const c = catDraft[+el.dataset.cx], n = products.filter((p) => p.category === c.id).length;
+      if (n) { $('#catErr').textContent = `„${c.name}” are ${n} produse. Mută-le întâi în altă categorie.`; return; }
+      catDraft.splice(+el.dataset.cx, 1); renderCatList();
+    }));
+  }
+  $('#catAdd').addEventListener('click', () => { const v = $('#catNew').value.trim(); if (!v) return; catDraft.push({ name: v }); $('#catNew').value = ''; renderCatList(); });
+  $('#catNew').addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); $('#catAdd').click(); } });
+  $('#catCancel').addEventListener('click', () => $('#catDlg').close());
+  $('#catForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    try { cats = await busy($('#catSave'), () => api('admin/categories', { method: 'PUT', body: { categories: catDraft } })); $('#catDlg').close(); toast('Categoriile au fost salvate.'); loaders.produse(); }
+    catch (x) { $('#catErr').textContent = x.message; }
   });
   $('#syncBtn').addEventListener('click', (e) => !confirm('Preiei stocul din SmartBill? Cifrele din aplicație vor fi înlocuite cu cele din SmartBill.') ? null : busy(e.currentTarget, async () => {
     try { const r = await api('admin/smartbill/sync', { method: 'POST' }); toast(`Stoc actualizat: ${r.matched} din ${r.total} produse găsite în SmartBill.`); loaders.produse(); }

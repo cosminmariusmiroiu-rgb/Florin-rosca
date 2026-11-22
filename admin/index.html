@@ -154,9 +154,11 @@
       <section data-view="produse" hidden>
         <div class="bar"><h2>Produse &amp; stoc</h2>
           <div><button class="btn" id="syncBtn" type="button">↻ Sincronizează stocul din SmartBill</button>
+          <button class="btn" id="editCats" type="button">🗂️ Categorii</button>
           <button class="btn btn--gold" id="addProd" type="button">+ Produs nou</button></div>
         </div>
-        <p class="muted">Stocul se ia automat din SmartBill după <b>codul produsului</b>. Dacă un produs nu are cod, se caută după nume. Câmpul gol la stoc înseamnă „stoc nelimitat”.</p>
+        <p class="muted">Aici adaugi, modifici, ascunzi sau ștergi produse și categorii. Apasă <b>„Modifică”</b> pe un produs ca să schimbi poza, prețul, descrierea, categoria sau stocul. Cu <b>„🗂️ Categorii”</b> creezi categorii noi.</p>
+        <div class="sale__top"><input id="prodSearch" type="search" placeholder="🔎 Caută produsul"><div class="chips" id="prodCats"></div></div>
         <div id="prodList" class="plist"></div>
       </section>
 
@@ -226,7 +228,7 @@
       <label>Nume<input name="name" required maxlength="160"></label>
       <div class="grid2">
         <label>Cantitate / mărime<input name="size" placeholder="ex. 1000 ml"></label>
-        <label>Categorie<select name="category"><option value="repair">Luxury Repair</option><option value="anti">Anti-Yellow · păr blond</option><option value="kit">Kituri &amp; seturi</option><option value="salon">Alte produse salon</option></select></label>
+        <label>Categorie<select name="category"></select></label>
         <label>Preț (lei)<input name="price" type="number" step="0.01" min="0" required></label>
         <label>Preț vechi tăiat (lei, opțional)<input name="oldPrice" type="number" step="0.01" min="0"></label>
         <label>Cod produs în SmartBill<input name="smartbillCode" placeholder="ex. LR-SPRAY-200"></label>
@@ -236,7 +238,19 @@
       <label class="check"><input type="checkbox" name="active"> Afișat pe site (se vinde online)</label>
       <label class="check"><input type="checkbox" name="salonOnly"> Doar în salon (nu apare pe site, se vinde doar la Vânzare salon)</label>
       <p class="err" id="prodErr" role="alert"></p>
-      <div class="row row--end"><button class="btn btn--danger" type="button" id="prodDel">Șterge</button><span class="sp"></span><button class="btn" value="cancel" type="button" id="prodCancel">Renunță</button><button class="btn btn--gold" type="submit" id="prodSave">Salvează</button></div>
+      <div class="row row--end"><button class="btn btn--danger" type="button" id="prodDel">Șterge</button><button class="btn" type="button" id="prodDup">⧉ Duplică</button><span class="sp"></span><button class="btn" value="cancel" type="button" id="prodCancel">Renunță</button><button class="btn btn--gold" type="submit" id="prodSave">Salvează</button></div>
+    </form>
+  </dialog>
+
+  <!-- categories editor -->
+  <dialog class="dlg" id="catDlg">
+    <form method="dialog" class="form" id="catForm">
+      <h3>Categorii de produse</h3>
+      <p class="muted">Adaugi, redenumești, ștergi sau muți categoriile. Ordinea de aici e ordinea de pe site și din aplicație.</p>
+      <div id="catList" class="catlist"></div>
+      <div class="row"><input id="catNew" placeholder="Nume categorie nouă (ex. Perii și accesorii)"><button class="btn" type="button" id="catAdd">+ Adaugă</button></div>
+      <p class="err" id="catErr" role="alert"></p>
+      <div class="row row--end"><span class="sp"></span><button class="btn" type="button" id="catCancel">Renunță</button><button class="btn btn--gold" type="submit" id="catSave">Salvează categoriile</button></div>
     </form>
   </dialog>
 
