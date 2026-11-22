@@ -179,6 +179,53 @@ async function placeOrder(body) {
   return { number: order.number, total: order.total };
 }
 
+/* ---------- consultation form (fișa clientei) ---------- */
+const PRIVATE = path.join(store.DATA_DIR, 'private', 'consult');
+fs.mkdirSync(PRIVATE, { recursive: true });
+const YN = (v) => (v === 'Da' ? 'Da' : v === 'Nu' ? 'Nu' : '');
+
+// first, rule-based observations shown to the client (the final one is made in the salon)
+function evaluate(c) {
+  const out = [];
+  if (c.homeBleach === 'Da') out.push('Decolorarea făcută acasă sensibilizează fibra: vom începe cu un tratament de reconstrucție, ca părul să rămână sănătos.');
+  if (c.boxDye === 'Da') out.push('Vopseaua din comerț lasă pigmenți greu de scos: transformarea poate avea nevoie de mai mult timp sau de o ședință în plus.');
+  if (c.keratin === 'Da') out.push('Keratina din păr influențează felul în care culoarea se prinde: Florin va verifica de cât timp este și cum procedăm în siguranță.');
+  if (c.perm === 'Da') out.push('Permanentul face părul mai fragil la decolorare: vom lucra cu produse de protecție și reconstrucție.');
+  if (c.lastColor === 'Sub o lună') out.push('Ultima colorare este recentă: ideal ar fi să lăsăm părul să se odihnească puțin; discutăm la consultație.');
+  if (c.allergy === 'Da') out.push('Ai menționat o alergie: facem un test de sensibilitate înainte de orice tehnică chimică.');
+  if (!out.length) out.push('Părul tău pare un punct de plecare foarte bun pentru ' + (c.service ? c.service.toLowerCase() : 'transformarea dorită') + '.');
+  out.push('Toate serviciile de vopsit, decolorat și balayage includ tratamente de reconstrucție și hidratare Florin Roșca Luxury Hair.');
+  return out;
+}
+
+async function saveConsult(body) {
+  const c = {
+    name: str(body.name, 120), phone: str(body.phone, 30), email: str(body.email, 120), service: str(body.service, 40),
+    lastColor: str(body.lastColor, 40), boxDye: YN(body.boxDye), homeBleach: YN(body.homeBleach),
+    keratin: YN(body.keratin), keratinSince: str(body.keratinSince, 80), perm: YN(body.perm), permSince: str(body.permSince, 80),
+    allergy: YN(body.allergy), allergyDetails: str(body.allergyDetails, 200), notes: str(body.notes, 1000)
+  };
+  if (!c.name || !/^[+0-9 ()-]{9,20}$/.test(c.phone)) throw new Error('Completează numele și un număr de telefon corect.');
+  if (c.email && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(c.email)) throw new Error('Adresa de e-mail nu pare corectă.');
+  if (!c.service || !c.lastColor || !c.boxDye || !c.homeBleach || !c.keratin || !c.perm || !c.allergy) throw new Error('Răspunde la toate întrebările marcate cu *.');
+  if (!body.depositAck || !body.gdpr) throw new Error('Bifează acordurile de la final.');
+  const id = crypto.randomUUID(), files = {};
+  for (const k of ['photoFront', 'photoBack', 'photoDeposit']) {
+    const mt = /^data:image\/(jpeg|png|webp);base64,([A-Za-z0-9+/=]+)$/.exec((body.photos || {})[k] || '');
+    if (!mt) throw new Error('Adaugă toate cele 3 poze (față, spate și dovada avansului).');
+    const buf = Buffer.from(mt[2], 'base64');
+    if (buf.length > 6e6) throw new Error('O poză este prea mare.');
+    const name = id + '-' + k + '.' + mt[1].replace('jpeg', 'jpg');
+    fs.writeFileSync(path.join(PRIVATE, name), buf);
+    files[k] = name;
+  }
+  const list = store.read('consultations', []);
+  const rec = { id, number: list.reduce((m, x) => Math.max(m, x.number || 0), 0) + 1, createdAt: new Date().toISOString(), status: 'noua', ...c, photos: files, evaluation: evaluate(c), consent: { gdpr: true, depositNonRefundable: true, at: new Date().toISOString() } };
+  list.push(rec);
+  store.write('consultations', list);
+  return { number: rec.number, evaluation: rec.evaluation };
+}
+
 /* ---------- routes ---------- */
 async function api(req, res, url) {
   const p = url.pathname, m = req.method;
@@ -193,6 +240,11 @@ async function api(req, res, url) {
   if (p === '/api/order' && m === 'POST') {
     try { return ok(res, await placeOrder(await readBody(req))); }
     catch (e) { return fail(res, 400, e.message); }
+  }
+
+  if (p === '/api/consult' && m === 'POST') {
+    try { return ok(res, await saveConsult(await readBody(req, 20e6))); }
+    catch (e) { return fail(res, 400, e.message === 'too_large' ? 'Pozele sunt prea mari.' : e.message); }
   }
 
   // login
@@ -231,6 +283,7 @@ async function api(req, res, url) {
     const recent = orders.filter((o) => Date.parse(o.createdAt) > since && o.status !== 'anulata');
     return ok(res, {
       newOrders: orders.filter((o) => o.status === 'noua').length,
+      newConsults: store.read('consultations', []).filter((c) => c.status === 'noua').length,
       orders30: recent.length,
       revenue30: money(recent.reduce((a, o) => a + o.total, 0)),
       lowStock: products.filter((x) => x.active && x.stock != null && x.stock <= 3).map((x) => ({ name: x.name, size: x.size, stock: x.stock })),
@@ -312,6 +365,29 @@ async function api(req, res, url) {
       const pdf = await sb.invoicePdf(store.settings().smartbill, store.secrets().smartbillToken, o.invoice.series, o.invoice.number);
       return send(res, 200, pdf, { 'Content-Type': 'application/pdf', 'Content-Disposition': `inline; filename="factura-${o.invoice.series}${o.invoice.number}.pdf"` });
     } catch (e) { return fail(res, 400, e.message); }
+  }
+
+  // client files (consultations)
+  if (p === '/api/admin/consults' && m === 'GET') return ok(res, store.read('consultations', []).slice().reverse());
+  const cm = p.match(/^\/api\/admin\/consults\/([\w-]+)$/);
+  if (cm && m === 'PUT') {
+    const b = await readBody(req), list = store.read('consultations', []), c = list.find((x) => x.id === cm[1]);
+    if (!c) return fail(res, 404, 'Fișa nu există.');
+    if (['noua', 'contactata', 'programata', 'finalizata'].includes(b.status)) c.status = b.status;
+    if (b.adminNote !== undefined) c.adminNote = str(b.adminNote, 3000);
+    if (b.appointment !== undefined) c.appointment = str(b.appointment, 60);
+    store.write('consultations', list); return ok(res, c);
+  }
+  if (cm && m === 'DELETE') {
+    const list = store.read('consultations', []), c = list.find((x) => x.id === cm[1]);
+    if (c) for (const f of Object.values(c.photos || {})) { try { fs.unlinkSync(path.join(PRIVATE, f)); } catch (e) {} }
+    store.write('consultations', list.filter((x) => x.id !== cm[1])); return ok(res, { ok: true });
+  }
+  const ph = p.match(/^\/api\/admin\/consult-photo\/([\w-]+\.(jpg|png|webp))$/);
+  if (ph && m === 'GET') {
+    const full = path.join(PRIVATE, ph[1]);
+    if (!fs.existsSync(full)) return fail(res, 404, 'Poza nu există.');
+    return send(res, 200, fs.readFileSync(full), { 'Content-Type': TYPES['.' + ph[2]], 'Cache-Control': 'private, max-age=3600' });
   }
 
   // settings + SmartBill

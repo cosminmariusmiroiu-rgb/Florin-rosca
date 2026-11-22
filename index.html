@@ -17,7 +17,7 @@
   <script type="application/ld+json">
   {"@context":"https://schema.org","@type":"HairSalon","name":"Florin Roșca Luxury Hair","image":"assets/img/logo.webp","telephone":"+40732937622",
    "address":{"@type":"PostalAddress","streetAddress":"Prelungirea Ghencea 350–356, Cartier Dimri, Bloc C3, AP7","addressLocality":"București","addressRegion":"Sector 6","addressCountry":"RO"},
-   "openingHours":["Mo-Th 10:00-21:00","Fr-Su 10:00-20:00"],
+   "openingHours":["Mo-Sa 11:00-21:00"],
    "aggregateRating":{"@type":"AggregateRating","ratingValue":"4.9","reviewCount":"581"}}
   </script>
 </head>
@@ -58,11 +58,11 @@
       <a href="magazin.html" class="nav__shop" data-magnetic>Magazin</a>
       <a href="#contact" data-magnetic>Contact</a>
     </nav>
-    <a href="#contact" class="btn btn--gold btn--sm nav__cta" data-magnetic><span>Programează-te</span></a>
+    <a href="consultatie.html" class="btn btn--gold btn--sm nav__cta" data-magnetic><span>Programează-te</span></a>
     <button class="nav__burger" aria-label="Meniu" aria-expanded="false"><span></span><span></span></button>
   </header>
   <div class="menu" aria-hidden="true">
-    <a href="#despre">Despre</a><a href="#servicii">Servicii</a><a href="#lucrari">Lucrări</a><a href="magazin.html">Magazin</a><a href="#contact">Contact</a>
+    <a href="#despre">Despre</a><a href="#servicii">Servicii</a><a href="#lucrari">Lucrări</a><a href="magazin.html">Magazin</a><a href="consultatie.html">Programare</a><a href="#contact">Contact</a>
     <a href="tel:+40732937622" class="menu__tel">0732 937 622</a>
   </div>
 
@@ -73,7 +73,7 @@
       <div class="cine__bg studio__frame" aria-hidden="true">
         <img class="cine__after" src="assets/img/ad-after.webp" alt="">
         <img class="studio__before" src="assets/img/ad-before.webp" alt="">
-        <video class="cine__video" src="assets/video/florin-transformare.mp4" data-videos="assets/video/florin-transformare.mp4, assets/video/florin-transformare-2.mp4" poster="assets/img/ad-before.webp" muted playsinline preload="auto"></video>
+        <video class="cine__video" src="assets/video/florin-transformare.mp4" data-videos="assets/video/florin-transformare.mp4" poster="assets/img/ad-before.webp" muted playsinline preload="auto"></video>
         <span class="studio__band"></span>
         <span class="cine__shade"></span>
       </div>
@@ -91,8 +91,8 @@
         </h1>
         <p class="hero__lead reveal-hero" data-edit="hero.lead" data-label="Textul de sub nume" data-group="Pagina principală – sus">Din păr ars și deteriorat, în balayage alb perlat. Experiența din <em>Dubai</em>, în salonul din <em>București</em>.</p>
         <div class="hero__actions reveal-hero">
-          <a href="tel:+40732937622" class="btn btn--gold" data-magnetic><span>Sună: 0732 937 622</span></a>
-          <a href="#lucrari" class="btn btn--ghost" data-magnetic><span>Vezi lucrările</span></a>
+          <a href="consultatie.html" class="btn btn--gold" data-magnetic><span>Programează-te online</span></a>
+          <a href="tel:+40732937622" class="btn btn--ghost" data-magnetic><span>Sună: 0732 937 622</span></a>
         </div>
       </div>
 
@@ -102,9 +102,9 @@
         <dl>
           <div><dt>Tehnică</dt><dd data-edit="hero.tech" data-label="Card – Tehnică" data-group="Pagina principală – sus">Mounir Academy Dubai</dd></div>
           <div><dt>Consultație</dt><dd data-edit="hero.consult" data-label="Card – Consultație" data-group="Pagina principală – sus">Gratuită · 15 min</dd></div>
-          <div><dt>Program</dt><dd data-edit="hero.hours" data-label="Card – Program (scurt)" data-group="Pagina principală – sus">L–J 10–21 · V–D 10–20</dd></div>
+          <div><dt>Program</dt><dd data-edit="hero.hours" data-label="Card – Program (scurt)" data-group="Pagina principală – sus">L–S 11–21</dd></div>
         </dl>
-        <a href="#contact" class="cine__link">Programează-te →</a>
+        <a href="consultatie.html" class="cine__link">Programează-te online →</a>
       </aside>
 
       <ul class="cine__stats reveal-hero">
@@ -231,6 +231,21 @@
       </div>
     </section>
 
+    <!-- ===== EXPERIENȚA ÎN SALON ===== -->
+    <section class="perks section" id="experienta">
+      <header class="section__head">
+        <p class="eyebrow reveal">Experiența Florin Roșca</p>
+        <h2 class="h2 reveal-lines" data-edit="perks.title" data-label="Titlul secțiunii Experiența" data-group="Secțiuni">Te simți bine<br><em>din prima clipă.</em></h2>
+      </header>
+      <ul class="perks__list">
+        <li class="reveal"><span>🍽️</span><b>O masă caldă</b><p>Pentru clientele care stau cel puțin 3 ore în salon.</p></li>
+        <li class="reveal"><span>☕</span><b>Cafea, suc și apă</b><p>Tot timpul cât ești la noi.</p></li>
+        <li class="reveal"><span>🍰</span><b>Prăjitură</b><p>Un desert dulce, ca experiența să fie completă.</p></li>
+        <li class="reveal"><span>📸</span><b>Poza de la final</b><p>O fotografie cu noul look, dacă îți dorești.</p></li>
+        <li class="reveal"><span>✨</span><b>Tratamente incluse</b><p>Toate serviciile de vopsit, decolorat și balayage includ reconstrucție și hidratare Florin Roșca Luxury Hair.</p></li>
+      </ul>
+    </section>
+
     <!-- ===== PROCESS ===== -->
     <section class="process section" id="proces">
       <header class="section__head section__head--center">
@@ -275,6 +290,7 @@
           <span class="btn btn--gold tt__btn"><span>Vezi toate videoclipurile</span></span>
         </a>
         <div class="tt__embed" data-tt="florinroscasalon"></div>
+        <div class="tt__cta"><p>Ți-a plăcut o transformare de pe TikTok? <b>Vrei și tu una la fel?</b></p><a href="consultatie.html" class="btn btn--gold" data-magnetic><span>Programează-te online</span></a></div>
       </div>
     </section>
 
@@ -374,7 +390,7 @@
           <h2 class="h2 h2--xl reveal-lines">Te aștept<br><em>în salon.</em></h2>
           <ul class="info">
             <li class="reveal"><span>Adresă</span><a href="https://www.google.com/maps/search/Florin+Rosca+Hair+Art+Concept/" target="_blank" rel="noopener" data-edit="contact.address" data-label="Adresa" data-group="Contact">Prelungirea Ghencea 350–356<br>Cartier Dimri, Bloc C3, AP7 · București, S6</a></li>
-            <li class="reveal"><span>Program</span><p data-edit="contact.hours" data-label="Programul" data-group="Contact">Luni – Joi · 10:00 – 21:00<br>Vineri – Duminică · 10:00 – 20:00</p></li>
+            <li class="reveal"><span>Program</span><p data-edit="contact.hours" data-label="Programul" data-group="Contact">Luni – Sâmbătă · 11:00 – 21:00<br>Duminică · închis</p></li>
             <li class="reveal"><span>Telefon</span><a href="tel:+40732937622">0732 937 622</a></li>
           </ul>
           <div class="socials reveal">
@@ -385,11 +401,12 @@
         </div>
 
         <div class="booking callcard reveal">
-          <h3>Programează-te telefonic</h3>
-          <p class="booking__sub" data-edit="booking.sub" data-label="Text sub „Programează-te telefonic”" data-group="Contact">Programările se fac doar prin apel telefonic.</p>
+          <h3>Programează-te</h3>
+          <p class="booking__sub" data-edit="booking.sub" data-label="Text sub „Programează-te”" data-group="Contact">Completezi fișa de consultație în 2 minute și te contactăm în maximum 2 zile lucrătoare. Programarea se confirmă cu avans de minimum 200 lei, scăzut din bon (avansul nu se returnează).</p>
+          <a href="consultatie.html" class="btn btn--gold" data-magnetic><span>Completează fișa de consultație</span></a>
           <p class="callcard__num">0732 937 622</p>
           <a href="tel:+40732937622" class="btn btn--pulse" data-magnetic><span>Sună acum</span></a>
-          <p class="callcard__hours">Luni – Joi · 10:00 – 21:00<br>Vineri – Duminică · 10:00 – 20:00</p>
+          <p class="callcard__hours">Luni – Sâmbătă · 11:00 – 21:00<br>Duminică · închis</p>
         </div>
       </div>
     </section>

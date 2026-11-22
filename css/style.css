@@ -896,3 +896,71 @@ html:not(.webgl) .ritual__stage, html:not(.webgl) .ritual__hint { display: none;
 .cart__go[disabled] { opacity: .6; cursor: wait; }
 .cart__done { text-align: center; padding: 30px 6px; }
 .cart__ok { width: 64px; height: 64px; margin: 0 auto 14px; border-radius: 50%; display: grid; place-items: center; font-size: 30px; color: #140f03; background: var(--gold-grad, #d4a945); }
+
+/* ===== Experiența în salon ===== */
+.perks__list { list-style: none; margin: 0 auto; padding: 0; max-width: 1150px; display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; }
+.perks__list li { border: 1px solid rgba(212,169,69,.25); border-radius: 20px; padding: 24px 20px; background: linear-gradient(170deg, #1a1814, #0d0c0b); }
+.perks__list span { font-size: 30px; display: block; margin-bottom: 10px; }
+.perks__list b { display: block; font-family: Cinzel, serif; font-weight: 500; font-size: 18px; color: var(--gold-hi, #f3d589); margin-bottom: 6px; }
+.perks__list p { margin: 0; opacity: .78; font-size: 14px; line-height: 1.55; }
+.tt__cta { margin-top: 22px; display: flex; flex-wrap: wrap; gap: 12px 20px; align-items: center; justify-content: center; text-align: center; }
+.tt__cta p { margin: 0; }
+
+/* ===== Fișa de consultație ===== */
+.cs { max-width: 720px; margin: 0 auto; padding: 26px 18px 70px; }
+.cs__intro h1 { font-family: Cinzel, serif; font-weight: 500; font-size: clamp(30px, 6vw, 44px); margin: 6px 0 12px; }
+.cs__intro > p { opacity: .85; line-height: 1.6; }
+.cs__facts { list-style: none; padding: 0; margin: 18px 0 0; display: grid; gap: 10px; }
+.cs__facts li { display: flex; gap: 12px; align-items: flex-start; padding: 12px 14px; border-radius: 14px; background: rgba(212,169,69,.06); border: 1px solid rgba(212,169,69,.18); font-size: 14.5px; line-height: 1.5; }
+.cs__facts span { font-size: 18px; line-height: 1.3; }
+.cs__steps { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin: 28px 0 18px; }
+.cs__steps i { height: 4px; border-radius: 4px; background: rgba(255,255,255,.12); transition: background .3s; }
+.cs__steps i.on { background: var(--gold-grad, #d4a945); }
+.cs__form, .cs__done { background: linear-gradient(170deg, #17150f, #0d0c0b); border: 1px solid rgba(212,169,69,.25); border-radius: 22px; padding: clamp(18px, 4vw, 30px); }
+.cs__step { border: 0; margin: 0; padding: 0; min-width: 0; }
+.cs__step > legend { font-family: Cinzel, serif; font-size: 21px; color: var(--gold-hi, #f3d589); margin-bottom: 14px; padding: 0; }
+.cs__form label { display: block; font-size: 14px; margin: 14px 0; }
+.cs__form label small { opacity: .65; }
+.cs__form input:not([type=radio]):not([type=checkbox]):not([type=file]), .cs__form textarea { width: 100%; margin-top: 6px; padding: 13px 14px; border-radius: 12px; border: 1px solid rgba(255,255,255,.14); background: #12110d; color: inherit; font: 16px Manrope, sans-serif; }
+.cs__form input:focus, .cs__form textarea:focus { outline: none; border-color: var(--gold, #d4a945); }
+.cs__q { border: 0; padding: 0; margin: 18px 0; min-width: 0; }
+.cs__q > legend { font-size: 15px; font-weight: 600; margin-bottom: 10px; padding: 0; }
+.cs__opts { display: flex; flex-wrap: wrap; gap: 8px; }
+.cs__opts label { margin: 0 !important; }
+.cs__opts input { position: absolute; opacity: 0; pointer-events: none; }
+.cs__opts span { display: inline-block; padding: 11px 18px; border-radius: 999px; border: 1px solid rgba(212,169,69,.35); cursor: pointer; font-size: 15px; transition: background .2s, color .2s; user-select: none; }
+.cs__opts input:checked + span { background: var(--gold-grad, #d4a945); color: #140f03; border-color: transparent; font-weight: 600; }
+.cs__opts input:focus-visible + span { outline: 2px solid var(--gold-hi, #f3d589); outline-offset: 2px; }
+.cs__opts--yn span { min-width: 84px; text-align: center; }
+.cs__more { margin-top: 10px !important; }
+.cs__pay { padding: 6px 0; }
+.cs__iban { margin: 14px 0; padding: 18px; border-radius: 16px; border: 1px dashed rgba(212,169,69,.55); background: rgba(212,169,69,.06); display: flex; flex-direction: column; gap: 6px; align-items: flex-start; }
+.cs__iban b#iban { font-size: clamp(16px, 4.4vw, 21px); letter-spacing: .06em; color: var(--gold-hi, #f3d589); word-break: break-all; }
+.cs__iban .btn { margin-top: 8px; }
+.cs__warn { color: #f0b35a; font-size: 15px; }
+.cs__small { font-size: 13.5px; opacity: .75; }
+.cs__check { display: flex !important; gap: 12px; align-items: flex-start; line-height: 1.45; }
+.cs__check input { width: 22px; height: 22px; margin: 1px 0 0; flex: none; accent-color: #d4a945; }
+.cs__check a { color: var(--gold-hi, #f3d589); }
+.cs__photos { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+.cs__photo { position: relative; margin: 0 !important; aspect-ratio: 3/4; border-radius: 16px; border: 1px dashed rgba(212,169,69,.5); overflow: hidden; cursor: pointer; display: grid; place-items: center; text-align: center; background: rgba(255,255,255,.02); }
+.cs__photo input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+.cs__ph { padding: 8px; font-size: 13px; line-height: 1.35; }
+.cs__ph b { display: block; font-size: 26px; margin-bottom: 6px; }
+.cs__photo img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; display: none; }
+.cs__photo.has img { display: block; }
+.cs__photo.has::after { content: "✓ schimbă"; position: absolute; left: 8px; bottom: 8px; padding: 3px 9px; border-radius: 999px; background: rgba(0,0,0,.65); font-size: 12px; }
+.cs__photo.is-loading { opacity: .6; }
+.cs__err { color: #ef6b62; min-height: 1.3em; font-size: 14.5px; }
+.cs__err a { color: inherit; }
+.cs__nav { display: flex; gap: 10px; justify-content: space-between; margin-top: 8px; }
+.cs__nav .btn { flex: 1; }
+.cs__nav #csBack { flex: 0 0 auto; }
+.cs__done { text-align: center; }
+.cs__done h2 { font-family: Cinzel, serif; font-weight: 500; }
+.cs__eval { text-align: left; margin: 18px 0; padding: 16px 18px; border-radius: 14px; background: rgba(212,169,69,.06); border: 1px solid rgba(212,169,69,.2); }
+.cs__eval h3 { margin: 0 0 8px; font-size: 16px; color: var(--gold-hi, #f3d589); }
+.cs__eval li { margin: 6px 0; font-size: 14.5px; line-height: 1.5; }
+@media (max-width: 480px) { .cs__photos { grid-template-columns: 1fr 1fr; } .cs__photo[data-photo=deposit] { grid-column: span 2; aspect-ratio: 2/1; } }
+.cs [hidden] { display: none !important; }
+.cs__facts p { margin: 0; }

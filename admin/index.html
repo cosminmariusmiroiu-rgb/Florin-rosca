@@ -29,6 +29,7 @@
       <a class="side__brand" href="../" target="_blank" rel="noopener"><img src="../assets/img/logo-mark.webp" alt="" width="34" height="34"><span>Florin Roșca<small>Administrare</small></span></a>
       <nav class="side__nav" id="nav">
         <button data-tab="acasa" class="is-on">🏠 <span>Acasă</span></button>
+        <button data-tab="fise">📋 <span>Fișe cliente</span><b class="pill" id="navFise" hidden></b></button>
         <button data-tab="comenzi">🧾 <span>Comenzi</span><b class="pill" id="navNew" hidden></b></button>
         <button data-tab="produse">🛍️ <span>Produse &amp; stoc</span></button>
         <button data-tab="texte">✏️ <span>Texte site</span></button>
@@ -47,6 +48,16 @@
         <h2>Bun venit, Florin 👋</h2>
         <div class="cards" id="sumCards"></div>
         <div class="panel" id="sumAlerts"></div>
+      </section>
+
+      <!-- FIȘE CLIENTE -->
+      <section data-view="fise" hidden>
+        <div class="bar"><h2>Fișe cliente</h2>
+          <div><input id="fiseSearch" type="search" placeholder="Caută după nume sau telefon">
+          <select id="fiseFilter"><option value="">Toate</option><option value="noua">Noi</option><option value="contactata">Contactate</option><option value="programata">Programate</option><option value="finalizata">Finalizate</option></select></div>
+        </div>
+        <p class="muted">Fișele completate de cliente pe site (pagina <b>/consultatie.html</b>). Pozele sunt private: le vezi doar tu, din panou.</p>
+        <div id="fiseList" class="list"></div>
       </section>
 
       <!-- COMENZI -->

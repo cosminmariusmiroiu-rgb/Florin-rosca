@@ -12,9 +12,9 @@
   // Knowledge base: real information from the salon's website.
   const KB = [
     { id: 'programare', label: 'Programare', keys: ['programare', 'programez', 'rezerv', 'liber', 'loc', 'vin', 'veni', 'cand pot', 'disponibil', 'appointment'],
-      a: `Programările se fac <b>telefonic</b>. Sună-l pe Florin la <b>${TEL}</b> și stabiliți ziua și ora potrivite.<br>Prima consultație e <b>gratuită</b> și durează 15 minute.${callBtn}` },
+      a: `Cel mai simplu: completezi <b>fișa de consultație</b> (2 minute), cu pozele părului și dovada avansului de minimum <b>200 lei</b> (se scade din bon și nu se returnează). Te contactăm în maximum <b>2 zile lucrătoare</b>.<a class="aur-act" href="consultatie.html">📋 Completează fișa</a>Sau sună la <b>${TEL}</b>.${callBtn}` },
     { id: 'orar', label: 'Program & adresă', keys: ['orar', 'programul', 'deschis', 'inchis', 'ora', 'ore', 'adresa', 'unde', 'locatie', 'harta', 'ghencea', 'dimri', 'sector', 'cum ajung', 'weekend', 'duminica', 'sambata'],
-      a: `📍 <b>Prelungirea Ghencea 350–356</b>, Cartier Dimri, Bloc C3, AP7, București, Sector 6.<br>🕙 <b>Luni – Joi:</b> 10:00 – 21:00<br>🕙 <b>Vineri – Duminică:</b> 10:00 – 20:00<a class="aur-act" href="${MAPS}" target="_blank" rel="noopener">🗺️ Deschide în Google Maps</a>` },
+      a: `📍 <b>Prelungirea Ghencea 350–356</b>, Cartier Dimri, Bloc C3, AP7, București, Sector 6.<br>🕚 <b>Luni – Sâmbătă:</b> 11:00 – 21:00<br>Duminică: închis<a class="aur-act" href="${MAPS}" target="_blank" rel="noopener">🗺️ Deschide în Google Maps</a>` },
     { id: 'servicii', label: 'Servicii', keys: ['servici', 'ce faceti', 'oferiti', 'tuns', 'tunsoare', 'vopsit', 'vopsea', 'culoare', 'corectie', 'transformare', 'schimbare'],
       a: `Florin se ocupă de:<br>✦ <b>Balayage Premium Dubai</b>: blonduri și șuvițe dimensionale, tehnici Mounir Academy<br>✦ <b>Transformări complete de lux</b>: schimbări de look, corecții de culoare, tunsori personalizate<br>✦ <b>Tratamente intensive</b>: Hair Botox, reparare și hidratare profundă<br>Totul pornește de la o <b>consultație gratuită</b> de 15 minute.` },
     { id: 'balayage', label: 'Balayage', keys: ['balayage', 'balaiaj', 'blond', 'suvite', 'suvita', 'perlat', 'platinat', 'ombre', 'decolor'],
@@ -32,7 +32,7 @@
     { id: 'recenzii', label: 'Recenzii', keys: ['recenz', 'pareri', 'review', 'stele', 'google', 'nota'],
       a: `Salonul Florin Roșca are <b>4,9 din 5 stele</b> din <b>581 de recenzii</b> pe Google.<a class="aur-act" href="${MAPS}" target="_blank" rel="noopener">⭐ Vezi recenziile</a>` },
     { id: 'contact', label: 'Contact', keys: ['telefon', 'numar', 'suna', 'contact', 'whatsapp', 'instagram', 'facebook', 'tiktok', 'mesaj'],
-      a: `📞 Programări doar telefonic: <b>${TEL}</b><br>Ne găsești și pe <a href="https://www.instagram.com/florinroscaconcept/" target="_blank" rel="noopener">Instagram</a>, <a href="https://www.tiktok.com/@florirosca.hairart" target="_blank" rel="noopener">TikTok</a> și <a href="https://www.facebook.com/FlorinRoscaHairArtConcept" target="_blank" rel="noopener">Facebook</a>.${callBtn}` },
+      a: `📞 Programări doar telefonic: <b>${TEL}</b><br>Ne găsești și pe <a href="https://www.instagram.com/florinroscaconcept/" target="_blank" rel="noopener">Instagram</a>, <a href="https://www.tiktok.com/@florinroscasalon" target="_blank" rel="noopener">TikTok</a> și <a href="https://www.facebook.com/FlorinRoscaHairArtConcept" target="_blank" rel="noopener">Facebook</a>.${callBtn}` },
     { id: 'salut', label: null, keys: ['buna', 'salut', 'hello', 'hei', 'hey', 'neata', 'seara', 'ziua'],
       a: `Bună! 😊 Cu ce te pot ajuta? Alege un subiect de mai jos sau scrie-mi întrebarea ta.` },
     { id: 'multumesc', label: null, keys: ['multum', 'mersi', 'merci', 'thanks', 'pa ', 'la revedere'],

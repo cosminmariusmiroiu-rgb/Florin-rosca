@@ -72,10 +72,12 @@
     const s = await api('admin/summary');
     $('#navNew').hidden = !s.newOrders; $('#navNew').textContent = s.newOrders;
     $('#sumCards').innerHTML = [
-      ['Comenzi noi', s.newOrders], ['Comenzi în ultimele 30 de zile', s.orders30], ['Vânzări 30 de zile', lei(s.revenue30)],
+      ['Fișe noi', s.newConsults], ['Comenzi noi', s.newOrders], ['Comenzi în ultimele 30 de zile', s.orders30], ['Vânzări 30 de zile', lei(s.revenue30)],
       ['SmartBill', s.smartbill.configured ? (s.smartbill.lastSyncError ? 'Eroare' : 'Configurat') : 'Neconfigurat']
     ].map(([l, v]) => `<div class="card"><b>${esc(v)}</b><span>${esc(l)}</span></div>`).join('');
     const al = [];
+    $('#navFise').hidden = !s.newConsults; $('#navFise').textContent = s.newConsults;
+    if (s.newConsults) al.push(`📋 Ai <b>${s.newConsults}</b> fișe de consultație noi. <a href="#fise" data-go="fise">Vezi fișele →</a>`);
     if (s.newOrders) al.push(`🧾 Ai <b>${s.newOrders}</b> comenzi noi. <a href="#comenzi" data-go="comenzi">Vezi comenzile →</a>`);
     if (!s.smartbill.configured) al.push('🔗 SmartBill nu este conectat încă. <a href="#smartbill" data-go="smartbill">Conectează acum →</a>');
     if (s.smartbill.lastSyncError) al.push('⚠️ Ultima sincronizare de stoc a eșuat: ' + esc(s.smartbill.lastSyncError));
@@ -84,6 +86,44 @@
     $('#sumAlerts').innerHTML = al.length ? al.map((x) => `<div class="alert">${x}</div>`).join('') : '<div class="alert">Totul e în regulă. ✨</div>';
     $$('[data-go]', $('#sumAlerts')).forEach((a) => a.addEventListener('click', (e) => { e.preventDefault(); go(a.dataset.go); }));
   };
+
+  /* ---------- client files (consultations) ---------- */
+  const FS = { noua: 'Nouă', contactata: 'Contactată', programata: 'Programată', finalizata: 'Finalizată' };
+  let fise = [];
+  loaders.fise = async () => { fise = await api('admin/consults'); renderFise(); };
+  $('#fiseFilter').addEventListener('change', renderFise);
+  $('#fiseSearch').addEventListener('input', renderFise);
+  const ph = (f) => (f ? '/api/admin/consult-photo/' + encodeURIComponent(f) : '');
+  function renderFise() {
+    const f = $('#fiseFilter').value, q = $('#fiseSearch').value.trim().toLowerCase();
+    const list = fise.filter((c) => (!f || c.status === f) && (!q || (c.name + ' ' + c.phone).toLowerCase().includes(q)));
+    $('#navFise').hidden = !fise.some((c) => c.status === 'noua'); $('#navFise').textContent = fise.filter((c) => c.status === 'noua').length;
+    if (!list.length) { $('#fiseList').innerHTML = '<div class="empty">Nu există fișe aici încă.</div>'; return; }
+    const row = (l, v) => `<tr><td>${l}</td><td><b>${esc(v || '—')}</b></td></tr>`;
+    $('#fiseList').innerHTML = list.map((c) => `<article class="ord">
+      <div class="ord__head"><h3>Fișa #${c.number} · ${esc(c.name)}</h3><span class="status status--${c.status === 'noua' ? 'noua' : c.status === 'finalizata' ? 'livrata' : ''}">${FS[c.status] || c.status}</span></div>
+      <div class="ord__meta">${when(c.createdAt)} · <a href="tel:${esc(c.phone)}">${esc(c.phone)}</a>${c.email ? ' · <a href="mailto:' + esc(c.email) + '">' + esc(c.email) + '</a>' : ''} · serviciu: <b>${esc(c.service)}</b></div>
+      <div class="fise__grid">
+        <table>${row('Ultima vopsire / decolorare', c.lastColor)}${row('Vopsea din comerț', c.boxDye)}${row('Decolorat acasă', c.homeBleach)}${row('Keratină', c.keratin + (c.keratinSince ? ' · ' + c.keratinSince : ''))}${row('Permanent', c.perm + (c.permSince ? ' · ' + c.permSince : ''))}${row('Alergii', c.allergy + (c.allergyDetails ? ' · ' + c.allergyDetails : ''))}${c.notes ? row('Observații', c.notes) : ''}</table>
+        <div class="fise__ph">${[['photoFront', 'Față'], ['photoBack', 'Spate'], ['photoDeposit', 'Dovadă avans']].map(([k, l]) => c.photos && c.photos[k] ? `<a href="${ph(c.photos[k])}" target="_blank" rel="noopener"><img src="${ph(c.photos[k])}" alt="${l}" loading="lazy"><span>${l}</span></a>` : '').join('')}</div>
+      </div>
+      <div class="ord__grid">
+        <label>Status<select data-fst="${c.id}">${Object.entries(FS).map(([k, v]) => `<option value="${k}"${k === c.status ? ' selected' : ''}>${v}</option>`).join('')}</select></label>
+        <label>Programare (zi și oră)<input data-fap="${c.id}" value="${esc(c.appointment || '')}" placeholder="ex. 28.11, ora 12:00"></label>
+        <label>Notițe pentru fișă<textarea data-fnote="${c.id}" rows="2" placeholder="formulă culoare, tratament folosit, observații…">${esc(c.adminNote || '')}</textarea></label>
+      </div>
+      <div class="row row--end"><span class="sp"></span><button class="btn btn--sm btn--danger" data-fdel="${c.id}" type="button">Șterge fișa</button></div>
+    </article>`).join('');
+    const save = (id, body) => api('admin/consults/' + id, { method: 'PUT', body }).then((c) => { fise = fise.map((x) => (x.id === id ? c : x)); toast('Fișa a fost salvată.'); }).catch((e) => toast(e.message));
+    $$('[data-fst]').forEach((el) => el.addEventListener('change', () => save(el.dataset.fst, { status: el.value }).then(renderFise)));
+    $$('[data-fap]').forEach((el) => el.addEventListener('change', () => save(el.dataset.fap, { appointment: el.value })));
+    $$('[data-fnote]').forEach((el) => el.addEventListener('change', () => save(el.dataset.fnote, { adminNote: el.value })));
+    $$('[data-fdel]').forEach((el) => el.addEventListener('click', async () => {
+      if (!confirm('Ștergi definitiv fișa și pozele ei?')) return;
+      await api('admin/consults/' + el.dataset.fdel, { method: 'DELETE' }).catch((e) => toast(e.message));
+      loaders.fise();
+    }));
+  }
 
   /* ---------- orders ---------- */
   const ST = { noua: 'Nouă', confirmata: 'Confirmată', expediata: 'Expediată', livrata: 'Livrată', anulata: 'Anulată' };

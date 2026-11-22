@@ -109,3 +109,12 @@ label small { font-weight: 400; }
   .side__foot { margin: 0 0 0 auto; gap: 12px; }
   .main { padding-top: 18px; }
 }
+.fise__grid { display: grid; grid-template-columns: minmax(260px, 1fr) minmax(260px, 1.2fr); gap: 16px; margin: 12px 0; }
+.fise__grid table { width: 100%; border-collapse: collapse; font-size: 14px; }
+.fise__grid td { padding: 6px 0; border-bottom: 1px solid var(--line); vertical-align: top; }
+.fise__grid td:first-child { color: var(--muted); padding-right: 12px; }
+.fise__ph { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.fise__ph a { display: block; text-decoration: none; color: var(--muted); font-size: 12px; text-align: center; }
+.fise__ph img { width: 100%; aspect-ratio: 3/4; object-fit: cover; border-radius: 10px; border: 1px solid var(--line); background: #000; }
+.bar input[type=search] { width: auto; margin: 0; }
+@media (max-width: 700px) { .fise__grid { grid-template-columns: 1fr; } }
