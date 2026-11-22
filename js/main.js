@@ -112,7 +112,7 @@
       soundBtn.setAttribute('aria-label', label);
     };
     // remember if this visitor switched the music off
-    const KEY = 'fr-music-off';
+    const KEY = 'fr-music-off-v2';
     const get = () => { try { return localStorage.getItem(KEY) === '1'; } catch (e) { return false; } };
     const put = (v) => { try { v ? localStorage.setItem(KEY, '1') : localStorage.removeItem(KEY); } catch (e) {} };
     const start = () => theme.play().then(() => { setState(true); return true; }).catch(() => false);
@@ -129,7 +129,7 @@
     if (!get()) {
       theme.preload = 'auto';
       // keep trying on every kind of interaction (tap, click, key, scroll, wheel) until the browser allows it
-      const events = ['pointerdown', 'pointerup', 'touchstart', 'touchend', 'click', 'keydown', 'wheel', 'scroll', 'touchmove'];
+      const events = ['mousedown', 'pointerdown', 'pointerup', 'touchstart', 'touchend', 'click', 'keydown', 'wheel', 'scroll', 'touchmove'];
       let trying = false;
       const stop = () => events.forEach((ev) => window.removeEventListener(ev, onFirst, true));
       const onFirst = () => {

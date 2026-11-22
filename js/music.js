@@ -4,7 +4,7 @@
   var btn = document.querySelector('.sound'), theme = document.getElementById('theme');
   if (!btn || !theme) return;
   theme.volume = 0.7;
-  var KEY = 'fr-music-off', POS = 'fr-music-pos';
+  var KEY = 'fr-music-off-v2', POS = 'fr-music-pos';
   function off() { try { return localStorage.getItem(KEY) === '1'; } catch (e) { return false; } }
   function put(v) { try { v ? localStorage.setItem(KEY, '1') : localStorage.removeItem(KEY); } catch (e) {} }
   function state(on) {
@@ -21,7 +21,7 @@
   });
   if (off()) return;
   theme.preload = 'auto';
-  var evs = ['pointerdown', 'pointerup', 'touchstart', 'touchend', 'click', 'keydown', 'wheel', 'scroll', 'touchmove'], trying = false;
+  var evs = ['mousedown', 'pointerdown', 'pointerup', 'touchstart', 'touchend', 'click', 'keydown', 'wheel', 'scroll', 'touchmove'], trying = false;
   function stop() { evs.forEach(function (ev) { window.removeEventListener(ev, onAny, true); }); }
   function onAny() {
     if (off() || !theme.paused) return stop();
