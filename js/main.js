@@ -101,6 +101,9 @@
   const soundBtn = $('.sound'), theme = $('#theme');
   if (soundBtn && theme) {
     theme.volume = 0.7;
+    // continue the song where it was when moving between the pages of the site
+    try { const pos = +sessionStorage.getItem('fr-music-pos'); if (pos > 0) theme.addEventListener('loadedmetadata', () => { theme.currentTime = pos % (theme.duration || 1e9); }, { once: true }); } catch (e) {}
+    window.addEventListener('pagehide', () => { try { sessionStorage.setItem('fr-music-pos', String(theme.currentTime || 0)); } catch (e) {} });
     const setState = (on) => {
       soundBtn.setAttribute('aria-pressed', String(on));
       soundBtn.classList.toggle('is-on', on);

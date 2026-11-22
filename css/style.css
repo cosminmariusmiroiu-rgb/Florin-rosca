@@ -858,7 +858,7 @@ html:not(.webgl) .ritual__stage, html:not(.webgl) .ritual__hint { display: none;
 .pcard__desc { font-size: 13px; opacity: .7; margin: -2px 0 8px; }
 .pcard__low { color: #f0b35a; font-size: 12px; margin: -4px 0 8px; letter-spacing: .04em; }
 .pcard__buy[disabled] { opacity: .5; cursor: not-allowed; }
-.cartfab { position: fixed; left: 18px; bottom: 20px; z-index: 60; width: 58px; height: 58px; border-radius: 50%; border: 1px solid rgba(212,169,69,.6); background: #0d0c0a; color: var(--gold-hi, #f3d589); display: grid; place-items: center; cursor: pointer; box-shadow: 0 14px 34px -10px rgba(0,0,0,.8), 0 0 0 0 rgba(212,169,69,.4); transition: transform .2s; }
+.cartfab { position: fixed; left: 18px; bottom: 84px; z-index: 60; width: 58px; height: 58px; border-radius: 50%; border: 1px solid rgba(212,169,69,.6); background: #0d0c0a; color: var(--gold-hi, #f3d589); display: grid; place-items: center; cursor: pointer; box-shadow: 0 14px 34px -10px rgba(0,0,0,.8), 0 0 0 0 rgba(212,169,69,.4); transition: transform .2s; }
 .cartfab:hover { transform: scale(1.06); }
 .cartfab svg { width: 24px; height: 24px; fill: currentColor; }
 .cartfab b { position: absolute; top: -4px; right: -6px; min-width: 22px; height: 22px; padding: 0 6px; border-radius: 999px; background: var(--gold-grad, #d4a945); color: #140f03; font: 700 12px/22px Manrope, sans-serif; display: none; }
