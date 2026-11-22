@@ -110,7 +110,7 @@
     root.classList.toggle('is-open', v);
     if (v && !greeted) {
       greeted = true;
-      botSay(`Bună, sunt <b>Aurelia</b> ✨, asistenta salonului <b>Florin Roșca Luxury Hair</b>. Te ajut cu programări, servicii, program și produse. Ce te interesează?`);
+      botSay(`Bună, sunt <b>Aurelia</b> ✨, asistentul virtual al salonului <b>Florin Roșca Luxury Hair</b>. Te pot ajuta cu ceva? Îți răspund despre programări, servicii, program și produse.`);
     }
     if (v) setTimeout(() => input.focus(), 50);
   }
@@ -125,14 +125,24 @@
     ask(v);
   });
 
-  // gentle invitation after a while (once per visit)
+  // permanent label "Asistent virtual" next to the button
+  const lab = document.createElement('span');
+  lab.className = 'aur-label'; lab.textContent = 'Asistent virtual';
+  lab.addEventListener('click', () => open(true));
+  root.appendChild(lab);
+
+  // on every visit: Aurelia asks if she can help (closable)
   setTimeout(() => {
-    if (!win.hidden || greeted) return;
+    if (!win.hidden) return;
     const tip = document.createElement('div');
     tip.className = 'aur-tip';
-    tip.innerHTML = 'Ai o întrebare? Sunt <b>Aurelia</b> ✨';
-    tip.addEventListener('click', () => { tip.remove(); open(true); });
+    tip.setAttribute('role', 'status');
+    tip.innerHTML = 'Bună! Sunt <b>Aurelia</b>, asistentul virtual ✨<br>Te pot ajuta cu ceva?<button type="button" class="aur-tip__x" aria-label="Închide">×</button>';
+    tip.addEventListener('click', (e) => { tip.remove(); if (!e.target.closest('.aur-tip__x')) open(true); });
     root.appendChild(tip);
-    setTimeout(() => tip.remove(), 9000);
-  }, 12000);
+    root.classList.add('has-tip');
+    const gone = () => root.classList.remove('has-tip');
+    setTimeout(() => { tip.remove(); gone(); }, 15000);
+    tip.addEventListener('click', gone);
+  }, 4000);
 })();

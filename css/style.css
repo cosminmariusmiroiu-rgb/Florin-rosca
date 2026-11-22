@@ -982,3 +982,7 @@ html:not(.webgl) .ritual__stage, html:not(.webgl) .ritual__hint { display: none;
   body:has(.quickbar) .sound { bottom: calc(84px + env(safe-area-inset-bottom, 0px)) !important; }
 }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; scroll-behavior: auto !important; } }
+.aur-label { position: absolute; right: 64px; bottom: 15px; white-space: nowrap; padding: 6px 12px; border-radius: 999px; background: rgba(12,11,9,.88); border: 1px solid rgba(212,169,69,.45); color: var(--gold-hi); font-size: 12.5px; font-weight: 600; cursor: pointer; letter-spacing: .02em; }
+.aur.is-open .aur-label, .aur.has-tip .aur-label { display: none; }
+.aur-tip { white-space: normal; width: max-content; max-width: 230px; line-height: 1.45; padding-right: 30px; }
+.aur-tip__x { position: absolute; top: 4px; right: 6px; background: none; border: 0; color: var(--muted); font-size: 18px; cursor: pointer; line-height: 1; }

@@ -142,12 +142,23 @@
     // start it on the visitor's first tap / click / key press anywhere on the page.
     if (!get()) {
       theme.preload = 'auto';
-      const events = ['pointerdown', 'touchend', 'keydown'];
+      // keep trying on every kind of interaction (tap, click, key, scroll, wheel) until the browser allows it
+      const events = ['pointerdown', 'pointerup', 'touchstart', 'touchend', 'click', 'keydown', 'wheel', 'scroll', 'touchmove'];
+      let trying = false;
+      const stop = () => events.forEach((ev) => window.removeEventListener(ev, onFirst, true));
       const onFirst = () => {
-        events.forEach((ev) => window.removeEventListener(ev, onFirst, true));
-        if (theme.paused && !get()) start();
+        if (get() || !theme.paused) return stop();
+        if (trying) return;
+        trying = true;
+        start().then((ok) => { trying = false; if (ok) stop(); });
       };
-      start().then((ok) => { if (!ok) events.forEach((ev) => window.addEventListener(ev, onFirst, true)); });
+      start().then((ok) => {
+        if (ok) return;
+        events.forEach((ev) => window.addEventListener(ev, onFirst, { capture: true, passive: true }));
+        // some browsers allow sound a moment later (e.g. after the page becomes visible)
+        document.addEventListener('visibilitychange', onFirst);
+        setTimeout(onFirst, 800);
+      });
     }
   }
 
