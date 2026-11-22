@@ -242,24 +242,18 @@
 
   // Entrance: the music starts the moment the site opens. Browsers only allow sound after a tap,
   // so when autoplay is blocked we show an "Intră în salon" button; tapping it starts the music and opens the site.
-  async function enterGate() {
-    const m = window.__music;
-    if (!m || m.off() || m.playing()) return finishLoader(false);
-    if (await m.start()) return finishLoader(false);
-    const loader = $('.loader'), btn = $('.loader__enter');
-    loader.setAttribute('aria-hidden', 'false');
-    loader.classList.add('is-gate');
-    btn.hidden = false; btn.focus();
-    btn.addEventListener('click', () => { m.start(); btn.disabled = true; finishLoader(false); }, { once: true });
-  }
+  // No waiting screen: the site opens straight away. If the browser blocks sound,
+  // the music starts on the visitor's first tap (see the music block above).
+  function enterGate() { finishLoader(false); }
 
   (function runLoader() {
     const bar = $('.loader__bar span'), count = $('.loader__count');
     const p = { v: 0 };
-    let loaded = document.readyState === 'complete';
-    window.addEventListener('load', () => { loaded = true; });
+    // don't wait for the video and music to download: the page text is ready
+    let loaded = document.readyState !== 'loading';
+    document.addEventListener('DOMContentLoaded', () => { loaded = true; });
     const tween = gsap.to(p, {
-      v: 100, duration: 2.2, ease: 'power2.inOut',
+      v: 100, duration: 0.9, ease: 'power2.inOut',
       onUpdate() {
         // hold at 90% until assets are loaded
         if (!loaded && p.v > 90) { p.v = 90; }
@@ -271,7 +265,7 @@
         wait();
       }
     });
-    setTimeout(() => { loaded = true; }, 6000); // safety net on slow networks
+    setTimeout(() => { loaded = true; }, 1500); // safety net
     return tween;
   })();
 
