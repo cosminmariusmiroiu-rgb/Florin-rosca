@@ -18,13 +18,15 @@
 
   let renderer;
   try {
-    renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true, powerPreference: 'high-performance' });
+    renderer = new THREE.WebGLRenderer({ canvas, antialias: !isSmall, alpha: true, powerPreference: 'high-performance' });
   } catch (e) {
     return; // no WebGL: the DOM logo stays visible
   }
   document.documentElement.classList.add('webgl');
 
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, isSmall ? 1.5 : 2));
+  // lighter rendering so the page scrolls smoothly on every device
+  let maxDpr = isSmall ? 1 : 1.25;
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, maxDpr));
   renderer.setClearColor(0x000000, 0);
   renderer.outputEncoding = THREE.sRGBEncoding;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
@@ -324,8 +326,8 @@
   let ritualStart = -1;
 
   /* ---------- Gold hair strands ---------- */
-  const STRANDS = isSmall ? 16 : 30;
-  const PTS = isSmall ? 90 : 140;
+  const STRANDS = isSmall ? 10 : 18;
+  const PTS = isSmall ? 60 : 90;
   const strands = [];
   const strandGroup = new THREE.Group();
   scene.add(strandGroup);
@@ -370,10 +372,10 @@
     return Object.assign({ mesh, geo, strands, N, P, cur: 0 }, o);
   }
   const locks = isSmall
-    ? [makeLock({ count: 170, points: 56, side: 1, top: 1.08, length: 1.25, width: 0.42, phase: 0.0 })]
+    ? [makeLock({ count: 90, points: 40, side: 1, top: 1.08, length: 1.25, width: 0.42, phase: 0.0 })]
     : [
-        makeLock({ count: 300, points: 72, side: 1, top: 1.08, length: 1.3, width: 0.55, phase: 0.0 }),
-        makeLock({ count: 240, points: 64, side: -1, top: 1.1, length: 1.05, width: 0.45, phase: 2.1 })
+        makeLock({ count: 150, points: 48, side: 1, top: 1.08, length: 1.3, width: 0.55, phase: 0.0 }),
+        makeLock({ count: 120, points: 44, side: -1, top: 1.1, length: 1.05, width: 0.45, phase: 2.1 })
       ];
 
   function updateLock(L, t, targetOpacity, dt) {
@@ -432,7 +434,7 @@
   }
 
   /* ---------- Gold dust ---------- */
-  const DUST = isSmall ? 380 : 900;
+  const DUST = isSmall ? 200 : 450;
   const dGeo = new THREE.BufferGeometry();
   const dPos = new Float32Array(DUST * 3), dSize = new Float32Array(DUST), dPhase = new Float32Array(DUST);
   for (let i = 0; i < DUST; i++) {
@@ -605,7 +607,17 @@
     if (ritualBar) ritualBar.style.transform = `scaleX(${p.toFixed(3)})`;
   }
 
-  function frame() {
+  // ~30 fps is plenty for slow ambient motion and halves the work; pause when the tab is hidden
+  let lastDraw = 0, slowFrames = 0, checked = 0;
+  function frame(now) {
+    if (!reduced && document.hidden) { setTimeout(() => requestAnimationFrame(frame), 500); return; }
+    if (!reduced && now && now - lastDraw < 32) { requestAnimationFrame(frame); return; }
+    if (now && lastDraw && checked < 90) { // first ~3 s: if the device struggles, go lighter
+      checked++;
+      if (now - lastDraw > 60) slowFrames++;
+      if (checked === 90 && slowFrames > 25) { maxDpr = 0.75; renderer.setPixelRatio(maxDpr); locks.forEach((L) => { L.mesh.visible = false; }); }
+    }
+    lastDraw = now || 0;
     const dt = Math.min(clock.getDelta(), 0.05);
     const t = clock.elapsedTime;
     state.mx += (state.tmx - state.mx) * Math.min(1, dt * 4);
@@ -670,7 +682,12 @@
     updateRitual(t);
     updateStrands(t);
     const lockOp = state.intro < 0.5 ? 0 : (state.hero < 0.5 ? 0.5 : (ritual.visible ? 0.4 : 0.55));
-    for (const L of locks) updateLock(L, t, (state.hero < 0.5 || (L.side < 0 && ritual.visible)) ? 0 : lockOp, dt);
+    for (const L of locks) {
+      if (!L.mesh.visible) continue;
+      const target = (state.hero < 0.5 || (L.side < 0 && ritual.visible)) ? 0 : lockOp;
+      if (target === 0 && L.cur < 0.01) { L.cur = 0; L.mesh.material.opacity = 0; continue; } // invisible: skip the heavy update
+      updateLock(L, t, target, dt);
+    }
     dMat.uniforms.uTime.value = t;
     dMat.uniforms.uScroll.value = 0;
     dMat.uniforms.uAlpha.value = Math.min(1, state.strandsIn * 1.2);
