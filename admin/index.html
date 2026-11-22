@@ -96,6 +96,7 @@
       <!-- STOC -->
       <section data-view="stoc" hidden>
         <div class="bar"><h2>Stoc</h2><div><input id="stockSearch" type="search" placeholder="Caută produsul"><button class="btn" id="stockSync" type="button">↻ Din SmartBill</button></div></div>
+        <div class="install-tip">📦 <b>Stocul se ține aici, în aplicație.</b> Scade singur la fiecare <b>vânzare din salon</b> (o treci la „Vânzare salon”) și la fiecare <b>comandă online</b>. Când primești marfă, scrie numărul de bucăți și apasă <b>„+ Intrare”</b>.</div>
         <div class="cards" id="stockCards"></div>
         <div id="stockList" class="stock"></div>
         <div class="panel"><h3>Ultimele mișcări de stoc</h3><div id="stockMoves" class="moves"></div></div>
@@ -146,7 +147,7 @@
             <label>Token API <small>(SmartBill → Contul meu → Integrări → API)</small><input name="token" type="password" autocomplete="off" placeholder="lasă gol ca să păstrezi token-ul salvat"></label>
             <label>Seria facturilor<input name="seriesName" placeholder="ex. FR"></label>
             <label>Gestiune <small>(opțional)</small><input name="warehouseName" placeholder="ex. Magazin"></label>
-            <label>Sincronizare automată stoc<select name="syncMinutes"><option value="0">Oprită</option><option value="15">la 15 minute</option><option value="30">la 30 minute</option><option value="60">la o oră</option><option value="360">la 6 ore</option></select></label>
+            <label>Preluare automată stoc din SmartBill <small>(înlocuiește stocul din aplicație)</small><select name="syncMinutes"><option value="0">Oprită – stocul se ține în aplicație (recomandat)</option><option value="15">la 15 minute</option><option value="30">la 30 minute</option><option value="60">la o oră</option><option value="360">la 6 ore</option></select></label>
             <label>Cotă TVA (%)<input name="vatPercent" type="number" step="1" min="0" max="30"></label>
             <label>Denumire cotă TVA în SmartBill<input name="vatName" placeholder="Normala"></label>
           </div>

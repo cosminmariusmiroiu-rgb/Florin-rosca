@@ -46,7 +46,7 @@ const DEFAULT_SETTINGS = {
     useStock: true,           // descarcă din gestiune la facturare
     autoInvoice: false,       // emite factura automat la fiecare comandă
     sendEmail: false,         // SmartBill trimite factura pe e-mail clientului
-    syncMinutes: 30,          // sincronizare automată stocuri (0 = oprit)
+    syncMinutes: 0,           // sincronizare automată stoc din SmartBill (0 = oprit: stocul se ține în aplicație)
     lastSync: null,
     lastSyncError: null
   }

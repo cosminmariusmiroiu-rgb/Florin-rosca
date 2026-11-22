@@ -239,7 +239,7 @@
     $$('[data-sin]').forEach((b) => b.addEventListener('click', () => move(b.dataset.sin, 1)));
     $$('[data-sout]').forEach((b) => b.addEventListener('click', () => move(b.dataset.sout, -1)));
   }
-  $('#stockSync').addEventListener('click', (e) => busy(e.currentTarget, async () => {
+  $('#stockSync').addEventListener('click', (e) => !confirm('Preiei stocul din SmartBill? Cifrele din aplicație vor fi înlocuite cu cele din SmartBill (vânzările din salon care nu sunt trecute în SmartBill se pierd din calcul).') ? null : busy(e.currentTarget, async () => {
     try { const r = await api('admin/smartbill/sync', { method: 'POST' }); toast(`Stoc actualizat din SmartBill: ${r.matched} din ${r.total} produse.`); loaders.stoc(); } catch (x) { toast(x.message); }
   }));
 
@@ -409,7 +409,7 @@
     await api('admin/products/' + editing.id, { method: 'DELETE' }).catch((x) => toast(x.message));
     $('#prodDlg').close(); toast('Produsul a fost șters.'); loaders.produse();
   });
-  $('#syncBtn').addEventListener('click', (e) => busy(e.currentTarget, async () => {
+  $('#syncBtn').addEventListener('click', (e) => !confirm('Preiei stocul din SmartBill? Cifrele din aplicație vor fi înlocuite cu cele din SmartBill.') ? null : busy(e.currentTarget, async () => {
     try { const r = await api('admin/smartbill/sync', { method: 'POST' }); toast(`Stoc actualizat: ${r.matched} din ${r.total} produse găsite în SmartBill.`); loaders.produse(); }
     catch (x) { toast(x.message); }
   }));
@@ -454,7 +454,7 @@
     const s = (await loadSettings()).smartbill, f = $('#sbForm');
     for (const k of ['email', 'cif', 'seriesName', 'warehouseName', 'vatName', 'vatPercent']) f[k].value = s[k] == null ? '' : s[k];
     f.syncMinutes.value = String(s.syncMinutes || 0);
-    if (!f.syncMinutes.value) f.syncMinutes.value = '30';
+    if (!f.syncMinutes.value) f.syncMinutes.value = '0';
     for (const k of ['useStock', 'autoInvoice', 'sendEmail']) f[k].checked = !!s[k];
     f.token.value = '';
     $('#sbTokenState').textContent = settings.smartbillTokenSet ? '🔒 Token-ul API este salvat (nu se afișează, din motive de siguranță).' : 'Token-ul API nu este salvat încă.';
