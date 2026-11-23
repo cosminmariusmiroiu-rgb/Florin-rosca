@@ -44,6 +44,7 @@
         <button data-tab="produse">🛍️ <span>Produse &amp; stoc</span></button>
         <button data-tab="texte">✏️ <span>Texte site</span></button>
         <button data-tab="smartbill">🔗 <span>SmartBill</span></button>
+        <button data-tab="plati">💶 <span>Plăți card &amp; e-mail</span></button>
         <button data-tab="setari">⚙️ <span>Magazin &amp; cont</span></button>
       </nav>
       <div class="side__foot">
@@ -192,6 +193,46 @@
         </form>
       </section>
 
+      <!-- PLĂȚI CU CARDUL + E-MAIL -->
+      <section data-view="plati" hidden>
+        <h2>Plata cu cardul și e-mailuri</h2>
+        <form class="panel form" id="payForm">
+          <h3>💳 Plata cu cardul prin EuPlătesc</h3>
+          <p class="muted">Clientul alege „Card online” în coș și plătește pe pagina securizată EuPlătesc: cu cardul, iar dacă sunt active pe contul tău, și cu <b>Apple Pay</b> sau <b>Google Pay</b>. Banii ajung în contul tău, iar comanda apare aici ca <b>plătită</b>.</p>
+          <label class="check"><input type="checkbox" name="enabled"> Clienții pot plăti cu cardul pe site</label>
+          <div class="grid2">
+            <label>Merchant ID <small>(MID, din contul EuPlătesc)</small><input name="mid" autocomplete="off" placeholder="ex. 44840981234"></label>
+            <label>Cheie <small>(KEY, din contul EuPlătesc)</small><input name="key" type="password" autocomplete="off" placeholder="lasă gol ca s-o păstrezi"></label>
+            <label>Comanda neplătită se anulează singură după (ore)<input name="unpaidHours" type="number" min="1" max="72" step="1"></label>
+          </div>
+          <label class="check"><input type="checkbox" name="wallets"> Apple Pay și Google Pay sunt active pe contul EuPlătesc (le afișez în coș)</label>
+          <p class="muted" id="payState"></p>
+          <p class="muted">Adresa de confirmare a plăților (<b>Silent URL</b>), de trecut în contul EuPlătesc: <code id="payIpn"></code></p>
+          <div class="row"><button class="btn btn--gold" type="submit">Salvează</button><button class="btn" type="button" id="payTest">Fă o plată de test (1 leu)</button></div>
+          <p class="note" id="payMsg" role="status"></p>
+        </form>
+        <form class="panel form" id="mailForm">
+          <h3>✉️ E-mailuri automate</h3>
+          <p class="muted">Site-ul trimite singur: <b>confirmarea comenzii</b> către client, <b>„coletul a plecat”</b> cu numărul AWB și un <b>anunț către salon</b> la fiecare comandă sau fișă nouă. E-mailurile pleacă de pe adresa salonului (datele le găsești la firma unde ai adresa de e-mail).</p>
+          <label class="check"><input type="checkbox" name="enabled"> Trimite e-mailuri automate</label>
+          <div class="grid2">
+            <label>Server de trimitere (SMTP)<input name="host" autocomplete="off" placeholder="ex. mail.florinrosca.ro"></label>
+            <label>Port<select name="port"><option value="465">465 (SSL – cel mai des)</option><option value="587">587 (STARTTLS)</option></select></label>
+            <label>Utilizator <small>(de obicei adresa de e-mail)</small><input name="user" autocomplete="off" placeholder="comenzi@florinrosca.ro"></label>
+            <label>Parola adresei de e-mail<input name="pass" type="password" autocomplete="new-password" placeholder="lasă gol ca s-o păstrezi"></label>
+            <label>Adresa de pe care pleacă e-mailurile<input name="from" type="email" placeholder="comenzi@florinrosca.ro"></label>
+            <label>Numele expeditorului<input name="fromName" placeholder="Florin Roșca Luxury Hair"></label>
+            <label>Unde primește salonul anunțurile<input name="orderEmail" type="email" placeholder="adresa ta de e-mail"></label>
+          </div>
+          <label class="check"><input type="checkbox" name="customerConfirm"> Confirmare de comandă către client</label>
+          <label class="check"><input type="checkbox" name="customerShipped"> Anunț către client când coletul este predat curierului (cu AWB)</label>
+          <label class="check"><input type="checkbox" name="salonNotify"> Anunț către salon la comandă nouă și la fișă nouă</label>
+          <p class="muted" id="mailState"></p>
+          <div class="row"><button class="btn btn--gold" type="submit">Salvează</button><button class="btn" type="button" id="mailTest">Trimite un e-mail de test</button></div>
+          <p class="note" id="mailMsg" role="status"></p>
+        </form>
+      </section>
+
       <!-- SETĂRI -->
       <section data-view="setari" hidden>
         <div class="bar"><h2>Magazin &amp; cont</h2><button class="btn btn--sm" type="button" id="logout2">Ieșire din cont</button></div>
@@ -202,7 +243,7 @@
           <div class="grid2">
             <label>Cost livrare (lei)<input name="shippingCost" type="number" step="0.01" min="0"></label>
             <label>Livrare gratuită de la (lei, 0 = niciodată)<input name="freeShippingFrom" type="number" step="1" min="0"></label>
-            <label>E-mail pentru comenzi<input name="orderEmail" type="email"></label>
+            <label>E-mail pentru comenzi <small>(unde ești anunțat)</small><input name="orderEmail" type="email"></label>
           </div>
           <div class="row"><button class="btn btn--gold" type="submit">Salvează</button></div>
           <p class="note" id="shopMsg" role="status"></p>

@@ -84,7 +84,11 @@
     if (s.parcels) al.push(`🚚 Ai <b>${s.parcels}</b> colete de pregătit. <a href="#colete" data-go="colete">Vezi coletele →</a>`);
     if (s.newConsults) al.push(`📋 Ai <b>${s.newConsults}</b> fișe de consultație noi. <a href="#fise" data-go="fise">Vezi fișele →</a>`);
     if (s.newOrders) al.push(`🧾 Ai <b>${s.newOrders}</b> comenzi noi. <a href="#comenzi" data-go="comenzi">Vezi comenzile →</a>`);
+    if (s.unpaidCard) al.push(`💳 <b>${s.unpaidCard}</b> ${s.unpaidCard === 1 ? 'comandă cu cardul așteaptă' : 'comenzi cu cardul așteaptă'} plata (nu se pregătesc până nu sunt plătite). <a href="#comenzi" data-go="comenzi">Vezi →</a>`);
     if (!s.smartbill.configured) al.push('🔗 SmartBill nu este conectat încă. <a href="#smartbill" data-go="smartbill">Conectează acum →</a>');
+    if (s.pay && !s.pay.ready) al.push('💶 Plata cu cardul (EuPlătesc) nu este pornită încă. <a href="#plati" data-go="plati">Configurează →</a>');
+    if (s.mail && !s.mail.ready) al.push('✉️ E-mailurile automate nu sunt pornite încă. <a href="#plati" data-go="plati">Configurează →</a>');
+    if (s.mail && s.mail.lastError) al.push('⚠️ Ultimul e-mail nu a putut fi trimis: ' + esc(s.mail.lastError) + ' <a href="#plati" data-go="plati">Verifică →</a>');
     if (s.smartbill.lastSyncError) al.push('⚠️ Ultima sincronizare de stoc a eșuat: ' + esc(s.smartbill.lastSyncError));
     else if (s.smartbill.lastSync) al.push('✅ Stoc sincronizat cu SmartBill: ' + when(s.smartbill.lastSync));
     for (const p of s.lowStock) al.push(`📦 Stoc mic: <b>${esc(p.name)}</b> ${esc(p.size)} – ${p.stock} buc.`);
@@ -443,7 +447,8 @@
         : `<button class="btn btn--sm btn--gold" data-inv="${o.id}" type="button">Emite factura în SmartBill</button>${o.invoiceError ? `<div class="err">${esc(o.invoiceError)}</div>` : ''}`;
       return `<article class="ord">
         <div class="ord__head"><h3>Comanda #${o.number} · ${lei(o.total)}</h3><span class="status status--${o.status}">${ST[o.status] || o.status}</span></div>
-        <div class="ord__meta">${when(o.createdAt)} · plata ${o.payment === 'ramburs' ? 'ramburs' : esc(o.payment)}</div>
+        <div class="ord__meta">${when(o.createdAt)} · plata ${payLabel(o)}</div>
+        ${o.payment === 'card' && !o.paid && o.status !== 'anulata' ? `<div class="alert">💳 Clientul nu a terminat plata cu cardul${o.pay && o.pay.message ? ' (' + esc(o.pay.message) + ')' : ''}. Comanda nu se pregătește și se anulează singură dacă rămâne neplătită. <button class="btn btn--sm" data-paid="${o.id}" type="button">Am primit banii altfel: marchează plătită</button></div>` : ''}
         <table>${o.items.map((i) => `<tr><td>${i.qty} × ${esc(i.name)} ${esc(i.size)}</td><td>${lei(i.price * i.qty)}</td></tr>`).join('')}
           <tr><td>Livrare</td><td>${o.shipping ? lei(o.shipping) : 'gratuită'}</td></tr><tr><td><b>Total</b></td><td><b>${lei(o.total)}</b></td></tr></table>
         <div class="ord__grid">
@@ -455,12 +460,19 @@
         </div></article>`;
     }).join('');
     $$('[data-st]').forEach((s) => s.addEventListener('change', () => saveOrder(s.dataset.st, { status: s.value })));
+    $$('[data-paid]').forEach((b) => b.addEventListener('click', () => { if (confirm('Marchezi comanda ca plătită? Va apărea la colete de pregătit.')) saveOrder(b.dataset.paid, { paid: true }); }));
     $$('[data-awb]').forEach((s) => s.addEventListener('change', () => saveOrder(s.dataset.awb, { awb: s.value })));
     $$('[data-inv]').forEach((b) => b.addEventListener('click', () => busy(b, async () => {
       try { await api('admin/orders/' + b.dataset.inv + '/invoice', { method: 'POST' }); toast('Factura a fost emisă în SmartBill.'); }
       catch (e) { toast(e.message); }
       await loaders.comenzi();
     })));
+  }
+  function payLabel(o) {
+    if (o.payment !== 'card') return 'ramburs';
+    if (!o.paid) return 'card · <b class="low">neplătită</b>';
+    const ch = o.pay && o.pay.channel ? ' · ' + esc(o.pay.channel) : '';
+    return 'card · <b class="okk">plătită ✓</b>' + (o.pay && o.pay.manual ? ' (marcată de mână)' : ch) + (o.paidAt ? ' · ' + when(o.paidAt) : '');
   }
   async function saveOrder(id, body) {
     try { const o = await api('admin/orders/' + id, { method: 'PUT', body }); orders = orders.map((x) => (x.id === id ? o : x)); renderOrders(); toast('Comanda a fost actualizată.'); }
@@ -653,6 +665,55 @@
     } catch (x) { note($('#sbMsg'), x.message, false); }
   }));
   loaders.setari = async () => { await loadSettings(); await loaders.smartbill(); fillShop(); };
+
+  /* ---------- card payments (EuPlătesc) + automatic e-mails ---------- */
+  function fillPay() {
+    const s = settings, f = $('#payForm'), g = $('#mailForm'), p = s.pay, m = s.mail;
+    f.enabled.checked = !!p.enabled; f.mid.value = p.mid || ''; f.key.value = ''; f.wallets.checked = !!p.wallets; f.unpaidHours.value = p.unpaidHours || 3;
+    $('#payIpn').textContent = (s.siteUrl || location.origin) + '/api/pay/euplatesc/ipn';
+    const t = p.lastTest;
+    $('#payState').innerHTML = (s.payKeySet ? '🔒 Cheia este salvată (nu se afișează, din motive de siguranță).' : 'Cheia nu este salvată încă.') +
+      (s.payReady ? ' <b class="okk">Plata cu cardul este pornită pe site.</b>' : p.enabled ? ' <b class="low">Lipsește Merchant ID-ul sau cheia: plata cu cardul nu apare încă pe site.</b>' : ' Plata cu cardul este oprită.') +
+      (t ? `<br>Ultima plată de test (${when(t.at)}): ${t.approved ? '<b class="okk">reușită ✓</b>' : '<b class="low">nereușită</b> – ' + esc(t.message || '')}` : '');
+    g.enabled.checked = !!m.enabled; g.host.value = m.host || ''; g.port.value = String(m.port || 465); g.user.value = m.user || ''; g.pass.value = '';
+    g.from.value = m.from || ''; g.fromName.value = m.fromName || ''; g.orderEmail.value = s.orderEmail || '';
+    for (const k of ['customerConfirm', 'customerShipped', 'salonNotify']) g[k].checked = !!m[k];
+    $('#mailState').innerHTML = (s.mailPassSet ? '🔒 Parola este salvată (nu se afișează).' : 'Parola nu este salvată încă.') +
+      (s.mailReady && m.enabled ? ' <b class="okk">E-mailurile automate sunt pornite.</b>' : '') +
+      (m.lastError ? `<br><b class="low">Ultima eroare:</b> ${esc(m.lastError)}` : m.lastOk ? `<br>Ultimul e-mail trimis: ${when(m.lastOk)}` : '');
+  }
+  loaders.plati = async () => { await loadSettings(); fillPay(); };
+  const payBody = () => { const f = $('#payForm'); return { pay: { enabled: f.enabled.checked, mid: f.mid.value, wallets: f.wallets.checked, unpaidHours: f.unpaidHours.value }, payKey: f.key.value }; };
+  const mailBody = () => { const g = $('#mailForm'); return { mail: { enabled: g.enabled.checked, host: g.host.value, port: g.port.value, user: g.user.value, from: g.from.value, fromName: g.fromName.value,
+    orderEmail: g.orderEmail.value, customerConfirm: g.customerConfirm.checked, customerShipped: g.customerShipped.checked, salonNotify: g.salonNotify.checked }, mailPass: g.pass.value }; };
+  $('#payForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    try { settings = await busy($('button[type=submit]', e.target), () => api('admin/settings', { method: 'PUT', body: payBody() })); fillPay();
+      note($('#payMsg'), settings.payReady ? 'Salvat. Plata cu cardul este pornită pe site.' : 'Salvat. Plata cu cardul nu apare încă pe site (bifează căsuța și completează Merchant ID-ul și cheia).', settings.payReady || !settings.pay.enabled); }
+    catch (x) { note($('#payMsg'), x.message, false); }
+  });
+  $('#payTest').addEventListener('click', (e) => busy(e.currentTarget, async () => {
+    try {
+      settings = await api('admin/settings', { method: 'PUT', body: payBody() }); fillPay();
+      const pay = await api('admin/pay/test', { method: 'POST' });
+      const f = document.createElement('form'); f.method = 'POST'; f.action = pay.url; f.target = '_blank'; f.style.display = 'none';
+      for (const [k, v] of Object.entries(pay.fields)) { const i = document.createElement('input'); i.type = 'hidden'; i.name = k; i.value = v; f.appendChild(i); }
+      document.body.appendChild(f); f.submit(); f.remove();
+      note($('#payMsg'), 'Am deschis pagina EuPlătesc într-o filă nouă. Dacă vezi formularul de plată de 1 leu, datele sunt corecte. Dacă scrie „Incorrect signature”, cheia sau Merchant ID-ul sunt greșite.', true);
+    } catch (x) { note($('#payMsg'), x.message, false); }
+  }));
+  $('#mailForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    try { settings = await busy($('button[type=submit]', e.target), () => api('admin/settings', { method: 'PUT', body: mailBody() })); fillPay(); note($('#mailMsg'), 'Setările de e-mail au fost salvate.', true); }
+    catch (x) { note($('#mailMsg'), x.message, false); }
+  });
+  $('#mailTest').addEventListener('click', (e) => busy(e.currentTarget, async () => {
+    try {
+      settings = await api('admin/settings', { method: 'PUT', body: mailBody() }); fillPay();
+      const r = await api('admin/mail/test', { method: 'POST', body: {} });
+      note($('#mailMsg'), '✅ E-mailul de test a fost trimis la ' + r.to + '. Verifică și dosarul Spam.', true);
+    } catch (x) { note($('#mailMsg'), x.message, false); }
+  }));
   $('#shopForm').addEventListener('submit', async (e) => {
     e.preventDefault();
     try { settings = await busy($('button', e.target), () => api('admin/settings', { method: 'PUT', body: settingsBody() })); fillShop(); note($('#shopMsg'), 'Setările magazinului au fost salvate.', true); }

@@ -36,7 +36,27 @@ const DEFAULT_SETTINGS = {
   shippingCost: 25,           // lei
   freeShippingFrom: 300,      // lei, 0 = never
   codEnabled: true,           // ramburs (plata la livrare)
-  orderEmail: '',             // where the salon wants to be notified (informativ)
+  orderEmail: '',             // where the salon is notified about new orders and consultation forms
+  pay: {                      // EuPlatesc.ro: plata cu cardul (cheia stă în secrets)
+    enabled: false,           // clienții pot alege „card online” în coș
+    mid: '',                  // Merchant ID
+    wallets: false,           // Apple Pay / Google Pay sunt active pe contul EuPlatesc (apar în textul de la plată)
+    unpaidHours: 3,           // o comandă cu cardul rămasă neplătită se anulează singură după atâtea ore (stocul se pune înapoi)
+    lastTest: null            // rezultatul ultimei plăți de test
+  },
+  mail: {                     // e-mailuri automate prin SMTP (parola stă în secrets)
+    enabled: false,
+    host: '',                 // ex. mail.florinrosca.ro, smtp.gmail.com
+    port: 465,                // 465 (SSL) sau 587 (STARTTLS)
+    user: '',                 // de obicei adresa de e-mail
+    from: '',                 // adresa expeditorului
+    fromName: 'Florin Roșca Luxury Hair',
+    customerConfirm: true,    // confirmare de comandă către client
+    customerShipped: true,    // anunț „coletul a plecat” către client
+    salonNotify: true,        // comandă nouă / fișă nouă către salon (orderEmail)
+    lastOk: null,
+    lastError: null
+  },
   courier: {
     provider: 'sameday',      // sameday | fan | cargus | manual
     demo: false,              // Sameday: mediul de test
@@ -74,7 +94,8 @@ function categories() {
 
 function settings() {
   const s = read('settings', {});
-  return { ...DEFAULT_SETTINGS, ...s, smartbill: { ...DEFAULT_SETTINGS.smartbill, ...(s.smartbill || {}) }, courier: { ...DEFAULT_SETTINGS.courier, ...(s.courier || {}) } };
+  return { ...DEFAULT_SETTINGS, ...s, smartbill: { ...DEFAULT_SETTINGS.smartbill, ...(s.smartbill || {}) }, courier: { ...DEFAULT_SETTINGS.courier, ...(s.courier || {}) },
+    pay: { ...DEFAULT_SETTINGS.pay, ...(s.pay || {}) }, mail: { ...DEFAULT_SETTINGS.mail, ...(s.mail || {}) } };
 }
 
 // secrets are kept apart so they are never sent back to the browser

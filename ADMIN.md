@@ -24,6 +24,19 @@ Panoul se deschide la adresa **/admin/** a site-ului (de ex. `https://florinrosc
 3. Apeși **Testează conexiunea**.
 4. La fiecare produs completezi **Codul produsului din SmartBill** (exact ca în nomenclatorul SmartBill), ca stocul să se potrivească.
 
+## Plata cu cardul (EuPlătesc), Apple Pay și Google Pay
+1. Din contul de comerciant EuPlătesc (manager.euplatesc.ro) copiezi **Merchant ID-ul (MID)** și **cheia (KEY)**.
+2. În panou: **Plăți card & e-mail**. Completezi MID-ul și cheia, bifezi **„Clienții pot plăti cu cardul pe site”** și apeși **„Salvează”**.
+3. Apeși **„Fă o plată de test (1 leu)”**: dacă se deschide formularul de plată EuPlătesc, datele sunt corecte.
+4. În coș, clientul alege **Card online** sau **Ramburs**. La card este dus pe pagina securizată EuPlătesc; acolo apar și **Apple Pay** și **Google Pay**, dacă sunt activate pe contul tău EuPlătesc (se cer de la EuPlătesc). După activare bifezi căsuța „Apple Pay și Google Pay sunt active”.
+5. Comanda plătită apare la **Comenzi** ca „card · plătită ✓” și intră la **Colete**. O comandă cu cardul rămasă neplătită nu se pregătește și se anulează singură după câteva ore (stocul se pune înapoi).
+6. În contul EuPlătesc poți trece și **Silent URL** (adresa este afișată în panou); site-ul o trimite oricum la fiecare plată.
+
+## E-mailuri automate
+1. În panou: **Plăți card & e-mail → E-mailuri automate**. Completezi serverul SMTP, portul, utilizatorul și parola adresei de e-mail a salonului (le afli de la firma unde ai adresa de e-mail).
+2. Apeși **„Trimite un e-mail de test”**.
+3. Site-ul trimite singur: confirmarea comenzii către client, „coletul a plecat” cu numărul AWB și un anunț către salon la fiecare comandă sau fișă nouă.
+
 ## Punerea online pe Render.com (recomandat)
 1. Îți faci cont pe **render.com** cu **„Sign in with GitHub”**, folosind același cont GitHub unde este proiectul.
 2. **New → Blueprint**, alegi repository-ul **Florin-rosca** și apeși **Apply**.

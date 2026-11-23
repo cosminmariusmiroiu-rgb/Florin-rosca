@@ -9,6 +9,8 @@ const store = require('./store');
 const auth = require('./auth');
 const sb = require('./smartbill');
 const courier = require('./courier');
+const ep = require('./euplatesc');
+const mailer = require('./mailer');
 
 const PORT = Number(process.env.PORT) || 3000;
 const ROOT = store.ROOT;
@@ -43,6 +45,27 @@ function readBody(req, limit = 1e6) {
     });
     req.on('error', reject);
   });
+}
+
+// answers from the payment processor arrive as a classic form post
+function readForm(req, limit = 1e5) {
+  return new Promise((resolve, reject) => {
+    let size = 0; const chunks = [];
+    req.on('data', (c) => { size += c.length; if (size > limit) { reject(new Error('too_large')); req.destroy(); } else chunks.push(c); });
+    req.on('end', () => resolve(Object.fromEntries(new URLSearchParams(Buffer.concat(chunks).toString('utf8')))));
+    req.on('error', reject);
+  });
+}
+const text = (res, code, body) => send(res, code, body, { 'Content-Type': 'text/plain; charset=utf-8' });
+const redirect = (res, to) => { res.writeHead(303, { Location: to, 'Cache-Control': 'no-store' }); res.end(); };
+
+// public address of the site, as the visitor sees it (used for payment return addresses and links in e-mails)
+function siteOrigin(req) {
+  if (process.env.PUBLIC_URL) return process.env.PUBLIC_URL.replace(/\/+$/, '');
+  const host = String(req.headers['x-forwarded-host'] || req.headers.host || '').split(',')[0].trim();
+  const proto = String(req.headers['x-forwarded-proto'] || (req.socket.encrypted ? 'https' : 'http')).split(',')[0].trim();
+  if (!/^[a-z0-9.-]+(:\d+)?$/i.test(host)) return (process.env.RENDER_EXTERNAL_URL || '').replace(/\/+$/, '');
+  return (proto === 'https' ? 'https' : 'http') + '://' + host;
 }
 
 const ip = (req) => (req.headers['x-forwarded-for'] || '').split(',')[0].trim() || req.socket.remoteAddress;
@@ -122,6 +145,109 @@ setInterval(() => {
   syncStock().catch(() => {});
 }, 60e3).unref();
 
+/* ---------- e-mails (never block or break an order) ---------- */
+const COURIER_NAMES = { sameday: 'Sameday', fan: 'FAN Courier', cargus: 'Cargus' };
+const salonTo = (s) => s.orderEmail || s.mail.from;
+function mail(build) {
+  const s = store.settings(), pass = store.secrets().mailPass;
+  if (!s.mail.enabled || !mailer.configured(s.mail, pass)) return;
+  let msg;
+  try { msg = build(s); } catch (e) { return; }
+  if (!msg || !mailer.isEmail(msg.to)) return;
+  mailer.send(s.mail, pass, msg).then(
+    () => { const x = store.settings(); x.mail.lastOk = new Date().toISOString(); x.mail.lastError = null; store.write('settings', x); },
+    (e) => { const x = store.settings(); x.mail.lastError = new Date().toISOString() + ' · ' + e.message; store.write('settings', x); console.error('e-mail:', e.message); }
+  );
+}
+// order received (ramburs) or paid (card): confirmation for the customer + notice for the salon
+function mailNewOrder(order) {
+  mail((s) => (s.mail.customerConfirm && order.customer.email ? mailer.templates.orderCustomer(order) : null));
+  mail((s) => (s.mail.salonNotify ? mailer.templates.orderSalon(order, salonTo(s), order.origin) : null));
+}
+// parcel handed to the courier (sent once)
+function mailShipped(order) {
+  if (order.shippedMailAt || !order.customer.email) return;
+  const s = store.settings();
+  if (!s.mail.enabled || !s.mail.customerShipped || !mailer.configured(s.mail, store.secrets().mailPass)) return;
+  order.shippedMailAt = new Date().toISOString();
+  mail(() => mailer.templates.orderShipped(order, COURIER_NAMES[order.awbCourier || s.courier.provider] || ''));
+}
+
+/* ---------- card payments (EuPlatesc) ---------- */
+const payReady = (s) => !!(s.pay.enabled && s.pay.mid && ep.validKey(store.secrets().payKey));
+const awaitingPay = (o) => o.payment === 'card' && !o.paid;
+const moveStock = (order, sign) => store.write('products', store.products().map((p) => {
+  const it = order.items.find((i) => i.id === p.id);
+  return it && p.stock != null ? { ...p, stock: Math.max(0, p.stock + sign * it.qty) } : p;
+}));
+
+function payRequest(order) {
+  const base = order.origin;
+  return ep.request(store.settings().pay, store.secrets().payKey, {
+    amount: order.total, invoiceId: order.number, description: 'Comanda ' + order.number + ' Florin Rosca Luxury Hair', customer: order.customer,
+    urls: base ? { silent: base + '/api/pay/euplatesc/ipn', back: base + '/api/pay/euplatesc/return', site: base + '/magazin.html' } : null
+  });
+}
+
+// a signed answer from EuPlatesc (it can come twice: server-to-server and with the customer's browser)
+async function applyPayment(r) {
+  const now = new Date().toISOString();
+  if (/^T\d+$/.test(r.invoiceId)) { // test payment started from the panel
+    const s = store.settings();
+    s.pay.lastTest = { at: now, approved: r.approved, message: r.message, channel: r.channel };
+    store.write('settings', s);
+    return { test: true };
+  }
+  const orders = store.read('orders', []), o = orders.find((x) => String(x.number) === r.invoiceId);
+  if (!o) return { missing: true };
+  if (o.paid) return { order: o };
+  if (!r.approved) {
+    o.pay = { status: 'esuata', message: r.message, epId: r.epId, at: now };
+    store.write('orders', orders);
+    return { order: o };
+  }
+  if (r.curr !== 'RON' || Math.abs(r.amount - o.total) > 0.009) {
+    o.pay = { status: 'suma-diferita', message: `S-au plătit ${r.amount} ${r.curr}, iar comanda are ${o.total} RON.`, epId: r.epId, at: now };
+    store.write('orders', orders);
+    return { order: o };
+  }
+  o.paid = true; o.paidAt = now; o.payment = 'card';
+  o.pay = { status: 'platita', epId: r.epId, approval: r.approval, channel: r.channel, cardType: r.cardType, at: now };
+  if (o.status === 'anulata' && o.autoCancelled) { // paid after the automatic cancellation: bring it back
+    o.status = 'noua'; o.autoCancelled = false; o.stockRestored = false;
+    moveStock(o, -1);
+  }
+  store.write('orders', orders);
+  const settings = store.settings();
+  if (settings.smartbill.autoInvoice && store.secrets().smartbillToken && !o.invoice) {
+    try { await issueInvoice(o); } catch (e) { o.invoiceError = e.message; }
+    store.write('orders', store.read('orders', []).map((x) => (x.id === o.id ? o : x)));
+  }
+  mailNewOrder(o);
+  return { order: o };
+}
+
+// card orders that were never paid are cancelled after a few hours, so the stock is free again
+function cancelUnpaid() {
+  const hours = Number(store.settings().pay.unpaidHours) || 3;
+  const orders = store.read('orders', []); let changed = false;
+  for (const o of orders) {
+    if (!awaitingPay(o) || o.status !== 'noua' || Date.now() - Date.parse(o.createdAt) < hours * 3600e3) continue;
+    if (!o.stockRestored) { moveStock(o, 1); o.stockRestored = true; }
+    o.status = 'anulata'; o.autoCancelled = true;
+    o.adminNote = (o.adminNote ? o.adminNote + '\n' : '') + 'Anulată automat: plata cu cardul nu a fost finalizată.';
+    changed = true;
+  }
+  if (changed) store.write('orders', orders);
+}
+setInterval(cancelUnpaid, 10 * 60e3).unref();
+setTimeout(cancelUnpaid, 5000).unref(); // also shortly after a restart
+
+function publicOrder(number, token) {
+  const o = store.read('orders', []).find((x) => String(x.number) === String(number));
+  return o && o.payToken && token && o.payToken === token ? o : null;
+}
+
 /* ---------- orders ---------- */
 function nextOrderNumber(orders) {
   return orders.reduce((m, o) => Math.max(m, o.number || 0), 1000) + 1;
@@ -135,7 +261,7 @@ async function issueInvoice(order) {
   return order;
 }
 
-async function placeOrder(body) {
+async function placeOrder(body, origin) {
   const settings = store.settings();
   if (!settings.shopEnabled) throw new Error('Comenzile online sunt momentan oprite. Te rugăm să suni la 0732 937 622.');
   const c = body.customer || {};
@@ -148,6 +274,9 @@ async function placeOrder(body) {
   if (!/^[+0-9 ()-]{9,20}$/.test(customer.phone)) throw new Error('Numărul de telefon nu pare corect.');
   if (customer.email && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(customer.email)) throw new Error('Adresa de e-mail nu pare corectă.');
   if (!body.acceptTerms) throw new Error('Trebuie să accepți termenii și condițiile.');
+  const card = body.payment === 'card' || (!settings.codEnabled && payReady(settings));
+  if (card && !payReady(settings)) throw new Error('Plata cu cardul nu este disponibilă momentan. Alege plata ramburs.');
+  if (!card && !settings.codEnabled) throw new Error('Plata ramburs nu este disponibilă momentan. Te rugăm să suni la 0732 937 622.');
 
   const products = store.products();
   const items = [];
@@ -165,8 +294,8 @@ async function placeOrder(body) {
   const orders = store.read('orders', []);
   const order = {
     id: crypto.randomUUID(), number: nextOrderNumber(orders), createdAt: new Date().toISOString(),
-    status: 'noua', payment: 'ramburs', customer, items, subtotal, shipping, total: money(subtotal + shipping),
-    invoice: null, invoiceError: null
+    status: 'noua', payment: card ? 'card' : 'ramburs', paid: false, customer, items, subtotal, shipping, total: money(subtotal + shipping),
+    invoice: null, invoiceError: null, payToken: crypto.randomBytes(16).toString('hex'), origin
   };
   // reserve stock locally until the next SmartBill sync
   store.write('products', products.map((p) => {
@@ -176,11 +305,19 @@ async function placeOrder(body) {
   orders.push(order);
   store.write('orders', orders);
 
-  if (settings.smartbill.autoInvoice && store.secrets().smartbillToken) {
+  // card: the customer goes to the EuPlatesc page; invoice and e-mails follow after the payment
+  if (card) return { number: order.number, total: order.total, token: order.payToken, pay: payRequest(order) };
+  await confirmOrder(order);
+  return { number: order.number, total: order.total, token: order.payToken };
+}
+
+// an order that will be prepared (ramburs): invoice (if automatic) + e-mails
+async function confirmOrder(order) {
+  if (store.settings().smartbill.autoInvoice && store.secrets().smartbillToken && !order.invoice) {
     try { await issueInvoice(order); } catch (e) { order.invoiceError = e.message; }
     store.write('orders', store.read('orders', []).map((o) => (o.id === order.id ? order : o)));
   }
-  return { number: order.number, total: order.total };
+  mailNewOrder(order);
 }
 
 /* ---------- sales statistics (online orders vs salon sales) ---------- */
@@ -220,7 +357,7 @@ function evaluate(c) {
   return out;
 }
 
-async function saveConsult(body) {
+async function saveConsult(body, origin) {
   const c = {
     name: str(body.name, 120), phone: str(body.phone, 30), email: str(body.email, 120), service: str(body.service, 40),
     lastColor: str(body.lastColor, 40), boxDye: YN(body.boxDye), homeBleach: YN(body.homeBleach),
@@ -245,6 +382,7 @@ async function saveConsult(body) {
   const rec = { id, number: list.reduce((m, x) => Math.max(m, x.number || 0), 0) + 1, createdAt: new Date().toISOString(), status: 'noua', ...c, photos: files, evaluation: evaluate(c), consent: { gdpr: true, depositNonRefundable: true, at: new Date().toISOString() } };
   list.push(rec);
   store.write('consultations', list);
+  mail((s) => (s.mail.salonNotify ? mailer.templates.consultSalon(rec, salonTo(s), origin) : null));
   return { number: rec.number, evaluation: rec.evaluation };
 }
 
@@ -258,15 +396,62 @@ async function api(req, res, url) {
   if (p === '/api/content' && m === 'GET') return ok(res, store.read('content', {}));
   if (p === '/api/shop' && m === 'GET') {
     const s = store.settings();
-    return ok(res, { enabled: s.shopEnabled, shippingCost: s.shippingCost, freeShippingFrom: s.freeShippingFrom, cod: s.codEnabled });
+    return ok(res, { enabled: s.shopEnabled, shippingCost: s.shippingCost, freeShippingFrom: s.freeShippingFrom, cod: s.codEnabled, card: payReady(s), wallets: !!s.pay.wallets });
   }
   if (p === '/api/order' && m === 'POST') {
-    try { return ok(res, await placeOrder(await readBody(req))); }
+    try { return ok(res, await placeOrder(await readBody(req), siteOrigin(req))); }
     catch (e) { return fail(res, 400, e.message); }
+  }
+  // the customer comes back from the payment page: what happened with the order?
+  if (p === '/api/order/status' && m === 'GET') {
+    const o = publicOrder(url.searchParams.get('n'), url.searchParams.get('t')), s = store.settings();
+    if (!o) return fail(res, 404, 'Comanda nu a fost găsită.');
+    return ok(res, { number: o.number, total: o.total, payment: o.payment, paid: !!o.paid, cancelled: o.status === 'anulata',
+      canPay: !o.paid && o.status !== 'anulata' && payReady(s), cod: !!s.codEnabled, message: (o.pay && o.pay.status === 'esuata' && o.pay.message) || '' });
+  }
+  // try the card payment again / switch an unpaid card order to ramburs
+  if ((p === '/api/order/pay' || p === '/api/order/cod') && m === 'POST') {
+    try {
+      const b = await readBody(req), s = store.settings();
+      const orders = store.read('orders', []), o = orders.find((x) => String(x.number) === String(b.number) && x.payToken && x.payToken === b.token);
+      if (!o) return fail(res, 404, 'Comanda nu a fost găsită.');
+      if (o.paid) return fail(res, 400, 'Comanda este deja plătită.');
+      if (o.status === 'anulata') return fail(res, 400, 'Comanda a fost anulată. Te rugăm să o plasezi din nou.');
+      if (p === '/api/order/pay') {
+        if (!payReady(s)) return fail(res, 400, 'Plata cu cardul nu este disponibilă momentan.');
+        o.payment = 'card'; o.origin = siteOrigin(req) || o.origin;
+        store.write('orders', orders);
+        return ok(res, { number: o.number, total: o.total, pay: payRequest(o) });
+      }
+      if (!s.codEnabled) return fail(res, 400, 'Plata ramburs nu este disponibilă.');
+      if (o.payment === 'ramburs') return ok(res, { number: o.number, total: o.total });
+      o.payment = 'ramburs';
+      store.write('orders', orders);
+      await confirmOrder(o);
+      return ok(res, { number: o.number, total: o.total });
+    } catch (e) { return fail(res, 400, e.message); }
+  }
+  // EuPlatesc → server (Silent URL): the trusted confirmation of a payment. The answer must be the plain text OK.
+  if (p === '/api/pay/euplatesc/ipn' && m === 'POST') {
+    let r;
+    try { r = ep.verify(await readForm(req), store.settings().pay, store.secrets().payKey); }
+    catch (e) { console.error('EuPlatesc IPN respins:', e.message); return text(res, 400, 'INVALID'); }
+    await applyPayment(r);
+    return text(res, 200, 'OK');
+  }
+  // EuPlatesc → the customer's browser, after the payment page
+  if (p === '/api/pay/euplatesc/return' && (m === 'POST' || m === 'GET')) {
+    let r;
+    try { r = ep.verify(m === 'POST' ? await readForm(req) : Object.fromEntries(url.searchParams), store.settings().pay, store.secrets().payKey); }
+    catch (e) { return redirect(res, '/magazin.html?plata=necunoscut'); }
+    const out = await applyPayment(r);
+    if (out.test) return redirect(res, '/admin/#plati');
+    if (!out.order) return redirect(res, '/magazin.html?plata=necunoscut');
+    return redirect(res, '/magazin.html?plata=' + (out.order.paid ? 'ok' : 'esuata') + '&comanda=' + out.order.number + '&t=' + out.order.payToken);
   }
 
   if (p === '/api/consult' && m === 'POST') {
-    try { return ok(res, await saveConsult(await readBody(req, 20e6))); }
+    try { return ok(res, await saveConsult(await readBody(req, 20e6), siteOrigin(req))); }
     catch (e) { return fail(res, 400, e.message === 'too_large' ? 'Pozele sunt prea mari.' : e.message); }
   }
 
@@ -303,15 +488,18 @@ async function api(req, res, url) {
   if (p === '/api/admin/summary' && m === 'GET') {
     const orders = store.read('orders', []), products = store.products(), s = store.settings();
     const since = Date.now() - 30 * 864e5;
-    const recent = orders.filter((o) => Date.parse(o.createdAt) > since && o.status !== 'anulata');
+    const recent = orders.filter((o) => Date.parse(o.createdAt) > since && o.status !== 'anulata' && !awaitingPay(o));
     return ok(res, {
-      newOrders: orders.filter((o) => o.status === 'noua').length,
+      newOrders: orders.filter((o) => o.status === 'noua' && !awaitingPay(o)).length,
+      unpaidCard: orders.filter((o) => o.status === 'noua' && awaitingPay(o)).length,
+      pay: { enabled: !!s.pay.enabled, ready: payReady(s) },
+      mail: { enabled: !!s.mail.enabled, ready: mailer.configured(s.mail, store.secrets().mailPass), lastError: s.mail.lastError },
       newConsults: store.read('consultations', []).filter((c) => c.status === 'noua').length,
-      parcels: orders.filter((o) => o.status === 'noua' || o.status === 'confirmata').length,
+      parcels: orders.filter((o) => (o.status === 'noua' || o.status === 'confirmata') && !awaitingPay(o)).length,
       orders30: recent.length,
       revenue30: money(recent.reduce((a, o) => a + o.total, 0)),
       salon: periodStats(store.read('sales', []).filter((x) => !x.cancelled)),
-      online: periodStats(orders.filter((o) => o.status !== 'anulata')),
+      online: periodStats(orders.filter((o) => o.status !== 'anulata' && !awaitingPay(o))),
       lowStock: products.filter((x) => x.active && x.stock != null && x.stock <= 3).map((x) => ({ name: x.name, size: x.size, stock: x.stock })),
       smartbill: { configured: !!(s.smartbill.email && s.smartbill.cif && store.secrets().smartbillToken), lastSync: s.smartbill.lastSync, lastSyncError: s.smartbill.lastSyncError }
     });
@@ -463,14 +651,20 @@ async function api(req, res, url) {
     if (!o) return fail(res, 404, 'Comanda nu există.');
     if (['noua', 'confirmata', 'expediata', 'livrata', 'anulata'].includes(b.status)) {
       if (b.status === 'anulata' && o.status !== 'anulata' && !o.stockRestored) {
-        store.write('products', store.products().map((p) => { const it = o.items.find((i) => i.id === p.id); return it && p.stock != null ? { ...p, stock: p.stock + it.qty } : p; }));
+        moveStock(o, 1);
         o.stockRestored = true;
       }
+      if (b.status === 'expediata' && o.status !== 'expediata') { o.shippedAt = o.shippedAt || new Date().toISOString(); if (b.awb !== undefined) o.awb = str(b.awb, 60); mailShipped(o); }
       o.status = b.status;
     }
+    // "plătită" set by hand (e.g. the money came by bank transfer)
+    let paidNow = false;
+    if (b.paid === true && !o.paid && o.payment === 'card' && o.status !== 'anulata') { o.paid = true; o.paidAt = new Date().toISOString(); o.pay = { ...(o.pay || {}), status: 'platita', manual: true, at: o.paidAt }; paidNow = true; }
     if (b.awb !== undefined) o.awb = str(b.awb, 60);
     if (b.adminNote !== undefined) o.adminNote = str(b.adminNote, 1000);
-    store.write('orders', orders); return ok(res, o);
+    store.write('orders', orders);
+    if (paidNow) await confirmOrder(o);
+    return ok(res, o);
   }
   if (om && om[2] === '/invoice' && m === 'POST') {
     const orders = store.read('orders', []), o = orders.find((x) => x.id === om[1]);
@@ -521,7 +715,7 @@ async function api(req, res, url) {
       const day = d <= cut && d.getDay() !== 0 ? d : nextWork(d);
       return day.toISOString().slice(0, 10);
     };
-    const open = orders.filter((o) => o.status === 'noua' || o.status === 'confirmata').map((o) => ({ ...o, shipDay: shipDay(o) }));
+    const open = orders.filter((o) => (o.status === 'noua' || o.status === 'confirmata') && !awaitingPay(o)).map((o) => ({ ...o, shipDay: shipDay(o) }));
     const today = new Date().toISOString().slice(0, 10);
     const shippedToday = orders.filter((o) => o.status === 'expediata' && (o.shippedAt || '').slice(0, 10) === today);
     return ok(res, { open, shippedToday, provider: s.courier.provider, configured: !!(store.secrets().courier || {}).user || s.courier.provider === 'manual' });
@@ -550,6 +744,7 @@ async function api(req, res, url) {
       }
       if (aw[2] === 'shipped' && m === 'POST') {
         o.status = 'expediata'; o.shippedAt = new Date().toISOString();
+        mailShipped(o);
         store.write('orders', orders); return ok(res, o);
       }
     } catch (e) { return fail(res, 400, e.message); }
@@ -568,9 +763,12 @@ async function api(req, res, url) {
   }
 
   // settings + SmartBill
-  if (p === '/api/admin/settings' && m === 'GET') {
-    return ok(res, { ...store.settings(), smartbillTokenSet: !!store.secrets().smartbillToken, courierUserSet: !!(store.secrets().courier || {}).user });
-  }
+  const settingsOut = (s) => {
+    const sec = store.secrets();
+    return { ...s, smartbillTokenSet: !!sec.smartbillToken, courierUserSet: !!(sec.courier || {}).user, payKeySet: ep.validKey(sec.payKey), payReady: payReady(s),
+      mailPassSet: !!sec.mailPass, mailReady: mailer.configured(s.mail, sec.mailPass), siteUrl: siteOrigin(req) };
+  };
+  if (p === '/api/admin/settings' && m === 'GET') return ok(res, settingsOut(store.settings()));
   if (p === '/api/admin/settings' && m === 'PUT') {
     const b = await readBody(req), s = store.settings(), x = b.smartbill || {};
     // each form saves only its own part
@@ -597,11 +795,48 @@ async function api(req, res, url) {
       sec.courier = { user: str(b.courierSecrets.user, 120) || old.user, pass: b.courierSecrets.pass ? String(b.courierSecrets.pass).slice(0, 200) : old.pass, key: b.courierSecrets.key ? String(b.courierSecrets.key).slice(0, 200) : old.key };
       store.saveSecrets(sec);
     }
+    if (b.pay) {
+      const y = b.pay;
+      if (typeof b.payKey === 'string' && b.payKey.trim()) {
+        const key = b.payKey.trim().replace(/\s+/g, '');
+        if (!ep.validKey(key)) return fail(res, 400, 'Cheia EuPlătesc nu pare corectă: trebuie să conțină doar cifre și literele A–F (de obicei 32 de caractere).');
+        const sec = store.secrets(); sec.payKey = key; store.saveSecrets(sec);
+      }
+      Object.assign(s.pay, { enabled: !!y.enabled, mid: str(y.mid, 60).replace(/\s+/g, ''), wallets: !!y.wallets,
+        unpaidHours: Math.max(1, Math.min(72, Math.round(num(y.unpaidHours) || 3))) });
+    }
+    if (b.mail) {
+      const y = b.mail, from = str(y.from, 120), port = Math.round(num(y.port) || 465);
+      if (from && !mailer.isEmail(from)) return fail(res, 400, 'Adresa expeditorului nu pare corectă.');
+      if (![465, 587, 2525].includes(port)) return fail(res, 400, 'Portul trebuie să fie 465 sau 587.');
+      Object.assign(s.mail, { enabled: !!y.enabled, host: str(y.host, 120).replace(/^\w+:\/\//, '').replace(/[^a-z0-9.-]/gi, ''), port, user: str(y.user, 120), from,
+        fromName: str(y.fromName, 80) || 'Florin Roșca Luxury Hair', customerConfirm: !!y.customerConfirm, customerShipped: !!y.customerShipped, salonNotify: !!y.salonNotify });
+      if (typeof b.mailPass === 'string' && b.mailPass) { const sec = store.secrets(); sec.mailPass = b.mailPass.slice(0, 200); store.saveSecrets(sec); }
+      if ('orderEmail' in y) { const to = str(y.orderEmail, 120); if (to && !mailer.isEmail(to)) return fail(res, 400, 'Adresa pentru comenzi nu pare corectă.'); s.orderEmail = to; }
+    }
     store.write('settings', s);
     if (typeof b.smartbillToken === 'string' && b.smartbillToken.trim()) {
       const sec = store.secrets(); sec.smartbillToken = b.smartbillToken.trim().slice(0, 200); store.saveSecrets(sec);
     }
-    return ok(res, { ...s, smartbillTokenSet: !!store.secrets().smartbillToken, courierUserSet: !!(store.secrets().courier || {}).user });
+    return ok(res, settingsOut(s));
+  }
+  // a 1 leu payment on the EuPlatesc page, to check the Merchant ID and the key
+  if (p === '/api/admin/pay/test' && m === 'POST') {
+    try {
+      const base = siteOrigin(req);
+      return ok(res, ep.request(store.settings().pay, store.secrets().payKey, {
+        amount: 1, invoiceId: 'T' + Date.now(), description: 'Plata de test Florin Rosca', customer: { name: 'Test Panou' },
+        urls: base ? { silent: base + '/api/pay/euplatesc/ipn', back: base + '/api/pay/euplatesc/return', site: base + '/admin/#plati' } : null
+      }));
+    } catch (e) { return fail(res, 400, e.message); }
+  }
+  if (p === '/api/admin/mail/test' && m === 'POST') {
+    const s = store.settings(), to = str((await readBody(req)).to, 120) || salonTo(s);
+    try {
+      await mailer.send(s.mail, store.secrets().mailPass, mailer.templates.test(to));
+      const x = store.settings(); x.mail.lastOk = new Date().toISOString(); x.mail.lastError = null; store.write('settings', x);
+      return ok(res, { to });
+    } catch (e) { return fail(res, 400, e.message); }
   }
   if (p === '/api/admin/smartbill/test' && m === 'POST') {
     try { return ok(res, { series: await sb.test(store.settings().smartbill, store.secrets().smartbillToken) }); }

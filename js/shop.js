@@ -1,10 +1,10 @@
-/* Magazin: produse și stoc din panou (SmartBill), coș și comandă cu plata ramburs.
+/* Magazin: produse și stoc din panou (SmartBill), coș și comandă cu plata ramburs sau cu cardul (EuPlătesc).
    Pe hosting-ul static (fără server) pagina rămâne cu produsele scrise în HTML. */
 (function () {
   'use strict';
   var grid = document.querySelector('.pgrid');
   if (!grid || !window.fetch) return;
-  var KEY = 'fr-cart';
+  var KEY = 'fr-cart', PKEY = 'fr-pay';
   var products = [], shop = null, cart = load();
   var esc = function (s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); };
   var lei = function (n) { return (Number(n) || 0).toLocaleString('ro-RO', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' lei'; };
@@ -33,6 +33,7 @@
     }).catch(function () {});
     render();
     if (shop.enabled) buildCart();
+    payReturn();
   }).catch(function () { /* static hosting: keep the HTML products */ });
 
   function render() {
@@ -57,7 +58,8 @@
     var active = document.querySelector('.chip.is-active');
     if (active && active.getAttribute('data-f') !== 'all') active.click();
     var note = document.querySelector('.shopnote');
-    if (note && shop.enabled) note.innerHTML = 'Comanzi direct de aici, cu plata ramburs la livrare' + (shop.freeShippingFrom ? ' · livrare gratuită de la ' + lei(shop.freeShippingFrom) : '') + '. Pentru o recomandare potrivită părului tău, sună la <a href="tel:+40732937622">0732 937 622</a>.';
+    var how = shop.card && shop.cod ? 'cu plata cu cardul sau ramburs la livrare' : shop.card ? 'cu plata cu cardul' : 'cu plata ramburs la livrare';
+    if (note && shop.enabled) note.innerHTML = 'Comanzi direct de aici, ' + how + (shop.freeShippingFrom ? ' · livrare gratuită de la ' + lei(shop.freeShippingFrom) : '') + '. Pentru o recomandare potrivită părului tău, sună la <a href="tel:+40732937622">0732 937 622</a>.';
     grid.addEventListener('click', function (e) {
       var b = e.target.closest('[data-add]'); if (!b) return;
       add(b.getAttribute('data-add'), 1); openCart();
@@ -75,6 +77,7 @@
     var q = (cart[id] || 0) + d;
     if (p.stock != null) q = Math.min(q, p.stock);
     if (q <= 0) delete cart[id]; else cart[id] = Math.min(q, 50);
+    if (d > 0 && drawer) drawer.querySelector('.cart__done').hidden = true; // shopping again: back to the order form
     save(); paint();
   }
   function totals() {
@@ -105,7 +108,7 @@
       '<details><summary>Vreau factură pe firmă</summary><label>Denumire firmă<input name="company"></label><label>CUI<input name="cui"></label></details>' +
       '<label>Observații<textarea name="notes" rows="2"></textarea></label>' +
       '<label class="cart__check"><input type="checkbox" name="acceptTerms"><span>Am citit și accept <a href="https://florinrosca.ro/termeni-si-conditii/" target="_blank" rel="noopener">termenii și condițiile</a> și <a href="https://florinrosca.ro/politica-de-confidentialitate/" target="_blank" rel="noopener">politica de confidențialitate</a>.</span></label>' +
-      '<p class="cart__pay">Plata: <b>ramburs</b>, la primirea coletului.</p>' +
+      payBlock() +
       '<p class="cart__err" role="alert"></p>' +
       '<button class="btn btn--gold cart__go" type="submit"><span>Trimite comanda</span></button></form>' +
       '<div class="cart__done" hidden></div></div>';
@@ -118,7 +121,81 @@
     });
     document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && !drawer.hidden) closeCart(); });
     drawer.querySelector('form').addEventListener('submit', submit);
+    drawer.querySelector('form').addEventListener('change', function (e) { if (e.target.name === 'payment') goLabel(); });
+    goLabel();
     paint();
+  }
+
+  /* ---------- payment: card (EuPlătesc) and / or ramburs ---------- */
+  var CARD_TXT = function () { return 'Visa, Mastercard' + (shop.wallets ? ', Apple Pay, Google Pay' : '') + ' · plată securizată prin EuPlătesc'; };
+  function payBlock() {
+    if (shop.card && shop.cod) return '<fieldset class="cart__payopt"><legend>Cum plătești</legend>' +
+      '<label class="cart__opt"><input type="radio" name="payment" value="card" checked><span><b>Card online</b><small>' + CARD_TXT() + '</small></span></label>' +
+      '<label class="cart__opt"><input type="radio" name="payment" value="ramburs"><span><b>Ramburs</b><small>plătești la primirea coletului</small></span></label></fieldset>';
+    if (shop.card) return '<input type="hidden" name="payment" value="card"><p class="cart__pay">Plata: <b>card online</b> (' + CARD_TXT() + ').</p>';
+    return '<input type="hidden" name="payment" value="ramburs"><p class="cart__pay">Plata: <b>ramburs</b>, la primirea coletului.</p>';
+  }
+  function goLabel() {
+    var f = drawer.querySelector('form');
+    f.querySelector('.cart__go span').textContent = f.payment.value === 'card' ? 'Continuă spre plată' : 'Trimite comanda';
+  }
+  // sends the customer to the secure payment page (a form post with the signed fields)
+  function goPay(pay) {
+    var f = document.createElement('form');
+    f.method = 'POST'; f.action = pay.url; f.style.display = 'none';
+    Object.keys(pay.fields).forEach(function (k) { var i = document.createElement('input'); i.type = 'hidden'; i.name = k; i.value = pay.fields[k]; f.appendChild(i); });
+    document.body.appendChild(f); f.submit();
+  }
+  function pending() { try { return JSON.parse(localStorage.getItem(PKEY)); } catch (e) { return null; } }
+  function forget() { try { localStorage.removeItem(PKEY); } catch (e) {} }
+  function post(path, body) {
+    return fetch(path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+      .then(function (r) { return r.json().then(function (d) { if (!r.ok) throw new Error(d.error || 'A apărut o eroare.'); return d; }); });
+  }
+  // back from the payment page (or an order that was left unpaid): show what happened
+  var UNKNOWN = '<h3>Nu am putut confirma plata automat</h3><p>Dacă plata a fost făcută, comanda ta este în siguranță și te contactăm noi. Pentru detalii sună la <a href="tel:+40732937622">0732 937 622</a>.</p>';
+  function payReturn() {
+    var q = new URLSearchParams(location.search), flag = q.get('plata'), ord = pending();
+    if (flag && q.get('comanda') && q.get('t')) ord = { number: q.get('comanda'), token: q.get('t'), at: Date.now() };
+    if (flag && history.replaceState) history.replaceState(null, '', location.pathname);
+    if (!drawer) return;
+    var fresh = ord && ord.number && ord.token && (flag || Date.now() - (ord.at || 0) < 3 * 3600e3);
+    if (!fresh) { forget(); if (flag) showDone(UNKNOWN); return; }
+    fetch('api/order/status?n=' + encodeURIComponent(ord.number) + '&t=' + encodeURIComponent(ord.token), { cache: 'no-store' })
+      .then(function (r) { if (!r.ok) throw 0; return r.json(); })
+      .then(function (st) { payPanel(st, ord); })
+      .catch(function () { forget(); if (flag) showDone(UNKNOWN); });
+  }
+  function showDone(html) {
+    var done = drawer.querySelector('.cart__done');
+    drawer.querySelector('.cart__form').hidden = true;
+    done.hidden = false; done.innerHTML = html;
+    paint(); openCart();
+    return done;
+  }
+  function payPanel(st, ord) {
+    if (st.paid) { forget(); return showDone('<div class="cart__ok">✓</div><h3>Plata a fost confirmată. Mulțumim!</h3><p>Comanda <b>#' + st.number + '</b> (' + lei(st.total) + ') este în pregătire. Te anunțăm când pleacă spre tine.</p>'); }
+    if (st.payment === 'ramburs') { forget(); return; }
+    if (st.cancelled || !st.canPay) { forget(); return showDone('<h3>Comanda #' + st.number + ' nu a fost plătită</h3><p>Comanda a fost anulată. Te rugăm să o plasezi din nou sau să suni la <a href="tel:+40732937622">0732 937 622</a>.</p>'); }
+    var done = showDone('<h3>Plata pentru comanda #' + st.number + ' nu a fost finalizată</h3>' +
+      (st.message ? '<p class="cart__warn">' + esc(st.message) + '</p>' : '') +
+      '<p>Total de plată: <b>' + lei(st.total) + '</b>. Produsele rămân rezervate pentru scurt timp.</p>' +
+      '<button class="btn btn--gold" type="button" data-pay="card"><span>Încearcă din nou cu cardul</span></button>' +
+      (st.cod ? '<button class="btn btn--ghost" type="button" data-pay="cod"><span>Plătesc ramburs, la livrare</span></button>' : '') +
+      '<p class="cart__err" role="alert"></p><button class="cart__link" type="button" data-pay="no">Renunț la comandă</button>');
+    done.addEventListener('click', function (e) {
+      var b = e.target.closest('[data-pay]'); if (!b) return;
+      var how = b.getAttribute('data-pay'), err = done.querySelector('.cart__err');
+      if (how === 'no') { forget(); done.hidden = true; paint(); return closeCart(); }
+      b.disabled = true; err.textContent = '';
+      post(how === 'card' ? 'api/order/pay' : 'api/order/cod', { number: ord.number, token: ord.token })
+        .then(function (d) {
+          if (d.pay) return goPay(d.pay);
+          forget();
+          done.innerHTML = '<div class="cart__ok">✓</div><h3>Mulțumim! Comanda #' + d.number + ' a fost primită.</h3><p>Total de plată la livrare: <b>' + lei(d.total) + '</b>.</p><p>Te sunăm în cel mai scurt timp pentru confirmare.</p>';
+        })
+        .catch(function (x) { err.textContent = x.message; b.disabled = false; });
+    });
   }
   function openCart() { drawer.hidden = false; requestAnimationFrame(function () { drawer.classList.add('on'); }); document.body.style.overflow = 'hidden'; }
   function closeCart() { drawer.classList.remove('on'); document.body.style.overflow = ''; setTimeout(function () { drawer.hidden = true; }, 300); }
@@ -130,19 +207,20 @@
     drawer.querySelector('.cart__lines').innerHTML = ls.length ? ls.map(function (l) {
       return '<div class="cline"><img src="' + esc(l.p.image) + '" alt=""><div><b>' + esc(l.p.name) + '</b> <small>' + esc(l.p.size) + '</small><span>' + lei(l.p.price) + '</span></div>' +
         '<div class="cline__q"><button type="button" data-id="' + esc(l.p.id) + '" data-q="-1" aria-label="Scade">−</button><span>' + l.qty + '</span><button type="button" data-id="' + esc(l.p.id) + '" data-q="1" aria-label="Adaugă">+</button></div></div>';
-    }).join('') : '<p class="cart__empty">Coșul este gol.</p>';
+    }).join('') : (drawer.querySelector('.cart__done').hidden ? '<p class="cart__empty">Coșul este gol.</p>' : '');
     drawer.querySelector('.cart__sum').innerHTML = ls.length ?
       '<p><span>Produse</span><span>' + lei(t.sub) + '</span></p><p><span>Livrare</span><span>' + (t.ship ? lei(t.ship) : 'gratuită') + '</span></p>' +
       (shop.freeShippingFrom && t.ship ? '<p class="cart__hint">Mai adaugă ' + lei(shop.freeShippingFrom - t.sub) + ' pentru livrare gratuită.</p>' : '') +
       '<p class="cart__total"><span>Total</span><span>' + lei(t.total) + '</span></p>' : '';
-    drawer.querySelector('.cart__form').hidden = !ls.length;
+    var done = drawer.querySelector('.cart__done');
+    drawer.querySelector('.cart__form').hidden = !ls.length || (done && !done.hidden);
   }
 
   function submit(e) {
     e.preventDefault();
     var f = e.target, err = f.querySelector('.cart__err'), btn = f.querySelector('.cart__go');
     err.textContent = '';
-    var body = { items: lines().map(function (l) { return { id: l.p.id, qty: l.qty }; }), acceptTerms: f.acceptTerms.checked, customer: {} };
+    var body = { items: lines().map(function (l) { return { id: l.p.id, qty: l.qty }; }), acceptTerms: f.acceptTerms.checked, payment: f.payment.value, customer: {} };
     ['name', 'phone', 'email', 'address', 'city', 'county', 'company', 'cui', 'notes'].forEach(function (k) { body.customer[k] = f[k].value; });
     if (!body.customer.name || !body.customer.phone || !body.customer.address || !body.customer.city || !body.customer.county) { err.textContent = 'Completează câmpurile marcate cu *.'; return; }
     if (!body.acceptTerms) { err.textContent = 'Bifează acceptarea termenilor și condițiilor.'; return; }
@@ -151,6 +229,13 @@
       .then(function (r) { return r.json().then(function (d) { if (!r.ok) throw new Error(d.error || 'Comanda nu a putut fi trimisă.'); return d; }); })
       .then(function (d) {
         cart = {}; save(); paint();
+        if (d.pay) { // card: remember the order, then go to the payment page
+          try { localStorage.setItem(PKEY, JSON.stringify({ number: d.number, token: d.token, at: Date.now() })); } catch (e) {}
+          f.hidden = true;
+          var wait = drawer.querySelector('.cart__done');
+          wait.hidden = false; wait.innerHTML = '<h3>Te ducem la pagina de plată…</h3><p>Comanda #' + d.number + ' · ' + lei(d.total) + '</p>';
+          return goPay(d.pay);
+        }
         f.hidden = true;
         var done = drawer.querySelector('.cart__done');
         done.hidden = false;

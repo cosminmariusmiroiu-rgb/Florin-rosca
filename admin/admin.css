@@ -293,3 +293,9 @@ label small { font-weight: 400; }
 .catrow small { color: var(--muted); white-space: nowrap; font-size: 12px; }
 .chip small { opacity: .6; font-weight: 600; margin-left: 2px; }
 #prodCats { margin-top: 4px; }
+
+/* payment state in orders + settings */
+.ord .alert { margin: 10px 0; font-size: 14px; }
+.ord .alert .btn { margin: 8px 0 0; display: inline-flex; }
+#payIpn { word-break: break-all; user-select: all; }
+b.low { color: var(--red); } b.okk { color: var(--green); }

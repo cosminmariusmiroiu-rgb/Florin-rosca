@@ -109,7 +109,7 @@ async function invoice(cfg, token, order) {
     issueDate: today(),
     seriesName: cfg.seriesName,
     isDraft: false,
-    mentions: 'Comanda online #' + order.number,
+    mentions: 'Comanda online #' + order.number + (order.payment === 'card' && order.paid ? ' · achitată online cu cardul' : ''),
     sendEmail: !!(cfg.sendEmail && c.email),
     products: lines
   };
