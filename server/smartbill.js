@@ -69,6 +69,8 @@ async function stocks(cfg, token) {
 // invoice for an order
 async function invoice(cfg, token, order) {
   const c = order.customer;
+  // o firmă neplătitoare de TVA nu trimite cote de TVA pe produse
+  const tax = cfg.vatPayer === false ? {} : { isTaxIncluded: true, taxName: cfg.vatName || 'Normala', taxPercentage: Number(cfg.vatPercent) || 21 };
   const lines = order.items.map((it) => ({
     name: it.name + (it.size ? ' ' + it.size : ''),
     code: it.smartbillCode || it.id,
@@ -77,9 +79,7 @@ async function invoice(cfg, token, order) {
     currency: 'RON',
     quantity: it.qty,
     price: it.price,
-    isTaxIncluded: true,
-    taxName: cfg.vatName || 'Normala',
-    taxPercentage: Number(cfg.vatPercent) || 21,
+    ...tax,
     saveToDb: false,
     isService: false,
     useStock: !!cfg.useStock,
@@ -88,8 +88,7 @@ async function invoice(cfg, token, order) {
   if (order.shipping > 0) {
     lines.push({
       name: 'Transport', code: 'TRANSPORT', isDiscount: false, measuringUnitName: 'buc', currency: 'RON',
-      quantity: 1, price: order.shipping, isTaxIncluded: true, taxName: cfg.vatName || 'Normala',
-      taxPercentage: Number(cfg.vatPercent) || 21, saveToDb: false, isService: true
+      quantity: 1, price: order.shipping, ...tax, saveToDb: false, isService: true
     });
   }
   const body = {

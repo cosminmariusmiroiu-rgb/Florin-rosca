@@ -780,6 +780,7 @@ async function api(req, res, url) {
     if (b.smartbill) Object.assign(s.smartbill, {
       email: str(x.email, 120), cif: str(x.cif, 20).toUpperCase().replace(/\s/g, ''), seriesName: str(x.seriesName, 20),
       warehouseName: str(x.warehouseName, 80), vatName: str(x.vatName, 40) || 'Normala', vatPercent: num(x.vatPercent) ?? 21,
+      vatPayer: 'vatPayer' in x ? !!x.vatPayer : s.smartbill.vatPayer !== false,
       useStock: !!x.useStock, autoInvoice: !!x.autoInvoice, sendEmail: !!x.sendEmail,
       syncMinutes: Math.max(0, Math.min(1440, Math.round(num(x.syncMinutes) || 0)))
     });

@@ -184,6 +184,7 @@
             <label>Cotă TVA (%)<input name="vatPercent" type="number" step="1" min="0" max="30"></label>
             <label>Denumire cotă TVA în SmartBill<input name="vatName" placeholder="Normala"></label>
           </div>
+          <label class="check"><input type="checkbox" name="vatPayer"> Firma este plătitoare de TVA <small class="muted">(debifează dacă firma nu plătește TVA: facturile se emit fără cote de TVA)</small></label>
           <label class="check"><input type="checkbox" name="useStock"> Descarcă produsele din gestiune la facturare</label>
           <label class="check"><input type="checkbox" name="autoInvoice"> Emite factura automat la fiecare comandă nouă</label>
           <label class="check"><input type="checkbox" name="sendEmail"> SmartBill trimite factura pe e-mail clientului</label>

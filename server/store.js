@@ -71,6 +71,7 @@ const DEFAULT_SETTINGS = {
     cif: '',                  // CIF firmă (ex. RO12345678)
     seriesName: '',           // seria facturilor
     warehouseName: '',        // gestiunea (opțional)
+    vatPayer: true,           // firma este plătitoare de TVA (dacă nu, facturile se emit fără cote de TVA)
     vatName: 'Normala',
     vatPercent: 21,
     useStock: true,           // descarcă din gestiune la facturare

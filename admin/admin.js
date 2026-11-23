@@ -631,6 +631,7 @@
     f.syncMinutes.value = String(s.syncMinutes || 0);
     if (!f.syncMinutes.value) f.syncMinutes.value = '0';
     for (const k of ['useStock', 'autoInvoice', 'sendEmail']) f[k].checked = !!s[k];
+    f.vatPayer.checked = s.vatPayer !== false;
     f.token.value = '';
     $('#sbTokenState').textContent = settings.smartbillTokenSet ? '🔒 Token-ul API este salvat (nu se afișează, din motive de siguranță).' : 'Token-ul API nu este salvat încă.';
   };
@@ -641,7 +642,7 @@
       shippingCost: g.shippingCost.value || s.shippingCost, freeShippingFrom: g.freeShippingFrom.value || s.freeShippingFrom, orderEmail: g.orderEmail.value,
       smartbill: {
         email: f.email.value, cif: f.cif.value, seriesName: f.seriesName.value, warehouseName: f.warehouseName.value, vatName: f.vatName.value,
-        vatPercent: f.vatPercent.value, syncMinutes: f.syncMinutes.value, useStock: f.useStock.checked, autoInvoice: f.autoInvoice.checked, sendEmail: f.sendEmail.checked
+        vatPercent: f.vatPercent.value, vatPayer: f.vatPayer.checked, syncMinutes: f.syncMinutes.value, useStock: f.useStock.checked, autoInvoice: f.autoInvoice.checked, sendEmail: f.sendEmail.checked
       },
       smartbillToken: f.token.value
     };
