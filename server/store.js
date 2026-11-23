@@ -24,7 +24,8 @@ function write(name, value) {
 // first run: products come from the seed extracted from the old shop
 function products() {
   return read('products', () => {
-    const seed = read('products.seed', []);
+    let seed = read('products.seed', null);
+    if (!seed) { try { seed = JSON.parse(fs.readFileSync(path.join(ROOT, 'data', 'products.seed.json'), 'utf8')); } catch (e) { seed = []; } }
     write('products', seed);
     return seed;
   });
