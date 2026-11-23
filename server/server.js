@@ -248,6 +248,33 @@ function publicOrder(number, token) {
   return o && o.payToken && token && o.payToken === token ? o : null;
 }
 
+/* ---------- virtual assistant (Aurelia): what visitors ask + call-back requests ---------- */
+const CHAT_KEEP_DAYS = 180, CHAT_MAX = 3000, CHAT_ID = /^[a-z0-9]{16,40}$/;
+const chatHits = new Map();
+function chatLimit(key, max, ms) { // true = too many
+  const now = Date.now(), a = chatHits.get(key);
+  if (!a || now - a.first > ms) { chatHits.set(key, { n: 1, first: now }); return false; }
+  return ++a.n > max;
+}
+setInterval(() => { const now = Date.now(); for (const [k, v] of chatHits) if (now - v.first > 3600e3) chatHits.delete(k); }, 600e3).unref();
+function chatConv(list, sid, page) {
+  let c = list.find((x) => x.id === sid);
+  if (!c) { c = { id: sid, startedAt: new Date().toISOString(), lastAt: null, page: str(page, 60).replace(/[^\w.\-/]/g, ''), messages: [], contact: null }; list.push(c); }
+  return c;
+}
+function saveChats(list) { // old conversations are dropped, except call-back requests nobody answered yet
+  const min = Date.now() - CHAT_KEEP_DAYS * 864e5;
+  store.write('chats', list.filter((c) => Date.parse(c.lastAt || c.startedAt) > min || (c.contact && c.contact.status === 'nou')).slice(-CHAT_MAX));
+}
+function chatStats(list) {
+  const now = Date.now(), day = (d) => new Date(d).toISOString().slice(0, 10), today = day(now);
+  const last = (c) => c.lastAt || c.startedAt, within = (n) => list.filter((c) => now - Date.parse(last(c)) < n * 864e5);
+  let unanswered = 0;
+  for (const c of within(7)) for (const m of c.messages) if (!m.topic && now - Date.parse(m.at) < 7 * 864e5) unanswered++;
+  return { today: list.filter((c) => day(last(c)) === today).length, week: within(7).length, month: within(30).length,
+    calls: list.filter((c) => c.contact && c.contact.status === 'nou').length, unanswered };
+}
+
 /* ---------- orders ---------- */
 function nextOrderNumber(orders) {
   return orders.reduce((m, o) => Math.max(m, o.number || 0), 1000) + 1;
@@ -396,7 +423,39 @@ async function api(req, res, url) {
   if (p === '/api/content' && m === 'GET') return ok(res, store.read('content', {}));
   if (p === '/api/shop' && m === 'GET') {
     const s = store.settings();
-    return ok(res, { enabled: s.shopEnabled, shippingCost: s.shippingCost, freeShippingFrom: s.freeShippingFrom, cod: s.codEnabled, card: payReady(s), wallets: !!s.pay.wallets });
+    return ok(res, { enabled: s.shopEnabled, shippingCost: s.shippingCost, freeShippingFrom: s.freeShippingFrom, cod: s.codEnabled, card: payReady(s), wallets: !!s.pay.wallets, chatCallback: !!s.chat.callback });
+  }
+  // the virtual assistant: every question is kept, so the salon sees what visitors ask
+  if (p === '/api/chat' && m === 'POST') {
+    const b = await readBody(req, 5000), text = str(b.text, 300);
+    if (!CHAT_ID.test(b.sid || '') || !text || chatLimit('m' + ip(req), 80, 600e3)) return ok(res, { ok: false });
+    const list = store.read('chats', []), c = chatConv(list, b.sid, b.page);
+    if (c.messages.length >= 80) return ok(res, { ok: false });
+    const now = new Date().toISOString();
+    c.messages.push({ at: now, text, topic: /^[a-z-]{1,24}$/.test(b.topic || '') && b.topic !== 'apel' ? b.topic : null, quick: !!b.quick });
+    c.lastAt = now;
+    saveChats(list);
+    return ok(res, { ok: true });
+  }
+  // a visitor leaves a name and a phone number to be called back
+  if (p === '/api/chat/contact' && m === 'POST') {
+    try {
+      const b = await readBody(req, 5000);
+      if (!store.settings().chat.callback) throw new Error('Momentan nu putem prelua cereri de apel. Te rugăm să suni la 0732 937 622.');
+      if (!CHAT_ID.test(b.sid || '')) throw new Error('Reîncarcă pagina și încearcă din nou.');
+      const name = str(b.name, 80), phone = str(b.phone, 30), note = str(b.note, 300);
+      if (!name || !/^[+0-9 ()-]{9,20}$/.test(phone)) throw new Error('Scrie numele și un număr de telefon corect.');
+      if (!b.consent) throw new Error('Bifează acordul, ca să te putem suna.');
+      if (chatLimit('c' + ip(req), 5, 3600e3)) throw new Error('Prea multe cereri. Te rugăm să suni la 0732 937 622.');
+      const list = store.read('chats', []), c = chatConv(list, b.sid, b.page), now = new Date().toISOString();
+      c.contact = { name, phone, note, at: now, status: 'nou' };
+      c.messages.push({ at: now, text: 'A cerut să fie sunat(ă)' + (note ? ': ' + note : ''), topic: 'apel', quick: true });
+      c.lastAt = now;
+      saveChats(list);
+      const origin = siteOrigin(req);
+      mail((s) => (s.mail.salonNotify ? mailer.templates.callbackSalon(c.contact, salonTo(s), origin) : null));
+      return ok(res, { ok: true });
+    } catch (e) { return fail(res, 400, e.message); }
   }
   if (p === '/api/order' && m === 'POST') {
     try { return ok(res, await placeOrder(await readBody(req), siteOrigin(req))); }
@@ -493,6 +552,7 @@ async function api(req, res, url) {
       newOrders: orders.filter((o) => o.status === 'noua' && !awaitingPay(o)).length,
       unpaidCard: orders.filter((o) => o.status === 'noua' && awaitingPay(o)).length,
       pay: { enabled: !!s.pay.enabled, ready: payReady(s) },
+      chat: chatStats(store.read('chats', [])),
       mail: { enabled: !!s.mail.enabled, ready: mailer.configured(s.mail, store.secrets().mailPass), lastError: s.mail.lastError },
       newConsults: store.read('consultations', []).filter((c) => c.status === 'noua').length,
       parcels: orders.filter((o) => (o.status === 'noua' || o.status === 'confirmata') && !awaitingPay(o)).length,
@@ -762,6 +822,36 @@ async function api(req, res, url) {
     } catch (e) { return fail(res, 400, e.message); }
   }
 
+  // virtual assistant: conversations, questions without an answer, call-back requests
+  if (p === '/api/admin/chats' && m === 'GET') {
+    const list = store.read('chats', []), now = Date.now(), last = (c) => c.lastAt || c.startedAt;
+    const topics = {}, unanswered = [];
+    for (const c of list) {
+      if (now - Date.parse(last(c)) > 30 * 864e5) continue;
+      for (const msg of c.messages) {
+        if (msg.topic === 'apel') continue;
+        if (msg.topic) topics[msg.topic] = (topics[msg.topic] || 0) + 1;
+        else unanswered.push({ at: msg.at, text: msg.text });
+      }
+    }
+    return ok(res, {
+      stats: chatStats(list), topics, callback: !!store.settings().chat.callback,
+      unanswered: unanswered.sort((a, b) => b.at.localeCompare(a.at)).slice(0, 60),
+      calls: list.filter((c) => c.contact).map((c) => ({ id: c.id, ...c.contact })).sort((a, b) => (a.status === 'nou' ? 0 : 1) - (b.status === 'nou' ? 0 : 1) || b.at.localeCompare(a.at)).slice(0, 100),
+      chats: list.slice().sort((a, b) => last(b).localeCompare(last(a))).slice(0, 200)
+    });
+  }
+  const ch = p.match(/^\/api\/admin\/chats\/([a-z0-9]{16,40})$/);
+  if (ch && m === 'PUT') {
+    const b = await readBody(req), list = store.read('chats', []), c = list.find((x) => x.id === ch[1]);
+    if (!c) return fail(res, 404, 'Conversația nu există.');
+    if (c.contact && ['nou', 'sunat', 'rezolvat'].includes(b.status)) c.contact.status = b.status;
+    store.write('chats', list); return ok(res, c);
+  }
+  if (ch && m === 'DELETE') {
+    store.write('chats', store.read('chats', []).filter((x) => x.id !== ch[1])); return ok(res, { ok: true });
+  }
+
   // settings + SmartBill
   const settingsOut = (s) => {
     const sec = store.secrets();
@@ -796,6 +886,7 @@ async function api(req, res, url) {
       sec.courier = { user: str(b.courierSecrets.user, 120) || old.user, pass: b.courierSecrets.pass ? String(b.courierSecrets.pass).slice(0, 200) : old.pass, key: b.courierSecrets.key ? String(b.courierSecrets.key).slice(0, 200) : old.key };
       store.saveSecrets(sec);
     }
+    if (b.chat) s.chat.callback = !!b.chat.callback;
     if (b.pay) {
       const y = b.pay;
       if (typeof b.payKey === 'string' && b.payKey.trim()) {

@@ -196,6 +196,16 @@ const templates = {
       text: 'Fișă nouă de consultație #' + rec.number + '\n' + rec.name + ', ' + rec.phone + '\nServiciu: ' + rec.service + (site ? '\n\nPanou: ' + site + '/admin/#fise' : '')
     };
   },
+  // to the salon, when a visitor asks the virtual assistant for a call back
+  callbackSalon(contact, to, site) {
+    return {
+      to, subject: 'Cerere de apel de la asistentul virtual · ' + contact.name,
+      html: layout('Cineva a cerut să fie sunat', '<p><b>' + esc(contact.name) + '</b> · <a href="tel:' + esc(contact.phone) + '">' + esc(contact.phone) + '</a></p>' +
+        (contact.note ? '<p><i>„' + esc(contact.note) + '”</i></p>' : '') + '<p>Cererea a venit prin Aurelia, asistentul virtual de pe site.</p>' +
+        (site ? '<p><a href="' + esc(site) + '/admin/#asistent" style="display:inline-block;background:#c9a24a;color:#14100a;text-decoration:none;padding:11px 20px;border-radius:9px;font-weight:bold">Deschide panoul</a></p>' : '')),
+      text: 'Cerere de apel de la asistentul virtual\n' + contact.name + ', ' + contact.phone + (contact.note ? '\n„' + contact.note + '”' : '') + (site ? '\n\nPanou: ' + site + '/admin/#asistent' : '')
+    };
+  },
   test(to) {
     return { to, subject: 'E-mail de test – Florin Roșca', html: layout('Legătura de e-mail funcționează ✓', '<p>Acesta este un mesaj de test trimis din panoul de administrare. De acum, site-ul poate trimite confirmări de comandă.</p>'), text: 'Legătura de e-mail funcționează. Mesaj de test trimis din panoul de administrare.' };
   }

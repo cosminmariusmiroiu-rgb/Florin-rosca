@@ -74,6 +74,24 @@
     document.querySelectorAll('[data-go2]').forEach((b) => { b.onclick = () => go(b.dataset.go2); });
     const s = await api('admin/summary');
     $('#navNew').hidden = !s.newOrders; $('#navNew').textContent = s.newOrders;
+    const chat = s.chat || { today: 0, calls: 0, unanswered: 0 };
+    $('#navChat').hidden = !chat.calls; $('#navChat').textContent = chat.calls;
+    $('#navColete').hidden = !s.parcels; $('#navColete').textContent = s.parcels;
+    // every section, by name, with what needs attention
+    $('#homeTiles').innerHTML = [
+      ['colete', '🚚', 'Colete de pregătit', s.parcels, s.parcels ? s.parcels + ' de pregătit' : 'niciunul acum'],
+      ['comenzi', '🧾', 'Comenzi online', s.newOrders, s.newOrders ? s.newOrders + ' noi' : 'toate comenzile'],
+      ['vanzare', '💳', 'Vânzare în salon', 0, 'treci o vânzare'],
+      ['stoc', '📦', 'Stoc', s.lowStock.length, s.lowStock.length ? s.lowStock.length + ' cu stoc mic' : 'intrări și ieșiri'],
+      ['fise', '📋', 'Fișe cliente', s.newConsults, s.newConsults ? s.newConsults + ' noi' : 'consultații'],
+      ['asistent', '💬', 'Asistent virtual', chat.calls, chat.calls ? chat.calls + ' de sunat' : chat.today + ' conversații azi'],
+      ['produse', '🛍️', 'Produse', 0, 'prețuri și poze'],
+      ['texte', '✏️', 'Texte site', 0, 'modifici textele'],
+      ['smartbill', '🔗', 'SmartBill', 0, s.smartbill.configured ? 'conectat' : 'neconectat'],
+      ['plati', '💶', 'Plăți card & e-mail', 0, s.pay && s.pay.ready ? 'card pornit' : 'card oprit'],
+      ['setari', '⚙️', 'Magazin & cont', 0, 'livrare, parolă']
+    ].map(([tab, ico, name, n, sub]) => `<button type="button" class="tile2${n ? ' has' : ''}" data-go4="${tab}"><i>${ico}</i><b>${name}</b><small>${esc(sub)}</small>${n ? `<em>${n}</em>` : ''}</button>`).join('');
+    $$('[data-go4]').forEach((b) => b.addEventListener('click', () => go(b.dataset.go4)));
     $('#sumCards').innerHTML = [
       ['Total azi (online + salon)', lei(s.online.today + s.salon.today)], ['Total 30 de zile', lei(s.online.month + s.salon.month)], ['Fișe noi', s.newConsults], ['Comenzi online noi', s.newOrders],
       ['SmartBill', s.smartbill.configured ? (s.smartbill.lastSyncError ? 'Eroare' : 'Configurat') : 'Neconfigurat']
@@ -84,6 +102,8 @@
     if (s.parcels) al.push(`🚚 Ai <b>${s.parcels}</b> colete de pregătit. <a href="#colete" data-go="colete">Vezi coletele →</a>`);
     if (s.newConsults) al.push(`📋 Ai <b>${s.newConsults}</b> fișe de consultație noi. <a href="#fise" data-go="fise">Vezi fișele →</a>`);
     if (s.newOrders) al.push(`🧾 Ai <b>${s.newOrders}</b> comenzi noi. <a href="#comenzi" data-go="comenzi">Vezi comenzile →</a>`);
+    if (chat.calls) al.push(`📞 <b>${chat.calls}</b> ${chat.calls === 1 ? 'persoană a cerut' : 'persoane au cerut'} să fie ${chat.calls === 1 ? 'sunată' : 'sunate'}, prin asistentul virtual. <a href="#asistent" data-go="asistent">Vezi →</a>`);
+    if (chat.unanswered) al.push(`❓ Aurelia nu a știut să răspundă la <b>${chat.unanswered}</b> ${chat.unanswered === 1 ? 'întrebare' : 'întrebări'} în ultimele 7 zile. <a href="#asistent" data-go="asistent">Vezi ce s-a întrebat →</a>`);
     if (s.unpaidCard) al.push(`💳 <b>${s.unpaidCard}</b> ${s.unpaidCard === 1 ? 'comandă cu cardul așteaptă' : 'comenzi cu cardul așteaptă'} plata (nu se pregătesc până nu sunt plătite). <a href="#comenzi" data-go="comenzi">Vezi →</a>`);
     if (!s.smartbill.configured) al.push('🔗 SmartBill nu este conectat încă. <a href="#smartbill" data-go="smartbill">Conectează acum →</a>');
     if (s.pay && !s.pay.ready) al.push('💶 Plata cu cardul (EuPlătesc) nu este pornită încă. <a href="#plati" data-go="plati">Configurează →</a>');
@@ -458,6 +478,44 @@
       loaders.fise();
     }));
   }
+
+  /* ---------- virtual assistant (Aurelia) ---------- */
+  const TOPIC = { programare: 'Programare', orar: 'Program & adresă', servicii: 'Servicii', balayage: 'Balayage', tratamente: 'Tratamente', magazin: 'Magazin', preturi: 'Prețuri',
+    florin: 'Despre Florin', consultatie: 'Consultație gratuită', recenzii: 'Recenzii', contact: 'Contact', salut: 'Salut', multumesc: 'Mulțumiri' };
+  const CS = { nou: 'De sunat', sunat: 'Am sunat', rezolvat: 'Rezolvat' };
+  loaders.asistent = async () => {
+    const d = await api('admin/chats');
+    $('#navChat').hidden = !d.stats.calls; $('#navChat').textContent = d.stats.calls;
+    $('#chatCallback').checked = !!d.callback;
+    $('#chatCards').innerHTML = [['Conversații azi', d.stats.today], ['Ultimele 7 zile', d.stats.week], ['Ultimele 30 de zile', d.stats.month], ['De sunat', d.stats.calls], ['Fără răspuns (7 zile)', d.stats.unanswered]]
+      .map(([l, v], i) => `<div class="card${i === 3 && v ? ' card--warn' : ''}"><b>${esc(v)}</b><span>${l}</span></div>`).join('');
+    $('#chatCalls').innerHTML = d.calls.length ? d.calls.map((c) => `<article class="ord${c.status === 'nou' ? '' : ' off'}">
+      <div class="ord__head"><h3>${esc(c.name)} · <a href="tel:${esc(c.phone)}">${esc(c.phone)}</a></h3><span class="status status--${c.status === 'nou' ? 'noua' : 'livrata'}">${CS[c.status] || esc(c.status)}</span></div>
+      <div class="ord__meta">${when(c.at)}${c.note ? ' · „' + esc(c.note) + '”' : ''}</div>
+      <div class="row"><a class="btn btn--sm btn--gold" href="tel:${esc(c.phone)}">📞 Sună</a><select data-cst="${c.id}" aria-label="Stare">${Object.entries(CS).map(([k, v]) => `<option value="${k}"${k === c.status ? ' selected' : ''}>${v}</option>`).join('')}</select></div>
+    </article>`).join('') : '<div class="empty">Nimeni nu a cerut încă să fie sunat.</div>';
+    $('#chatUnanswered').innerHTML = d.unanswered.length ? d.unanswered.map((u) => `<div class="move"><span>${when(u.at)}</span><b></b><span>„${esc(u.text)}”</span></div>`).join('') : '<p class="muted">Nicio întrebare fără răspuns. ✨</p>';
+    const tp = Object.entries(d.topics).filter(([k]) => k !== 'salut' && k !== 'multumesc').sort((a, b) => b[1] - a[1]), max = Math.max(1, ...tp.map((x) => x[1]));
+    $('#chatTopics').innerHTML = tp.length ? tp.map(([k, n]) => `<div class="trow"><span>${esc(TOPIC[k] || k)}</span><div class="bar-s"><i class="ok" style="width:${Math.max(3, Math.round(n / max * 100))}%"></i></div><b>${n}</b></div>`).join('') : '<p class="muted">Încă nu sunt date.</p>';
+    const hm = (t) => new Date(t).toLocaleTimeString('ro-RO', { hour: '2-digit', minute: '2-digit' });
+    $('#chatList').innerHTML = d.chats.length ? d.chats.map((c) => {
+      const miss = c.messages.filter((x) => !x.topic).length;
+      return `<details class="ord chat"><summary><b>${when(c.lastAt || c.startedAt)}</b> · ${c.messages.length} ${c.messages.length === 1 ? 'mesaj' : 'mesaje'} · ${c.contact ? '📞 ' + esc(c.contact.name) : 'vizitator anonim'}${miss ? ` · <b class="low">${miss} fără răspuns</b>` : ''}</summary>
+        <div class="chat__log">${c.messages.map((x) => `<div class="chat__m"><span>${hm(x.at)}</span><div><b>${esc(x.text)}</b><small>${x.topic === 'apel' ? 'și-a lăsat numărul de telefon' : x.topic ? 'Aurelia a răspuns despre: ' + esc(TOPIC[x.topic] || x.topic) : '<b class="low">Aurelia nu a știut să răspundă</b>'}</small></div></div>`).join('')}</div>
+        <div class="row row--end"><small class="muted">pagina: ${esc(c.page || 'site')}</small><span class="sp"></span><button class="btn btn--sm btn--danger" data-cdel="${c.id}" type="button">Șterge conversația</button></div></details>`;
+    }).join('') : '<div class="empty">Încă nu i-a scris nimeni asistentului. Conversațiile apar aici automat.</div>';
+    $$('[data-cst]').forEach((el) => el.addEventListener('change', async () => {
+      try { await api('admin/chats/' + el.dataset.cst, { method: 'PUT', body: { status: el.value } }); toast('Am notat.'); loaders.asistent(); } catch (x) { toast(x.message); }
+    }));
+    $$('[data-cdel]').forEach((el) => el.addEventListener('click', async () => {
+      if (!confirm('Ștergi definitiv conversația?')) return;
+      try { await api('admin/chats/' + el.dataset.cdel, { method: 'DELETE' }); loaders.asistent(); } catch (x) { toast(x.message); }
+    }));
+  };
+  $('#chatCallback').addEventListener('change', async (e) => {
+    try { await api('admin/settings', { method: 'PUT', body: { chat: { callback: e.target.checked } } }); toast(e.target.checked ? 'Vizitatorii își pot lăsa numărul.' : 'Opțiunea „Sună-mă înapoi” a fost oprită.'); }
+    catch (x) { toast(x.message); e.target.checked = !e.target.checked; }
+  });
 
   /* ---------- orders ---------- */
   const ST = { noua: 'Nouă', confirmata: 'Confirmată', expediata: 'Expediată', livrata: 'Livrată', anulata: 'Anulată' };

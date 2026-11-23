@@ -1,6 +1,8 @@
 /* =========================================================
    Aurelia — asistenta virtuală a salonului Florin Roșca
-   Răspunde din informațiile reale ale salonului (fără server, fără AI extern).
+   Răspunde din informațiile reale ale salonului (fără AI extern).
+   Pe serverul site-ului, întrebările se salvează pentru salon (panou → Asistent virtual),
+   iar vizitatorul își poate lăsa numele și telefonul ca să fie sunat.
    ========================================================= */
 (function () {
   'use strict';
@@ -41,7 +43,7 @@
   const QUICK = ['programare', 'orar', 'servicii', 'balayage', 'tratamente', 'magazin', 'preturi', 'florin'];
   const norm = (t) => t.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[ș]/g, 's').replace(/[ț]/g, 't');
 
-  function answer(text) {
+  function match(text) {
     const q = ' ' + norm(text) + ' ';
     let best = null, score = 0;
     for (const item of KB) {
@@ -49,9 +51,22 @@
       for (const k of item.keys) if (q.includes(norm(k))) s += k.length;
       if (s > score) { score = s; best = item; }
     }
-    if (best) return best.a;
-    return `Nu sunt sigură că am înțeles. 🙏 Poți alege un subiect de mai jos, sau îl suni direct pe Florin la <b>${TEL}</b>, care îți răspunde la orice întrebare.${callBtn}`;
+    return best;
   }
+  const unknown = () => `Nu sunt sigură că am înțeles. 🙏 Poți alege un subiect de mai jos, sau îl suni direct pe Florin la <b>${TEL}</b>, care îți răspunde la orice întrebare.${callBtn}` +
+    (callbackOn ? '<button type="button" class="aur-act aur-act--line" data-call>📲 Vreau să fiu sunat(ă)</button>' : '');
+
+  // ---------- what visitors ask is kept for the salon (no names, unless they leave them) ----------
+  let sid = '', callbackOn = false;
+  try { sid = sessionStorage.getItem('aur-sid') || ''; } catch (e) {}
+  if (!/^[a-z0-9]{16,40}$/.test(sid)) {
+    const rnd = window.crypto && crypto.getRandomValues ? Array.from(crypto.getRandomValues(new Uint8Array(12))) : Array.from({ length: 12 }, () => Math.floor(Math.random() * 256));
+    sid = rnd.map((b) => b.toString(36).padStart(2, '0')).join('');
+    try { sessionStorage.setItem('aur-sid', sid); } catch (e) {}
+  }
+  const page = (location.pathname.split('/').pop() || 'index.html').slice(0, 60);
+  const post = (path, body) => fetch(path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, keepalive: true, body: JSON.stringify(Object.assign({ sid: sid, page: page }, body)) });
+  function save(text, topic, quick) { if (window.fetch) post('api/chat', { text: text, topic: topic, quick: !!quick }).catch(() => {}); }
 
   // ---------- UI ----------
   const root = document.createElement('div');
@@ -94,15 +109,54 @@
   }
   function ask(text) {
     bubble(text.replace(/[<>&]/g, (c) => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;' }[c])), 'me');
-    botSay(answer(text));
+    const item = match(text);
+    save(text, item ? item.id : null);
+    botSay(item ? item.a : unknown());
   }
   QUICK.forEach((id) => {
     const item = KB.find((k) => k.id === id);
     const c = document.createElement('button');
     c.type = 'button'; c.className = 'aur-chip'; c.textContent = item.label;
-    c.addEventListener('click', () => { bubble(item.label, 'me'); botSay(item.a); });
+    c.addEventListener('click', () => { bubble(item.label, 'me'); save(item.label, item.id, true); botSay(item.a); });
     quick.appendChild(c);
   });
+
+  // ---------- "sună-mă înapoi": the visitor leaves a name and a phone number ----------
+  function callForm() {
+    const b = bubble('<form class="aur-call" novalidate><b>Lasă-ne numărul și te sunăm noi</b>' +
+      '<input name="name" placeholder="Numele tău" autocomplete="name" maxlength="80">' +
+      '<input name="phone" type="tel" placeholder="Telefon" autocomplete="tel" maxlength="30">' +
+      '<input name="note" placeholder="Despre ce vrei să vorbim? (opțional)" maxlength="300">' +
+      '<label class="aur-ok"><input type="checkbox" name="consent"><span>Sunt de acord să fiu contactat(ă) telefonic de salon.</span></label>' +
+      '<p class="aur-err" role="alert"></p><button type="submit" class="aur-act">Trimite</button></form>', 'bot');
+    const f = b.querySelector('form'), err = f.querySelector('.aur-err');
+    f.addEventListener('submit', (e) => {
+      e.preventDefault(); err.textContent = '';
+      const name = f.name.value.trim(), phone = f.phone.value.trim();
+      if (!name || !/^[+0-9 ()-]{9,20}$/.test(phone)) { err.textContent = 'Scrie numele și un număr de telefon corect.'; return; }
+      if (!f.consent.checked) { err.textContent = 'Bifează acordul, ca să te putem suna.'; return; }
+      const btn = f.querySelector('button'); btn.disabled = true;
+      post('api/chat/contact', { name: name, phone: phone, note: f.note.value.trim(), consent: true })
+        .then((r) => r.json().then((d) => { if (!r.ok) throw new Error(d.error || 'Nu am putut trimite cererea.'); }))
+        .then(() => { b.innerHTML = 'Mulțumim, <b>' + name.replace(/[<>&]/g, '') + '</b>! ✨ Am notat numărul și te sunăm în programul salonului (luni – sâmbătă, 11:00 – 21:00).'; })
+        .catch((x) => { err.textContent = x.message || 'Nu am putut trimite cererea. Te rugăm să suni la ' + TEL + '.'; btn.disabled = false; });
+    });
+    setTimeout(() => f.name.focus(), 60);
+  }
+  log.addEventListener('click', (e) => { if (e.target.closest('[data-call]')) callForm(); });
+  // only on the site's own server: is the call-back option on? (on static hosting there is nothing to save)
+  if (window.fetch) fetch('api/shop', { cache: 'no-store' }).then((r) => (r.ok ? r.json() : null)).then((s) => {
+    if (!s) return;
+    const n = document.createElement('p');
+    n.className = 'aur-note'; n.textContent = 'Întrebările se salvează ca să te putem ajuta mai bine. Nu scrie date sensibile.';
+    form.parentNode.insertBefore(n, form);
+    if (!s.chatCallback) return;
+    callbackOn = true;
+    const c = document.createElement('button');
+    c.type = 'button'; c.className = 'aur-chip'; c.textContent = '📲 Sună-mă înapoi';
+    c.addEventListener('click', () => { bubble('Vreau să fiu sunat(ă)', 'me'); callForm(); });
+    quick.insertBefore(c, quick.firstChild);
+  }).catch(() => {});
 
   function open(v) {
     win.hidden = !v;

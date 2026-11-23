@@ -57,6 +57,9 @@ const DEFAULT_SETTINGS = {
     lastOk: null,
     lastError: null
   },
+  chat: {                     // asistentul virtual (Aurelia)
+    callback: true            // vizitatorii pot lăsa numele și telefonul ca să fie sunați
+  },
   courier: {
     provider: 'sameday',      // sameday | fan | cargus | manual
     demo: false,              // Sameday: mediul de test
@@ -96,7 +99,7 @@ function categories() {
 function settings() {
   const s = read('settings', {});
   return { ...DEFAULT_SETTINGS, ...s, smartbill: { ...DEFAULT_SETTINGS.smartbill, ...(s.smartbill || {}) }, courier: { ...DEFAULT_SETTINGS.courier, ...(s.courier || {}) },
-    pay: { ...DEFAULT_SETTINGS.pay, ...(s.pay || {}) }, mail: { ...DEFAULT_SETTINGS.mail, ...(s.mail || {}) } };
+    pay: { ...DEFAULT_SETTINGS.pay, ...(s.pay || {}) }, mail: { ...DEFAULT_SETTINGS.mail, ...(s.mail || {}) }, chat: { ...DEFAULT_SETTINGS.chat, ...(s.chat || {}) } };
 }
 
 // secrets are kept apart so they are never sent back to the browser

@@ -824,6 +824,17 @@ html:not(.webgl) .ritual__stage, html:not(.webgl) .ritual__hint { display: none;
 .aur-in:focus { border-color: var(--gold); }
 .aur-send { width: 42px; height: 42px; flex: none; border-radius: 50%; border: 0; background: var(--gold-grad); color: #120d02; font-size: 16px; cursor: pointer; }
 .aur-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+.aur-call { display: grid; gap: 8px; min-width: 220px; }
+.aur-call input:not([type=checkbox]) { height: 38px; min-width: 0; padding: 0 12px; border-radius: 10px; border: 1px solid rgba(255,255,255,.14); background: rgba(0,0,0,.45); color: var(--ink); font: 400 13.5px var(--f-sans); outline: none; }
+.aur-call input:not([type=checkbox]):focus { border-color: var(--gold); }
+.aur-ok { display: flex; gap: 8px; align-items: flex-start; font-size: 11.5px; line-height: 1.4; color: var(--muted); cursor: pointer; }
+.aur-ok input { margin: 2px 0 0; flex: none; accent-color: #d4a945; }
+.aur-err { margin: 0; color: #ef6b62; font-size: 12px; }
+.aur-err:empty { display: none; }
+button.aur-act { width: 100%; border: 0; cursor: pointer; font-family: var(--f-sans); }
+button.aur-act[disabled] { opacity: .6; cursor: wait; }
+.aur-act--line { background: none !important; border: 1px solid rgba(212,169,69,.6) !important; color: var(--gold-hi) !important; }
+.aur-note { margin: 0; padding: 5px 14px 0; font-size: 10.5px; line-height: 1.35; color: var(--muted); text-align: center; }
 @media (max-width: 560px) { .aur-win { width: calc(100vw - 24px); right: -8px; height: calc(100svh - 170px); } }
 
 .music-credit { margin: 6px 0 0; font-size: 11px; letter-spacing: .06em; color: #7d776d; }
