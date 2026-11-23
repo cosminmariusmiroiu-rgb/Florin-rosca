@@ -373,26 +373,53 @@
   }));
 
   /* ---------- install as an app (PWA) ---------- */
+  // Android/Chrome can install with one tap. iPhone has no such button for websites (Apple's rule):
+  // the app is added from the browser's Share menu, so there we show the steps clearly.
   if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
   let deferredPrompt = null;
+  const UA = navigator.userAgent;
   const standalone = window.matchMedia('(display-mode: standalone)').matches || navigator.standalone;
-  window.addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); deferredPrompt = e; $('#installBtn').hidden = false; showInstallTip(); });
-  $('#installBtn').addEventListener('click', async () => {
-    if (!deferredPrompt) return showInstallTip(true);
-    deferredPrompt.prompt(); await deferredPrompt.userChoice.catch(() => {}); deferredPrompt = null; $('#installBtn').hidden = true;
-  });
-  function showInstallTip(force) {
-    if (standalone) return;
-    const ios = /iphone|ipad|ipod/i.test(navigator.userAgent);
-    const t = $('#installTip');
-    t.innerHTML = ios
-      ? '📲 <b>Instalează panoul ca aplicație pe iPhone:</b> apasă butonul <b>Partajare</b> (pătratul cu săgeată) din Safari, apoi <b>„Adaugă pe ecranul principal”</b>.'
-      : deferredPrompt ? '📲 <b>Poți instala panoul ca aplicație:</b> <button class="btn btn--sm btn--gold" type="button" id="installNow">Instalează aplicația</button>'
-      : (force ? '📲 Deschide meniul browserului (⋮) și alege <b>„Instalează aplicația”</b> sau <b>„Adaugă pe ecranul de pornire”</b>.' : '');
-    t.hidden = !t.innerHTML;
-    const b = $('#installNow'); if (b) b.addEventListener('click', () => $('#installBtn').click());
+  const ios = /iphone|ipad|ipod/i.test(UA) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  const inApp = /FBAN|FBAV|FB_IAB|Instagram|TikTok|musical_ly|Line\/|WhatsApp|GSA\//i.test(UA);
+  const iosOther = /CriOS|FxiOS|EdgiOS/i.test(UA); // Chrome / Firefox / Edge on iPhone
+  const SHARE = '<svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" style="vertical-align:-4px"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M12 15V3m0 0L8 7m4-4 4 4M6 11H5a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-8a1 1 0 0 0-1-1h-1"/></svg>';
+  function installHelp() {
+    const step = (n, html) => `<div class="istep"><b>${n}</b><span>${html}</span></div>`;
+    $('#installSteps').innerHTML = ios
+      ? (inApp ? '<p class="alert">Ai deschis panoul din altă aplicație (Facebook, Instagram, WhatsApp…). De aici nu se poate instala.</p>' +
+          step(1, 'Apasă <b>⋯</b> (sau <b>Partajare</b>) și alege <b>„Deschide în Safari”</b>.') + step(2, 'În Safari, apasă din nou <b>📲 Instalează aplicația</b> și urmează pașii.')
+        : '<p class="muted">Pe iPhone, aplicația nu se descarcă dintr-un buton: se adaugă din meniul <b>Partajare</b> al browserului. Durează 10 secunde.</p>' +
+          step(1, `Apasă butonul <b>Partajare</b> ${SHARE} ${iosOther ? '(sus, lângă adresă)' : '(în bara de jos a Safari)'}. Dacă nu îl vezi, apasă întâi pe <b>⋯</b>.`) +
+          step(2, 'Derulează în jos și alege <b>„Adaugă pe ecranul principal”</b> (în engleză: <i>Add to Home Screen</i>).') +
+          step(3, 'Apasă <b>„Adaugă”</b>, în dreapta sus. Iconița <b>Florin Admin</b> apare pe ecranul telefonului.'))
+      : step(1, 'Deschide meniul browserului (<b>⋮</b>, în dreapta sus).') + step(2, 'Alege <b>„Instalează aplicația”</b> sau <b>„Adaugă pe ecranul de pornire”</b>.') + step(3, 'Confirmă cu <b>„Instalează”</b>. Iconița <b>Florin Admin</b> apare pe ecran.');
+    $('#installDlg').showModal();
   }
-  if (/iphone|ipad|ipod/i.test(navigator.userAgent)) { $('#installBtn').hidden = standalone; showInstallTip(); }
+  async function install() {
+    if (!deferredPrompt) return installHelp();
+    deferredPrompt.prompt(); await deferredPrompt.userChoice.catch(() => {}); deferredPrompt = null;
+    $('#installBtn').hidden = true; $('#installHero').hidden = true; $('#installTip').hidden = true;
+  }
+  $('#installBtn').addEventListener('click', install);
+  $('#installHero').addEventListener('click', install);
+  $('#installClose').addEventListener('click', () => $('#installDlg').close());
+  $('#installCopy').addEventListener('click', async () => {
+    const url = location.origin + '/admin/';
+    try { await navigator.clipboard.writeText(url); toast('Adresa a fost copiată: ' + url); } catch (e) { prompt('Copiază adresa panoului:', url); }
+  });
+  window.addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); deferredPrompt = e; showInstall(); });
+  window.addEventListener('appinstalled', () => { deferredPrompt = null; $('#installBtn').hidden = true; $('#installHero').hidden = true; $('#installTip').hidden = true; });
+  function showInstall() {
+    if (standalone) return;
+    const phone = ios || /android/i.test(UA);
+    if (!deferredPrompt && !phone) return;
+    $('#installBtn').hidden = false; $('#installHero').hidden = false;
+    const t = $('#installTip');
+    t.innerHTML = '📲 <b>Pune panoul pe telefon, ca aplicație</b> – se deschide dintr-o atingere, pe tot ecranul. <button class="btn btn--sm btn--gold" type="button" id="installNow">' + (deferredPrompt ? 'Instalează aplicația' : 'Arată-mi cum') + '</button>';
+    t.hidden = false;
+    $('#installNow').addEventListener('click', install);
+  }
+  showInstall();
 
   /* ---------- client files (consultations) ---------- */
   const FS = { noua: 'Nouă', contactata: 'Contactată', programata: 'Programată', finalizata: 'Finalizată' };

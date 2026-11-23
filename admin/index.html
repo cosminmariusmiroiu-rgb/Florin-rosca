@@ -59,7 +59,7 @@
       <section data-view="acasa">
         <div class="hero">
           <div><p class="hero__eyebrow">Florin Roșca · Luxury Hair</p><h2>Bun venit, <em>Florin</em> 👋</h2><p class="hero__sub" id="heroDate"></p></div>
-          <div class="hero__act"><a href="../" target="_blank" rel="noopener" class="btn btn--gold">🌐 Mergi la site</a><button class="btn btn--glass" type="button" data-go2="vanzare">💳 Vânzare nouă</button></div>
+          <div class="hero__act"><a href="../" target="_blank" rel="noopener" class="btn btn--gold">🌐 Mergi la site</a><button class="btn btn--glass" type="button" data-go2="vanzare">💳 Vânzare nouă</button><button class="btn btn--glass" type="button" id="installHero" hidden>📲 Instalează aplicația</button></div>
         </div>
         <div class="install-tip" id="installTip" hidden></div>
         <div class="split" id="sumSplit"></div>
@@ -294,6 +294,13 @@
       <p class="err" id="catErr" role="alert"></p>
       <div class="row row--end"><span class="sp"></span><button class="btn" type="button" id="catCancel">Renunță</button><button class="btn btn--gold" type="submit" id="catSave">Salvează categoriile</button></div>
     </form>
+  </dialog>
+
+  <!-- how to put the panel on the phone's home screen -->
+  <dialog class="dlg" id="installDlg">
+    <h3>📲 Pune panoul pe telefon, ca aplicație</h3>
+    <div id="installSteps" class="isteps"></div>
+    <div class="row row--end"><button class="btn" type="button" id="installCopy">Copiază adresa panoului</button><span class="sp"></span><button class="btn btn--gold" type="button" id="installClose">Am înțeles</button></div>
   </dialog>
 
   <div class="toast" id="toast" role="status" aria-live="polite"></div>

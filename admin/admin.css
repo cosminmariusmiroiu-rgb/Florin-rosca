@@ -299,3 +299,10 @@ label small { font-weight: 400; }
 .ord .alert .btn { margin: 8px 0 0; display: inline-flex; }
 #payIpn { word-break: break-all; user-select: all; }
 b.low { color: var(--red); } b.okk { color: var(--green); }
+
+/* install on the phone: steps */
+.isteps { margin: 6px 0 16px; }
+.istep { display: flex; gap: 14px; align-items: flex-start; padding: 12px 0; border-bottom: 1px solid var(--line); font-size: 16px; line-height: 1.5; }
+.istep:last-child { border: 0; }
+.istep > b { flex: none; width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center; background: linear-gradient(135deg, #f1d488, #c99a35); color: #1a1204; font-size: 16px; }
+.isteps .alert { border: 0; padding: 0 0 6px; color: var(--red); font-weight: 600; }
