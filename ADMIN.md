@@ -24,6 +24,14 @@ Panoul se deschide la adresa **/admin/** a site-ului (de ex. `https://florinrosc
 3. Apeși **Testează conexiunea**.
 4. La fiecare produs completezi **Codul produsului din SmartBill** (exact ca în nomenclatorul SmartBill), ca stocul să se potrivească.
 
+## Punerea online pe Render.com (recomandat)
+1. Îți faci cont pe **render.com** cu **„Sign in with GitHub”**, folosind același cont GitHub unde este proiectul.
+2. **New → Blueprint**, alegi repository-ul **Florin-rosca** și apeși **Apply**.
+3. Render îți cere **ADMIN_PASSWORD**: scrii parola dorită pentru panou (minim 8 caractere).
+4. Plata: planul Starter, cu disc de 1 GB pentru date, costă câțiva dolari pe lună.
+5. Site-ul pornește la o adresă de forma `https://florin-rosca.onrender.com`, iar panoul la `/admin/`.
+6. Domeniul florinrosca.ro se leagă la final, din Render → Settings → Custom Domain, de către cel care administrează domeniul.
+
 ## Pornire (pentru cel care găzduiește site-ul)
 Pentru panou e nevoie de un hosting cu **Node.js 20+**. Merge Render, Railway, Fly.io, un VPS sau orice hosting cu Node.
 

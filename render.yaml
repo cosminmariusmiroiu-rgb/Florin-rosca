@@ -1,0 +1,26 @@
+# Render Blueprint: site + panou + aplicație Florin Roșca
+# Render.com → New → Blueprint → alegi repository-ul „Florin-rosca”. Restul se completează singur.
+services:
+  - type: web
+    name: florin-rosca
+    runtime: node
+    region: frankfurt            # cel mai aproape de România
+    plan: starter                # necesar pentru discul permanent (datele nu se pierd la repornire)
+    branch: claude/cloud-env-setup-script-5c0kvu
+    buildCommand: "echo fara-build"
+    startCommand: node server/server.js
+    healthCheckPath: /api/shop
+    autoDeploy: true             # fiecare modificare salvată pe GitHub ajunge singură online
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      - key: DATA_DIR
+        value: /var/data
+      - key: SESSION_SECRET
+        generateValue: true
+      - key: ADMIN_PASSWORD      # Render îți cere s-o scrii la creare: parola panoului (minim 8 caractere)
+        sync: false
+    disk:
+      name: florin-data
+      mountPath: /var/data       # produse, stoc, comenzi, vânzări, fișe, poze încărcate
+      sizeGB: 1
