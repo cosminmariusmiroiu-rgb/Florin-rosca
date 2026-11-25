@@ -117,7 +117,7 @@
     const put = (v) => { try { v ? localStorage.setItem(KEY, '1') : localStorage.removeItem(KEY); } catch (e) {} };
     // Intro on the home page: "Florin Roșca… Luxury Hair" + applause; the song comes in
     // over the last part of the applause and then goes on (with its own "Florin Roșca" later).
-    const intro = new Audio('assets/audio/intro.mp3');
+    const intro = new Audio('assets/audio/intro.mp3?v=202611251804');
     intro.preload = 'auto'; intro.volume = 1;
     const hasHeroVideo = !!document.querySelector('.cine__video');
     let introDone = false, waiting = false, fallback = 0;
