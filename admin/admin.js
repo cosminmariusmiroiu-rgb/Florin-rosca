@@ -149,6 +149,85 @@
   }
 
   /* ---------- sales in the salon: all products as tiles, by category ---------- */
+  /* ---------- cash register (bon fiscal) ----------
+     SmartBill builds the receipt for the cash register set up in the account; this panel, opened on the salon's computer, writes it
+     into the folder the cash register driver reads (for example C:\\FiscalNet\\Bonuri). The folder is chosen once and remembered. */
+  const casa = (() => {
+    let dir = null;
+    const idb = (mode, fn) => new Promise((res, rej) => {
+      const o = indexedDB.open('fr-casa', 1);
+      o.onupgradeneeded = () => o.result.createObjectStore('kv');
+      o.onerror = () => rej(o.error);
+      o.onsuccess = () => { const tx = o.result.transaction('kv', mode), rq = fn(tx.objectStore('kv')); tx.oncomplete = () => { o.result.close(); res(rq && rq.result); }; tx.onerror = () => rej(tx.error); };
+    });
+    const supported = () => 'showDirectoryPicker' in window;
+    const load = async () => { if (!supported()) return null; try { dir = (await idb('readonly', (st) => st.get('dir'))) || null; } catch (e) { dir = null; } return dir; };
+    async function granted(ask) {
+      if (!dir) return false;
+      try {
+        if ((await dir.queryPermission({ mode: 'readwrite' })) === 'granted') return true;
+        return ask ? (await dir.requestPermission({ mode: 'readwrite' })) === 'granted' : false;
+      } catch (e) { return false; }
+    }
+    async function connect() { dir = await window.showDirectoryPicker({ id: 'fr-casa', mode: 'readwrite' }); await idb('readwrite', (st) => st.put(dir, 'dir')); return dir; }
+    async function forget() { dir = null; try { await idb('readwrite', (st) => st.delete('dir')); } catch (e) {} }
+    const exists = async (name) => { try { await dir.getFileHandle(name); return true; } catch (e) { return false; } };
+    // one receipt at a time: waits until the driver has taken the previous file, then puts the new one in place in a single step
+    async function write(name, b64) {
+      for (let i = 0; i < 40 && (await exists(name)); i++) await new Promise((r) => setTimeout(r, 500));
+      if (await exists(name)) throw new Error('casa de marcat nu a preluat bonul dinainte (fișierul ' + name + ' este încă în folder). Verifică dacă programul casei de marcat este pornit.');
+      const bytes = Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
+      const put = async (n) => { const fh = await dir.getFileHandle(n, { create: true }), w = await fh.createWritable(); await w.write(bytes); await w.close(); return fh; };
+      try { const part = await put(name + '.part'); await part.move(name); }
+      catch (e) { try { await dir.removeEntry(name + '.part'); } catch (x) {} await put(name); }
+    }
+    return { supported, load, granted, connect, forget, write, has: () => !!dir, folder: () => (dir ? dir.name : '') };
+  })();
+  const rcOn = () => !!(settings && settings.smartbill && settings.smartbill.receipts);
+  const printing = new Set(); let printChain = Promise.resolve();
+  // Sends one receipt to the cash register, at most once: it is marked as sent first, and only then written into the folder.
+  function printReceipt(id, text, again) {
+    if (printing.has(id)) return Promise.resolve();
+    printing.add(id);
+    const job = printChain.then(async () => {
+      try {
+        if (!text) text = (await api('admin/sales/' + id + '/receipt-text')).text;
+        await api('admin/sales/' + id + '/receipt-printed', { method: 'POST', body: { again: !!again } });
+        try { await casa.write((settings.smartbill.receiptFile || 'bon.txt'), text); }
+        catch (x) { await api('admin/sales/' + id + '/receipt-unprinted', { method: 'POST' }).catch(() => {}); throw x; }
+      } finally { printing.delete(id); }
+    });
+    printChain = job.catch(() => {});
+    return job;
+  }
+  // the salon's computer: says it is here and prints the receipts of the sales made from other devices (the phones)
+  async function casaTick() {
+    if (!casa.has() || !(await casa.granted(false))) return;      // only the computer with the cash register folder does this
+    if (!settings) { try { await loadSettings(); } catch (e) { return; } }
+    if (!rcOn()) return;
+    try {
+      const r = await api('admin/casa/ping', { method: 'POST' });
+      for (const x of r.pending) { try { await printReceipt(x.id); toast(`🧾 Bon trimis la casa de marcat: vânzarea #${x.number}`); } catch (e) { toast('Bonul vânzării #' + x.number + ' nu a ajuns la casa de marcat: ' + e.message); } }
+    } catch (e) {}
+  }
+  async function casaShow() {
+    const el = $('#casaState'); if (!el) return;
+    $('#casaBox').hidden = !$('#sbForm').receipts.checked;
+    if (!casa.supported()) { el.textContent = 'Acest dispozitiv nu poate trimite bonuri la casa de marcat (merge din Chrome sau Edge, pe calculatorul din salon). De aici poți vinde, iar bonul se tipărește pe calculatorul din salon.'; $('#casaConnect').hidden = true; $('#casaForget').hidden = true; return; }
+    const ok = await casa.granted(false);
+    el.textContent = ok ? `✓ Legată: folderul „${casa.folder()}”. Lasă panoul deschis pe acest calculator ca să se tipărească și bonurile vândute de pe telefon.` : casa.has() ? `Folderul „${casa.folder()}” este ales, dar browserul cere din nou permisiunea: apasă butonul.` : 'Nelegată. Apasă butonul și alege folderul în care casa de marcat citește bonurile (cel din SmartBill → Configurare → Case de marcat).';
+    $('#casaConnect').hidden = false; $('#casaConnect').textContent = ok ? 'Alege alt folder' : casa.has() ? 'Permite accesul la folder' : 'Conectează folderul casei de marcat';
+    $('#casaForget').hidden = !casa.has();
+  }
+  $('#casaConnect').addEventListener('click', async () => {
+    try { if (casa.has() && !(await casa.granted(false))) { if (!(await casa.granted(true))) await casa.connect(); } else await casa.connect(); toast('Casa de marcat a fost legată la acest calculator.'); casaTick(); }
+    catch (x) { if (x.name !== 'AbortError') toast('Folderul nu a putut fi ales: ' + x.message); }
+    casaShow();
+  });
+  $('#casaForget').addEventListener('click', async () => { await casa.forget(); casaShow(); });
+  $('#sbForm').receipts.addEventListener('change', casaShow);
+  casa.load().then(() => { setInterval(casaTick, 8000); });
+
   const PAY = { cash: 'Numerar', card: 'Card', transfer: 'Transfer' };
   let saleProducts = [], picked = {}, sales = [], saleCat = 'all';
   const prodLabel = (p) => `${p.name}${p.size ? ' · ' + p.size : ''}`;
@@ -159,9 +238,18 @@
     const used = ['all', ...cats.map((c) => c.id).filter((k) => saleProducts.some((p) => p.category === k))];
     $('#saleCats').innerHTML = used.map((k) => `<button type="button" class="chip${k === saleCat ? ' is-on' : ''}" data-cat="${k}">${esc(k === 'all' ? 'Toate' : catName(k))}</button>`).join('');
     $$('#saleCats .chip').forEach((c) => c.addEventListener('click', () => { saleCat = c.dataset.cat; $$('#saleCats .chip').forEach((x) => x.classList.toggle('is-on', x === c)); renderGrid(); }));
-    renderGrid();
+    renderGrid(); saleBon();
     sales = await api('admin/sales'); renderSales();
   };
+  // under the "Vândut" button: the fiscal receipt from the app, or the shortcut to SmartBill when that is off
+  async function saleBon() {
+    const el = $('#saleBon');
+    if (!rcOn()) { el.innerHTML = 'Bonul fiscal se bate din SmartBill, la casa de marcat: <a href="https://cloud.smartbill.ro/documente/emitere/bon-fiscal/" target="_blank" rel="noopener">🧾 Deschide bonul fiscal în SmartBill</a>'; return; }
+    const here = await casa.granted(false), st = here ? null : await api('admin/casa').catch(() => null);
+    const keep = (() => { try { return localStorage.getItem('fr-sale-rc') !== '0'; } catch (e) { return true; } })();
+    el.innerHTML = `<label class="check"><input type="checkbox" id="saleRc"${keep ? ' checked' : ''}> 🧾 Emite bon fiscal</label><small>${here ? 'casa de marcat este legată la acest calculator' : st && st.online ? 'se tipărește la casa de marcat din salon' : casa.has() ? 'apasă „Vândut” și permite accesul la folderul casei de marcat' : 'calculatorul cu casa de marcat nu este conectat acum: bonul se va emite de acolo'}</small>`;
+    $('#saleRc').addEventListener('change', (e) => { try { localStorage.setItem('fr-sale-rc', e.target.checked ? '1' : '0'); } catch (x) {} });
+  }
   $('#saleSearch').addEventListener('input', renderGrid);
   function renderGrid() {
     const q = $('#saleSearch').value.trim().toLowerCase();
@@ -170,11 +258,11 @@
     const groups = {};
     cats.forEach((c) => { const it = list.filter((p) => p.category === c.id); if (it.length) groups[c.id] = it; });
     list.filter((p) => !cats.some((c) => c.id === p.category)).forEach((p) => { (groups[p.category] = groups[p.category] || []).push(p); });
-    $('#saleGrid').innerHTML = Object.keys(groups).length ? Object.entries(groups).map(([cat, items]) => `<h3 class="sgrid__h">${esc(catName(cat))}</h3><div class="sgrid__g">${items.map((p) => {
+    $('#saleGrid').innerHTML = Object.keys(groups).length ? Object.entries(groups).map(([cat, items]) => `<h3 class="sgrid__h">${esc(catName(cat))}</h3><div class="sgrid__g${items.every((p) => p.service) ? ' sgrid__g--svc' : ''}">${items.map((p) => {
       const sel = picked[p.id], out = p.stock != null && p.stock <= 0;
       return `<div class="tile${sel ? ' is-on' : ''}${out ? ' is-out' : ''}" data-pick="${p.id}" role="button" tabindex="0" aria-pressed="${!!sel}">
         <span class="tile__ck">✓</span>
-        <img src="${esc(img(p.image))}" alt="" loading="lazy">
+        ${p.service ? '<span class="tile__svc" aria-hidden="true">✂️</span>' : `<img src="${esc(img(p.image))}" alt="" loading="lazy">`}
         <div class="tile__n">${esc(p.name)}</div>
         <div class="tile__m"><b>${lei(p.price)}</b><span>${p.stock == null ? '' : out ? 'epuizat' : 'stoc ' + p.stock}</span></div>
         ${sel ? `<div class="tile__q"><button type="button" data-q="-1" data-id="${p.id}" aria-label="Scade">−</button><b>${sel.qty}</b><button type="button" data-q="1" data-id="${p.id}" aria-label="Adaugă">+</button></div>` : ''}
@@ -213,9 +301,19 @@
     const items = Object.keys(picked).map((id) => ({ id, qty: picked[id].qty, price: picked[id].price }));
     if (!items.length) { note($('#saleMsg'), 'Bifează mai întâi produsele vândute.', false); return; }
     try {
-      // in the salon the fiscal document is the receipt from the cash register (issued in SmartBill), not an invoice
-      const s = await busy($('#saleGo'), () => api('admin/sales', { method: 'POST', body: { items, payment: $('#salePay').value, client: $('#saleClient').value, invoice: false } }));
-      note($('#saleMsg'), `✓ Vânzarea #${s.number} a fost salvată: ${lei(s.total)}. Stocul a fost scăzut. Nu uita bonul fiscal.`, true);
+      // in the salon the fiscal document is the receipt from the cash register, not an invoice
+      const wantRc = rcOn() && $('#saleRc') && $('#saleRc').checked && $('#salePay').value !== 'transfer';
+      const canPrint = wantRc && (await casa.granted(true));   // asked here, on the tap, because the browser wants a user action
+      const s = await busy($('#saleGo'), () => api('admin/sales', { method: 'POST', body: { items, payment: $('#salePay').value, client: $('#saleClient').value, invoice: false, receipt: wantRc, canPrint } }));
+      let msg = `✓ Vânzarea #${s.number} a fost salvată: ${lei(s.total)}.`, good = true;
+      if (!rcOn()) msg += ' Nu uita bonul fiscal.';
+      else if (!wantRc) msg += ' Fără bon fiscal din aplicație.';
+      else if (!s.receipt) { msg += ' ' + (s.receiptError || 'Bonul fiscal nu s-a emis.'); good = false; }
+      else if (canPrint) {
+        try { await printReceipt(s.id, s.receiptText); msg += ' 🧾 Bonul a fost trimis la casa de marcat.'; }
+        catch (x) { msg += ' 🧾 Bonul NU a ajuns la casa de marcat: ' + x.message; good = false; }
+      } else msg += ' 🧾 Bonul se tipărește acum la casa de marcat din salon.';
+      note($('#saleMsg'), msg, good);
       toast('Vânzare salvată ✓');
       picked = {}; $('#saleClient').value = '';
       await loaders.vanzare();
@@ -234,9 +332,31 @@
       <div class="ord__meta">${when(x.createdAt)}${x.client ? ' · ' + esc(x.client) : ''}</div>
       <div class="muted">${x.items.map((i) => `${i.qty} × ${esc(i.name)} ${esc(i.size || '')}`).join('<br>')}</div>
       ${x.invoice ? `<div class="row">Factura <b>${esc(x.invoice.series)} ${esc(x.invoice.number)}</b> <a class="btn btn--sm" href="${invUrl(x.invoice)}" target="_blank" rel="noopener">📄 PDF</a>${x.cancelled ? '' : waInvoice(x.invoice, x.phone, x.client, 'cumpărăturile din salon')}</div>` : x.invoiceError ? `<div class="err">Factura nu s-a emis: ${esc(x.invoiceError)}</div>` : ''}
-      ${x.cancelled ? '' : `<div class="row row--end"><span class="sp"></span><button class="btn btn--sm btn--danger" data-cancel="${x.id}" type="button">Anulează (pune stocul înapoi)</button></div>`}</div>`).join('')
+      ${x.receipt ? `<div class="row rc ${x.receipt.printedAt ? 'rc--ok' : 'rc--wait'}">🧾 ${x.receipt.printedAt ? 'Bon fiscal trimis la casa de marcat · ' + when(x.receipt.printedAt) : 'Bon fiscal în așteptare la casa de marcat'}${x.cancelled ? '' : ` <button class="btn btn--sm" data-rcp="${x.id}" data-again="${x.receipt.printedAt ? 1 : ''}" type="button">${x.receipt.printedAt ? 'Trimite din nou' : 'Trimite acum'}</button>`}</div>` : x.receiptError ? `<div class="err">${esc(x.receiptError)}</div>` : ''}
+      ${x.cancelled ? '' : `<div class="row row--end">${!x.receipt && rcOn() && x.payment !== 'transfer' ? `<button class="btn btn--sm btn--gold" data-rc="${x.id}" type="button">🧾 Emite bon fiscal</button>` : ''}<span class="sp"></span><button class="btn btn--sm btn--danger" data-cancel="${x.id}" type="button">Anulează (pune stocul înapoi)</button></div>`}</div>`).join('')
       : '<div class="empty">Nicio vânzare în perioada aleasă.</div>';
+    // receipt for a sale saved without one (for example from the phone, while the salon's computer was off)
+    $$('[data-rc]').forEach((b) => b.addEventListener('click', () => busy(b, async () => {
+      try {
+        const canPrint = await casa.granted(true);
+        const s = await api('admin/sales/' + b.dataset.rc + '/receipt', { method: 'POST', body: { canPrint } });
+        if (canPrint) await printReceipt(s.id, s.receiptText);
+        toast(canPrint ? 'Bonul a fost trimis la casa de marcat.' : 'Bonul se tipărește acum la casa de marcat din salon.');
+      } catch (x) { toast(x.message); }
+      loaders.vanzare();
+    })));
+    $$('[data-rcp]').forEach((b) => b.addEventListener('click', () => busy(b, async () => {
+      const again = !!b.dataset.again;
+      if (again && !confirm('Bonul a fost deja trimis la casa de marcat. Dacă îl trimiți din nou, casa de marcat tipărește încă un bon fiscal. Trimiți din nou?')) return;
+      try {
+        if (!(await casa.granted(true))) throw new Error('Acest dispozitiv nu este legat la casa de marcat. Conectează folderul din panou → SmartBill, pe calculatorul din salon.');
+        await printReceipt(b.dataset.rcp, '', again); toast('Bonul a fost trimis la casa de marcat.');
+      } catch (x) { toast(x.message); }
+      loaders.vanzare();
+    })));
     $$('[data-cancel]').forEach((b) => b.addEventListener('click', async () => {
+      const sale = sales.find((x) => x.id === b.dataset.cancel);
+      if (sale && sale.receipt && !confirm('Atenție: pentru această vânzare s-a emis bon fiscal. Anularea de aici NU anulează bonul de la casa de marcat și nici pe cel din SmartBill.')) return;
       if (!confirm('Anulezi vânzarea? Produsele se pun înapoi în stoc.')) return;
       try { await api('admin/sales/' + b.dataset.cancel + '/cancel', { method: 'POST' }); toast('Vânzarea a fost anulată.'); loaders.vanzare(); } catch (x) { toast(x.message); }
     }));
@@ -398,7 +518,7 @@
   /* ---------- stock overview ---------- */
   let stockProducts = [];
   loaders.stoc = async () => {
-    stockProducts = await api('admin/products');
+    stockProducts = (await api('admin/products')).filter((p) => !p.service);
     renderStock();
     const moves = await api('admin/stock-moves');
     $('#stockMoves').innerHTML = moves.length ? moves.slice(0, 40).map((m) => `<div class="move"><span>${when(m.at)}</span><b class="${m.delta > 0 ? 'up' : 'down'}">${m.delta > 0 ? '+' : ''}${m.delta}</b><span>${esc(m.name)} · ${esc(m.reason)} (${m.before} → ${m.after})</span></div>`).join('') : '<p class="muted">Nicio mișcare manuală încă.</p>';
@@ -719,6 +839,7 @@
     f.stock.value = v.stock == null ? '' : v.stock;
     f.active.checked = v.active !== false;
     f.salonOnly.checked = !!v.salonOnly;
+    f.service.checked = !!v.service;
     $('#prodImg').src = img(v.image);
     $('#prodDlg').showModal();
   }
@@ -736,7 +857,7 @@
     const f = e.target;
     const body = {
       name: f.name.value, size: f.size.value, category: f.category.value, price: f.price.value, oldPrice: f.oldPrice.value,
-      smartbillCode: f.smartbillCode.value, description: f.description.value, stock: f.stock.value, active: f.active.checked && !f.salonOnly.checked, salonOnly: f.salonOnly.checked,
+      smartbillCode: f.smartbillCode.value, description: f.description.value, stock: f.service.checked ? '' : f.stock.value, active: f.active.checked && !f.salonOnly.checked && !f.service.checked, salonOnly: f.salonOnly.checked || f.service.checked, service: f.service.checked,
       image: newImage || (editing && editing.image) || ''
     };
     try {
@@ -825,9 +946,11 @@
     for (const k of ['email', 'cif', 'seriesName', 'warehouseName', 'vatName', 'vatPercent']) f[k].value = s[k] == null ? '' : s[k];
     f.syncMinutes.value = String(s.syncMinutes || 0);
     if (!f.syncMinutes.value) f.syncMinutes.value = '0';
-    for (const k of ['useStock', 'autoInvoice', 'sendEmail']) f[k].checked = !!s[k];
+    for (const k of ['useStock', 'autoInvoice', 'sendEmail', 'receipts']) f[k].checked = !!s[k];
+    f.receiptFile.value = s.receiptFile || 'bon.txt';
     f.vatPayer.checked = s.vatPayer !== false;
     f.token.value = '';
+    casaShow();
     $('#sbTokenState').textContent = settings.smartbillTokenSet ? '🔒 Token-ul API este salvat (nu se afișează, din motive de siguranță).' : 'Token-ul API nu este salvat încă.';
   };
   function settingsBody() {
@@ -837,7 +960,8 @@
       shippingCost: g.shippingCost.value || s.shippingCost, freeShippingFrom: g.freeShippingFrom.value || s.freeShippingFrom, orderEmail: g.orderEmail.value,
       smartbill: {
         email: f.email.value, cif: f.cif.value, seriesName: f.seriesName.value, warehouseName: f.warehouseName.value, vatName: f.vatName.value,
-        vatPercent: f.vatPercent.value, vatPayer: f.vatPayer.checked, syncMinutes: f.syncMinutes.value, useStock: f.useStock.checked, autoInvoice: f.autoInvoice.checked, sendEmail: f.sendEmail.checked
+        vatPercent: f.vatPercent.value, vatPayer: f.vatPayer.checked, syncMinutes: f.syncMinutes.value, useStock: f.useStock.checked, autoInvoice: f.autoInvoice.checked, sendEmail: f.sendEmail.checked,
+        receipts: f.receipts.checked, receiptFile: f.receiptFile.value
       },
       smartbillToken: f.token.value
     };

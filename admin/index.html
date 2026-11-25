@@ -78,7 +78,7 @@
             <input id="saleSearch" type="search" placeholder="🔎 Caută produsul">
             <div class="chips" id="saleCats"></div>
           </div>
-          <p class="muted">Atinge produsele vândute ca să le bifezi, apoi alege cantitatea cu − și +.</p>
+          <p class="muted">Atinge produsele sau serviciile vândute ca să le bifezi, apoi alege cantitatea cu − și +.</p>
           <div id="saleGrid" class="sgrid"></div>
           <div class="sale__bar" id="saleBar">
             <div class="sale__sum"><span id="saleCount">Niciun produs bifat</span><b id="saleTotal">0,00 lei</b></div>
@@ -88,7 +88,7 @@
             </div>
             <div class="row"><button class="btn" type="button" id="saleClear">Golește</button><button class="btn btn--gold sale__go" type="submit" id="saleGo">✓ Vândut</button></div>
             <p class="note" id="saleMsg" role="status"></p>
-            <p class="sale__bon">Bonul fiscal se bate din SmartBill, la casa de marcat: <a href="https://cloud.smartbill.ro/documente/emitere/bon-fiscal/" target="_blank" rel="noopener">🧾 Deschide bonul fiscal în SmartBill</a></p>
+            <div class="sale__bon" id="saleBon"></div>
           </div>
         </form>
         <div class="panel">
@@ -207,6 +207,12 @@
           <label class="check"><input type="checkbox" name="useStock"> Descarcă produsele din gestiune la facturare</label>
           <label class="check"><input type="checkbox" name="autoInvoice"> Emite factura automat la fiecare comandă nouă</label>
           <label class="check"><input type="checkbox" name="sendEmail"> SmartBill trimite factura pe e-mail clientului</label>
+          <label class="check"><input type="checkbox" name="receipts"> Bon fiscal din aplicație, la „Vânzare în salon” <small class="muted">(SmartBill pregătește bonul, iar calculatorul din salon îl trimite la casa de marcat)</small></label>
+          <div class="casa" id="casaBox">
+            <label>Fișierul citit de casa de marcat <small>(ca în SmartBill → Configurare → Case de marcat)</small><input name="receiptFile" placeholder="bon.txt" maxlength="40"></label>
+            <div class="casa__st"><b>Casa de marcat pe acest dispozitiv</b><span id="casaState">se verifică…</span>
+              <div class="row"><button class="btn btn--sm btn--gold" type="button" id="casaConnect">Conectează folderul casei de marcat</button><button class="btn btn--sm" type="button" id="casaForget" hidden>Deconectează</button></div></div>
+          </div>
           <p class="muted" id="sbTokenState"></p>
           <div class="row"><button class="btn btn--gold" type="submit">Salvează</button><button class="btn" type="button" id="sbTest">Testează conexiunea</button></div>
           <p class="note" id="sbMsg" role="status"></p>
@@ -320,6 +326,7 @@
       <label>Descriere (opțional)<textarea name="description" rows="3"></textarea></label>
       <label class="check"><input type="checkbox" name="active"> Afișat pe site (se vinde online)</label>
       <label class="check"><input type="checkbox" name="salonOnly"> Doar în salon (nu apare pe site, se vinde doar la Vânzare salon)</label>
+      <label class="check"><input type="checkbox" name="service"> Este serviciu (manoperă: balayage, vopsit, tuns) <small class="muted">fără stoc, doar în salon</small></label>
       <p class="err" id="prodErr" role="alert"></p>
       <div class="row row--end"><button class="btn btn--danger" type="button" id="prodDel">Șterge</button><button class="btn" type="button" id="prodDup">⧉ Duplică</button><span class="sp"></span><button class="btn" value="cancel" type="button" id="prodCancel">Renunță</button><button class="btn btn--gold" type="submit" id="prodSave">Salvează</button></div>
     </form>

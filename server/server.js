@@ -104,8 +104,11 @@ function cleanProduct(input, existing) {
   p.alt = p.name + (p.size ? ', ' + p.size : '');
   p.active = input.active !== false;
   p.salonOnly = !!input.salonOnly;
+  if (input.service !== undefined) p.service = !!input.service;
+  if (p.service) p.salonOnly = true;   // a service (labour) is sold only in the salon
   if (p.salonOnly) p.active = false; // not on the website
   if (input.stock !== undefined) p.stock = input.stock === '' || input.stock == null ? null : Math.max(0, Math.round(num(input.stock) || 0));
+  if (p.service) p.stock = null;       // labour has no stock
   if (!p.id) p.id = (p.name + '-' + p.size).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 80) + '-' + crypto.randomBytes(2).toString('hex');
   return p;
 }
@@ -320,6 +323,25 @@ async function issueSaleInvoice(sale) {
   });
   sale.invoice = { ...inv, issuedAt: new Date().toISOString(), token: invToken() };
   sale.invoiceError = null;
+}
+
+// ---- fiscal receipts for salon sales ----
+let casaSeen = 0;                                            // last sign of life from the computer with the cash register
+const casaOnline = () => Date.now() - casaSeen < 45e3;
+const receiptsOn = () => { const c = store.settings().smartbill; return !!(c.receipts && c.cif && store.secrets().smartbillToken); };
+const saleOut = (sale) => (sale.receipt ? { ...sale, receipt: { id: sale.receipt.id, at: sale.receipt.at, printedAt: sale.receipt.printedAt || null, sent: sale.receipt.sent || 0 } } : sale);
+// Registers the receipt in SmartBill and returns the text for the cash register. It is issued only if something can print it right now,
+// so that SmartBill never holds a receipt the cash register did not print.
+async function issueSaleReceipt(sale, canPrint) {
+  if (sale.payment === 'transfer') throw new Error('Bonul fiscal se emite doar pentru plata cu numerar sau cu cardul.');
+  if (!canPrint && !casaOnline()) throw new Error('Bonul nu s-a emis: calculatorul legat la casa de marcat nu este conectat. Deschide panoul pe calculatorul din salon și apasă „Emite bon” la această vânzare.');
+  const list = store.products();
+  const r = await sb.receipt(store.settings().smartbill, store.secrets().smartbillToken, {
+    ...sale, items: sale.items.map((it) => ({ ...it, smartbillCode: (list.find((x) => x.id === it.id) || {}).smartbillCode || '' }))
+  });
+  sale.receipt = { id: r.id, at: new Date().toISOString(), printedAt: null, sent: 0, text: r.text };
+  sale.receiptError = null;
+  return r.text;
 }
 
 async function placeOrder(body, origin) {
@@ -774,6 +796,7 @@ async function api(req, res, url) {
   if (sm && m === 'POST') {
     const b = await readBody(req), list = store.products(), prod = list.find((x) => x.id === sm[1]);
     if (!prod) return fail(res, 404, 'Produsul nu există.');
+    if (prod.service) return fail(res, 400, 'Serviciile nu au stoc.');
     const delta = Math.round(num(b.delta) || 0);
     if (!delta) return fail(res, 400, 'Scrie câte bucăți adaugi sau scazi.');
     const before = prod.stock == null ? 0 : prod.stock;
@@ -787,7 +810,50 @@ async function api(req, res, url) {
   if (p === '/api/admin/stock-moves' && m === 'GET') return ok(res, store.read('stock-moves', []).slice(-200).reverse());
 
   // sales in the salon
-  if (p === '/api/admin/sales' && m === 'GET') return ok(res, withInvoiceLinks('sales').slice().reverse().slice(0, 500));
+  if (p === '/api/admin/sales' && m === 'GET') return ok(res, withInvoiceLinks('sales').slice().reverse().slice(0, 500).map(saleOut));
+  // ---- fiscal receipts (bon fiscal) through SmartBill and the cash register ----
+  // the salon's computer (the one with the cash register folder connected) says "I am here" and gets the receipts waiting to be printed
+  if (p === '/api/admin/casa/ping' && m === 'POST') {
+    casaSeen = Date.now();
+    const since = Date.now() - 36 * 3600e3;
+    return ok(res, { pending: store.read('sales', []).filter((x) => x.receipt && !x.receipt.printedAt && !x.cancelled && Date.parse(x.receipt.at) > since)
+      .map((x) => ({ id: x.id, number: x.number, total: x.total })) });
+  }
+  if (p === '/api/admin/casa' && m === 'GET') return ok(res, { enabled: receiptsOn(), online: casaOnline(), file: store.settings().smartbill.receiptFile || 'bon.txt' });
+  const rc = p.match(/^\/api\/admin\/sales\/([\w-]+)\/(receipt|receipt-text|receipt-printed|receipt-unprinted)$/);
+  if (rc && (m === 'POST' || m === 'GET')) {
+    const sales = store.read('sales', []), sale = sales.find((x) => x.id === rc[1]);
+    if (!sale) return fail(res, 404, 'Vânzarea nu există.');
+    const keep = () => store.write('sales', store.read('sales', []).map((x) => (x.id === sale.id ? sale : x)));
+    if (rc[2] === 'receipt' && m === 'POST') {            // issue the receipt for a sale that has none yet
+      if (!receiptsOn()) return fail(res, 400, 'Bonul fiscal din aplicație nu este pornit (panou → SmartBill).');
+      if (sale.cancelled) return fail(res, 400, 'Vânzarea este anulată.');
+      if (sale.receipt) return fail(res, 400, 'Vânzarea are deja bon fiscal.');
+      const b = await readBody(req);
+      try { const text = await issueSaleReceipt(sale, !!b.canPrint); keep(); return ok(res, { ...saleOut(sale), receiptText: text }); }
+      catch (e) { sale.receiptError = e.message; keep(); return fail(res, 400, e.message); }
+    }
+    if (!sale.receipt) return fail(res, 400, 'Vânzarea nu are bon fiscal.');
+    if (rc[2] === 'receipt-text' && m === 'GET') {        // the text for the cash register (kept from the moment the receipt was issued)
+      if (sale.receipt.text) return ok(res, { text: sale.receipt.text });
+      try { return ok(res, { text: await sb.receiptText(store.settings().smartbill, store.secrets().smartbillToken, sale.receipt.id) }); }
+      catch (e) { return fail(res, 400, e.message); }
+    }
+    // The panel claims the receipt BEFORE writing the file for the cash register: a receipt goes to the cash register at most once
+    // (a second device, or a retry after a lost answer, is refused). Sending it again is a deliberate action ("again").
+    if (rc[2] === 'receipt-printed' && m === 'POST') {
+      const b = await readBody(req);
+      if (sale.cancelled) return fail(res, 400, 'Vânzarea este anulată.');
+      if (sale.receipt.printedAt && !b.again) return fail(res, 409, 'Bonul a fost deja trimis la casa de marcat.');
+      sale.receipt.printedAt = new Date().toISOString(); sale.receipt.sent = (sale.receipt.sent || 0) + 1; keep();
+      return ok(res, saleOut(sale));
+    }
+    if (rc[2] === 'receipt-unprinted' && m === 'POST') {  // writing the file failed: the receipt waits again
+      sale.receipt.printedAt = null; sale.receipt.sent = Math.max(0, (sale.receipt.sent || 1) - 1); keep();
+      return ok(res, saleOut(sale));
+    }
+    return fail(res, 405, 'Metodă nepermisă.');
+  }
   if (p === '/api/admin/sales' && m === 'POST') {
     const b = await readBody(req), list = store.products(), items = [];
     for (const line of Array.isArray(b.items) ? b.items.slice(0, 50) : []) {
@@ -796,9 +862,9 @@ async function api(req, res, url) {
       if (!prod) return fail(res, 400, 'Un produs nu mai există.');
       if (prod.stock != null && prod.stock < qty) return fail(res, 400, `Stoc insuficient pentru „${prod.name}” (în stoc: ${prod.stock}).`);
       const price = num(line.price); 
-      items.push({ id: prod.id, name: prod.name, size: prod.size, qty, price: price != null && price >= 0 ? money(price) : prod.price });
+      items.push({ id: prod.id, name: prod.name, size: prod.size, qty, price: price != null && price >= 0 ? money(price) : prod.price, ...(prod.service ? { service: true } : {}) });
     }
-    if (!items.length) return fail(res, 400, 'Alege cel puțin un produs.');
+    if (!items.length) return fail(res, 400, 'Alege cel puțin un produs sau un serviciu.');
     for (const it of items) { const prod = list.find((x) => x.id === it.id); if (prod.stock != null) prod.stock = Math.max(0, prod.stock - it.qty); }
     store.write('products', list);
     const sales = store.read('sales', []);
@@ -810,7 +876,13 @@ async function api(req, res, url) {
       try { await issueSaleInvoice(sale); } catch (e) { sale.invoiceError = e.message; }
       store.write('sales', sales.map((x) => (x.id === sale.id ? sale : x)));
     }
-    return ok(res, sale);
+    // fiscal receipt: only when a cash register can print it now (this device, or the salon's computer with the panel open)
+    let receiptText = '';
+    if (b.receipt && receiptsOn()) {
+      try { receiptText = await issueSaleReceipt(sale, !!b.canPrint); } catch (e) { sale.receiptError = e.message; }
+      store.write('sales', store.read('sales', []).map((x) => (x.id === sale.id ? sale : x)));
+    }
+    return ok(res, { ...saleOut(sale), receiptText });
   }
   // invoice for a sale that was saved without one
   const si = p.match(/^\/api\/admin\/sales\/([\w-]+)\/invoice$/);
@@ -822,7 +894,7 @@ async function api(req, res, url) {
     const b = await readBody(req);
     if (b.client !== undefined) sale.client = str(b.client, 120);
     if (b.phone !== undefined) sale.phone = str(b.phone, 30);
-    try { await issueSaleInvoice(sale); store.write('sales', sales); return ok(res, sale); }
+    try { await issueSaleInvoice(sale); store.write('sales', sales); return ok(res, saleOut(sale)); }
     catch (e) { sale.invoiceError = e.message; store.write('sales', sales); return fail(res, 400, e.message); }
   }
   const sl = p.match(/^\/api\/admin\/sales\/([\w-]+)\/cancel$/);
@@ -833,7 +905,7 @@ async function api(req, res, url) {
     for (const it of sale.items) { const prod = list.find((x) => x.id === it.id); if (prod && prod.stock != null) prod.stock += it.qty; }
     store.write('products', list);
     sale.cancelled = true; sale.cancelledAt = new Date().toISOString();
-    store.write('sales', sales); return ok(res, sale);
+    store.write('sales', sales); return ok(res, saleOut(sale));
   }
 
   // site texts
@@ -1072,6 +1144,8 @@ async function api(req, res, url) {
       warehouseName: str(x.warehouseName, 80), vatName: str(x.vatName, 40) || 'Normala', vatPercent: num(x.vatPercent) ?? 21,
       vatPayer: 'vatPayer' in x ? !!x.vatPayer : s.smartbill.vatPayer !== false,
       useStock: !!x.useStock, autoInvoice: !!x.autoInvoice, sendEmail: !!x.sendEmail,
+      receipts: 'receipts' in x ? !!x.receipts : !!s.smartbill.receipts,
+      receiptFile: 'receiptFile' in x ? (/^[\w .-]{1,40}$/.test(String(x.receiptFile || '').trim()) ? String(x.receiptFile).trim() : 'bon.txt') : (s.smartbill.receiptFile || 'bon.txt'),
       syncMinutes: Math.max(0, Math.min(1440, Math.round(num(x.syncMinutes) || 0)))
     });
     if (b.courier) {

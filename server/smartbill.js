@@ -81,9 +81,9 @@ async function invoice(cfg, token, order) {
     price: it.price,
     ...tax,
     saveToDb: false,
-    isService: false,
-    useStock: !!cfg.useStock,
-    warehouseName: cfg.useStock ? (cfg.warehouseName || undefined) : undefined
+    isService: !!it.service,                       // manopera (balayage, vopsit, tuns) nu are stoc
+    useStock: !!cfg.useStock && !it.service,
+    warehouseName: cfg.useStock && !it.service ? (cfg.warehouseName || undefined) : undefined
   }));
   if (order.shipping > 0) {
     lines.push({
@@ -120,4 +120,53 @@ async function invoicePdf(cfg, token, series, number) {
   return call(cfg, token, 'GET', '/invoice/pdf', { query: { cif: cfg.cif, seriesname: series, number }, raw: true });
 }
 
-module.exports = { test, stocks, invoice, invoicePdf, SmartBillError };
+// ---------- bon fiscal (fiscal receipt) for a sale made in the salon ----------
+// POST /payment with type "Bon": SmartBill registers the receipt and, with returnFiscalPrinterText, answers with the text for the
+// cash register configured in the account (Configurare > Case de marcat), Base64-encoded. That text has to be written, as it is,
+// into the file the cash register driver watches (e.g. C:\FiscalNet\Bonuri\bon.txt); the panel does it on the salon's computer.
+// The receipt is issued on the default cash register of the SmartBill user whose e-mail + token are used here.
+const plain = (t) => String(t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^\x20-\x7e]/g, ' ').replace(/\s+/g, ' ').trim();
+async function receipt(cfg, token, sale) {
+  const pct = cfg.vatPayer === false ? 0 : Number(cfg.vatPercent) || 21;   // only the percentage: SmartBill picks the rate configured on the cash register
+  const stock = (it) => !!cfg.useStock && !it.service;
+  const products = sale.items.map((it) => ({
+    name: plain(it.name + (it.size ? ' ' + it.size : '')).slice(0, 120),
+    code: it.smartbillCode || it.id,
+    quantity: it.qty,
+    measuringUnitName: 'buc',
+    price: it.price,
+    isTaxIncluded: true,
+    taxPercentage: pct,
+    isService: !!it.service,
+    saveToDb: false,
+    ...(stock(it) && cfg.warehouseName ? { warehouseName: cfg.warehouseName } : {})
+  }));
+  const total = Math.round(sale.items.reduce((a, it) => a + it.price * it.qty, 0) * 100) / 100;
+  const body = {
+    companyVatCode: cfg.cif,
+    type: 'Bon',
+    issueDate: today(),
+    currency: 'RON',
+    precision: 2,
+    client: { name: plain(sale.client) || 'Persoana fizica', vatCode: '', isTaxPayer: false, country: 'Romania', saveToDb: false },
+    products,
+    value: total,
+    useStock: sale.items.some(stock),
+    returnFiscalPrinterText: true,
+    [sale.payment === 'card' ? 'receivedCard' : 'receivedCash']: total,
+    observation: 'Vanzare salon #' + sale.number
+  };
+  const data = await call(cfg, token, 'POST', '/payment', { body });
+  if (data.id == null || data.id === '') throw new SmartBillError('SmartBill nu a întors identificatorul bonului fiscal.');
+  if (!data.message) throw new SmartBillError('SmartBill a înregistrat bonul, dar nu a întors textul pentru casa de marcat. Tipărește-l din SmartBill.');
+  return { id: String(data.id), text: String(data.message) };
+}
+
+// the text of a receipt that was already issued (for printing it later from the salon's computer)
+async function receiptText(cfg, token, id) {
+  const data = await call(cfg, token, 'GET', '/payment/text', { query: { cif: cfg.cif, id } });
+  if (!data.message) throw new SmartBillError('SmartBill nu a întors textul bonului.');
+  return String(data.message);
+}
+
+module.exports = { test, stocks, invoice, invoicePdf, receipt, receiptText, SmartBillError };

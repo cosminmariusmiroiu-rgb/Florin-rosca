@@ -45,6 +45,40 @@ function defaultCodes() {
   if (changed) write('products', list);
 }
 
+// the salon's services (labour: balayage, colour, cut), with the codes they have in SmartBill. They are sold only in the salon,
+// have no stock and get a fiscal receipt like the products. Added once; afterwards they are edited from the panel like any product.
+const SERVICES = [
+  { code: '1', name: 'Servicii hair', price: 1200 },
+  { code: '2', name: 'Balayage mediu + tratament', price: 1500 },
+  { code: '3', name: 'Balayage păr lung + tratament', price: 1500 },
+  { code: '4', name: 'Balayage păr lung + corecție + tratament', price: 2000 },
+  { code: '5', name: 'Balayage păr lung din negru', price: 2500 },
+  { code: '6', name: 'Decolorat rădăcină + vopsit lungime', price: 900 },
+  { code: '7', name: 'Tratament + protecție + fiole', price: 400 },
+  { code: '8', name: 'Tratament păr lung + fiole', price: 500 },
+  { code: '9', name: 'Vopsit păr mediu (pachet)', price: 450 },
+  { code: '10', name: 'Vopsit păr lung (pachet)', price: 550 },
+  { code: '11', name: 'Vopsit păr foarte lung (pachet)', price: 700 },
+  { code: '12', name: 'Pachet tuns SP + CF + TR', price: 250 },
+  { code: '13', name: 'Pachet tuns SP + CF + TR, mediu', price: 200 }
+];
+function defaultServices() {
+  const done = read('migrations', {});
+  if (done.services1) return;
+  const list = read('products', null);
+  if (!Array.isArray(list)) return;            // fresh install: products() seeds first, the services come at the next start
+  const cats = read('categories', null) || DEFAULT_CATEGORIES.slice();
+  if (!cats.some((c) => c.id === 'servicii')) { cats.push({ id: 'servicii', name: 'Servicii (manoperă)', order: 90 }); write('categories', cats); }
+  for (const v of SERVICES) {
+    const id = 'serviciu-' + v.code;
+    if (list.some((p) => p.id === id)) continue;
+    list.push({ id, name: v.name, size: '', category: 'servicii', price: v.price, oldPrice: null, description: '', image: '', alt: v.name,
+      active: false, salonOnly: true, service: true, stock: null, smartbillCode: v.code, order: 900 + Number(v.code) });
+  }
+  write('products', list);
+  write('migrations', { ...done, services1: new Date().toISOString() });
+}
+
 // first run: products come from the seed extracted from the old shop
 function products() {
   return read('products', () => {
@@ -105,6 +139,8 @@ const DEFAULT_SETTINGS = {
     autoInvoice: false,       // emite factura automat la fiecare comandă
     sendEmail: false,         // SmartBill trimite factura pe e-mail clientului
     syncMinutes: 0,           // sincronizare automată stoc din SmartBill (0 = oprit: stocul se ține în aplicație)
+    receipts: false,          // bon fiscal din aplicație la „Vânzare în salon” (SmartBill + casa de marcat)
+    receiptFile: 'bon.txt',   // numele fișierului pe care îl citește casa de marcat (ca în SmartBill > Configurare > Case de marcat)
     lastSync: null,
     lastSyncError: null
   }
@@ -131,5 +167,6 @@ function secrets() { return read('secrets', {}); }
 function saveSecrets(v) { return write('secrets', v); }
 
 defaultCodes();
+defaultServices();
 
 module.exports = { DATA_DIR, ROOT, read, write, products, categories, settings, secrets, saveSecrets, SMARTBILL_CODES };

@@ -33,9 +33,23 @@ Panoul se deschide la adresa **/admin/** a site-ului (de ex. `https://florinrosc
 - Fiecare produs de pe site are un **cod SmartBill** (ex. `LR-SPRAY-200`, `AY-MASCA-1000`). Același cod trebuie să fie și pe produsul din SmartBill: după cod se potrivesc stocul și facturile.
 - Citirea stocului din SmartBill se pornește abia după ce stocul a fost introdus în gestiunea PRODUSE. Altfel site-ul ar arăta toate produsele ca epuizate.
 
+### Servicii (manoperă)
+- Serviciile salonului (balayage, vopsit, tuns, tratamente) sunt în panou la **Produse & stoc**, în categoria „Servicii (manoperă)”, cu aceleași coduri ca în SmartBill (1–13). Nu apar pe site și nu au stoc; prețul și numele se schimbă ca la orice produs.
+- La **Vânzare salon** se bifează la fel ca produsele, iar pe bon pot fi și servicii, și produse.
+
+### Bon fiscal din aplicație (SmartBill + casa de marcat)
+Cum merge: la „Vândut”, aplicația cere bonul de la SmartBill (pe casa de marcat setată în SmartBill → Configurare → Case de marcat), iar panoul deschis **pe calculatorul din salon** pune fișierul bonului în folderul din care îl citește casa de marcat.
+1. Pe calculatorul din salon (cel legat la casa de marcat), deschizi panoul în **Chrome sau Edge** → **SmartBill** → bifezi **Bon fiscal din aplicație** → Salvează.
+2. Apeși **Conectează folderul casei de marcat** și alegi folderul bonurilor (cel din SmartBill, de ex. `C:\FiscalNet\Bonuri`). Numele fișierului trebuie să fie același ca în SmartBill (de ex. `bon.txt`).
+3. Lași panoul deschis pe acel calculator. Vânzările făcute de pe telefon se tipăresc acolo în câteva secunde.
+- Dacă acel calculator nu e pornit, vânzarea de pe telefon se salvează fără bon; bonul se emite apoi de pe calculatorul din salon, cu **🧾 Emite bon fiscal** din lista de vânzări.
+- Un bon ajunge la casa de marcat o singură dată. „Trimite din nou” tipărește încă un bon fiscal, deci se folosește doar dacă primul nu a ieșit.
+- Pentru plata prin transfer nu se emite bon. Anularea unei vânzări din panou nu anulează bonul deja emis.
+- Fiecare bon emis așa se numără la documentele din abonamentul SmartBill.
+
 ### Factura către clientă (e-mail și WhatsApp)
 - **Comenzi de pe site**: cu „Emite factura automat” bifat, factura se emite singură (la ramburs imediat, la card după ce plata e confirmată). Clienta primește în e-mailul de confirmare un buton **Descarcă factura**.
-- **Vânzare în salon**: aici nu se emite factură. Documentul fiscal este **bonul de la casa de marcat**, care se bate din SmartBill (Vânzări → Bon fiscal), de pe calculatorul legat la casa de marcat. În pagina „Vânzare salon” ai un link direct spre bonul fiscal din SmartBill.
+- **Vânzare în salon**: aici nu se emite factură. Documentul fiscal este **bonul de la casa de marcat** (vezi „Bon fiscal din aplicație” mai jos). Cât timp opțiunea e oprită, pagina are un link direct spre bonul fiscal din SmartBill.
 - **WhatsApp**: lângă factura fiecărei comenzi de pe site apare **Trimite factura pe WhatsApp**. Se deschide WhatsApp cu mesajul gata scris și linkul facturii; apeși doar „Trimite”.
 - Linkul facturii (`/factura/….pdf`) este privat: îl are doar cine primește mesajul și nu apare în Google.
 
