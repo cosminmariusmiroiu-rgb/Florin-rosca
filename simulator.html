@@ -1,0 +1,134 @@
+<!doctype html>
+<html lang="ro">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="robots" content="noindex, nofollow">
+  <title>Simulator culoare · Florin Roșca Luxury Hair</title>
+  <meta name="description" content="Vezi cum ar putea arăta părul tău după transformare.">
+  <meta name="theme-color" content="#0a0a0a">
+  <link rel="icon" href="assets/img/favicon.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;500;600;700&family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,300;1,400&family=Manrope:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css?v=202611251804">
+</head>
+<body class="page-shop page-sim">
+  <header class="shopbar">
+    <a href="index.html" class="shopbar__back" aria-label="Înapoi la pagina principală"><span aria-hidden="true">←</span> Înapoi</a>
+    <a href="index.html" class="shopbar__brand"><img src="assets/img/logo-mark.webp" alt="" width="36" height="36"><span>Florin Roșca<small>Simulator AI</small></span></a>
+    <a href="tel:+40732937622" class="shopbar__tel" aria-label="Sună la 0732 937 622">0732 937 622</a>
+  </header>
+
+  <main class="sim">
+    <section class="sim__intro">
+      <p class="eyebrow">Simulator de culoare · AI</p>
+      <h1>Cum ar arăta <em>părul tău</em> după transformare?</h1>
+      <p>Fă-ți o poză și îți arătăm <b>3 variante</b> la care Florin poate ajunge după decolorare, cu șanse reale.</p>
+    </section>
+
+    <form class="sim__card" id="simForm" novalidate>
+      <label class="sim__code" id="codeWrap">Codul de acces primit de la salon<input name="code" id="simCode" autocomplete="off" autocapitalize="characters" placeholder="ex. A1B2C3"></label>
+
+      <label class="sim__photo" id="photoBox">
+        <input type="file" accept="image/*" capture="user" id="simPhoto">
+        <span class="sim__ph"><b>📷</b>Fă-ți o poză<br><small>sau alege una din telefon</small></span>
+        <img alt="Poza ta" id="simPreview">
+      </label>
+      <ul class="sim__tips">
+        <li>💡 Lumină naturală, fața și părul să se vadă bine</li>
+        <li>💇‍♀️ Părul desfăcut, fără căciulă sau elastic</li>
+      </ul>
+
+      <label class="cs__check"><input type="checkbox" id="simConsent"><span>Sunt de acord ca poza mea să fie trimisă către serviciul AI (Google Gemini) doar pentru această simulare. Salonul nu păstrează poza.</span></label>
+
+      <p class="cs__err" id="simErr" role="alert"></p>
+      <button class="btn btn--gold sim__go" type="submit" id="simGo"><span>✨ Arată-mi variantele</span></button>
+    </form>
+
+    <section class="sim__wait" id="simWait" hidden>
+      <div class="sim__spin" aria-hidden="true"></div>
+      <h2>Florin pregătește variantele…</h2>
+      <p>Durează cam 20–40 de secunde. Nu închide pagina.</p>
+    </section>
+
+    <section class="sim__res" id="simRes" hidden>
+      <h2>Variantele tale</h2>
+      <div class="sim__grid" id="simGrid"></div>
+      <p class="sim__note">⚠️ Simulare orientativă, făcută cu inteligență artificială. Rezultatul real depinde de istoricul părului tău (vopsiri, decolorări, tratamente). Florin îți confirmă varianta potrivită la consultație.</p>
+      <div class="sim__act">
+        <a class="btn btn--gold" href="consultatie.html"><span>Programează-te pentru această transformare</span></a>
+        <button class="btn btn--ghost" type="button" id="simAgain"><span>Încearcă altă poză</span></button>
+      </div>
+    </section>
+  </main>
+
+  <script>
+  (function () {
+    'use strict';
+    var $ = function (s) { return document.querySelector(s); };
+    var photo = null, KEY = 'fr-sim-code';
+    var esc = function (s) { return String(s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); };
+    // the access code can come in the link: simulator.html?cod=XXXX
+    var fromUrl = new URLSearchParams(location.search).get('cod');
+    var saved = ''; try { saved = localStorage.getItem(KEY) || ''; } catch (e) {}
+    $('#simCode').value = (fromUrl || saved || '').toUpperCase();
+    if (fromUrl) $('#codeWrap').hidden = true;
+
+    fetch('api/simulator/info', { cache: 'no-store' }).then(function (r) { return r.ok ? r.json() : null; }).then(function (d) {
+      if (!d || !d.enabled) { $('#simErr').textContent = 'Simulatorul nu este pornit încă. Revino curând sau sună la 0732 937 622.'; $('#simGo').disabled = true; }
+    }).catch(function () { $('#simErr').textContent = 'Simulatorul funcționează doar pe site-ul salonului.'; $('#simGo').disabled = true; });
+
+    function shrink(file) {
+      return new Promise(function (res, rej) {
+        var img = new Image(), url = URL.createObjectURL(file);
+        img.onload = function () {
+          var s = Math.min(1, 1280 / Math.max(img.width, img.height));
+          var c = document.createElement('canvas'); c.width = Math.round(img.width * s); c.height = Math.round(img.height * s);
+          c.getContext('2d').drawImage(img, 0, 0, c.width, c.height); URL.revokeObjectURL(url);
+          res(c.toDataURL('image/jpeg', 0.86));
+        };
+        img.onerror = function () { rej(new Error('Poza nu a putut fi citită. Încearcă alta.')); };
+        img.src = url;
+      });
+    }
+    $('#simPhoto').addEventListener('change', function () {
+      var f = this.files[0]; if (!f) return;
+      shrink(f).then(function (d) { photo = d; $('#simPreview').src = d; $('#photoBox').classList.add('has'); $('#simErr').textContent = ''; })
+        .catch(function (x) { $('#simErr').textContent = x.message; });
+    });
+
+    $('#simForm').addEventListener('submit', function (e) {
+      e.preventDefault();
+      var code = $('#simCode').value.trim().toUpperCase(), err = $('#simErr');
+      if (!code) { err.textContent = 'Scrie codul de acces primit de la salon.'; $('#codeWrap').hidden = false; return; }
+      if (!photo) { err.textContent = 'Fă-ți întâi o poză.'; return; }
+      if (!$('#simConsent').checked) { err.textContent = 'Bifează acordul pentru poză.'; return; }
+      err.textContent = '';
+      $('#simForm').hidden = true; $('#simWait').hidden = false; $('#simRes').hidden = true;
+      fetch('api/simulator', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ code: code, photo: photo, consent: true }) })
+        .then(function (r) { return r.json().then(function (d) { if (!r.ok) throw new Error(d.error || 'Simularea nu a reușit.'); return d; }); })
+        .then(function (d) {
+          try { localStorage.setItem(KEY, code); } catch (x) {}
+          $('#simGrid').innerHTML = '<figure class="sim__item sim__item--orig"><img src="' + photo + '" alt="Poza ta"><figcaption>Acum</figcaption></figure>' +
+            d.results.map(function (r) {
+              return r.image ? '<figure class="sim__item"><img src="' + r.image + '" alt="' + esc(r.name) + '"><figcaption>' + esc(r.name) + '</figcaption></figure>'
+                : '<figure class="sim__item sim__item--err"><div>Varianta „' + esc(r.name) + '” nu a ieșit. Încearcă altă poză.</div></figure>';
+            }).join('');
+          $('#simWait').hidden = true; $('#simRes').hidden = false;
+          $('#simRes').scrollIntoView({ behavior: 'smooth' });
+        })
+        .catch(function (x) {
+          $('#simWait').hidden = true; $('#simForm').hidden = false;
+          err.textContent = x.message;
+          if (/cod/i.test(x.message)) { $('#codeWrap').hidden = false; try { localStorage.removeItem(KEY); } catch (y) {} }
+        });
+    });
+    $('#simAgain').addEventListener('click', function () {
+      photo = null; $('#simPhoto').value = ''; $('#photoBox').classList.remove('has');
+      $('#simRes').hidden = true; $('#simForm').hidden = false; window.scrollTo({ top: 0, behavior: 'smooth' });
+    });
+  })();
+  </script>
+</body>
+</html>

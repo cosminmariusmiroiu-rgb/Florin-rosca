@@ -338,3 +338,8 @@ b.low { color: var(--red); } b.okk { color: var(--green); }
 /* WhatsApp */
 .btn--wa { background: #25d366; color: #06250f; border-color: transparent; text-decoration: none; }
 #saleWa { margin-top: 10px; display: flex; gap: 8px; flex-wrap: wrap; }
+
+.simcolors { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; margin: 10px 0; }
+.simcolor { background: var(--card2); border-radius: 18px; padding: 14px; }
+.simcolor b { display: block; margin-bottom: 4px; }
+.simcolor label { margin: 8px 0; }

@@ -11,6 +11,7 @@ const sb = require('./smartbill');
 const courier = require('./courier');
 const ep = require('./euplatesc');
 const mailer = require('./mailer');
+const gemini = require('./gemini');
 
 const PORT = Number(process.env.PORT) || 3000;
 const ROOT = store.ROOT;
@@ -446,6 +447,26 @@ async function saveConsult(body, origin) {
   return { number: rec.number, evaluation: rec.evaluation };
 }
 
+/* ---------- AI hair simulator settings ---------- */
+const SIM_DEFAULT = {
+  enabled: false,
+  model: 'gemini-2.5-flash-image',
+  accessCode: '',
+  dailyLimit: 60,
+  colors: [
+    { id: 'c1', name: 'Balayage bej perlat', description: 'Soft pearl beige balayage: light creamy beige and pearl blonde pieces, darker natural root melting into lighter mid-lengths and ends.' },
+    { id: 'c2', name: 'Blond alb perlat', description: 'Icy white-pearl platinum blonde balayage with a soft natural shadow root, luminous pearly ends, cool tones only.' },
+    { id: 'c3', name: 'Balayage caramel-miere', description: 'Warm caramel and honey blonde balayage on a natural brown base, sun-kissed and dimensional.' }
+  ]
+};
+const simHits = new Map(), simDay = { list: [] };
+function simSettings() {
+  const s = store.read('simulator', {});
+  const out = { ...SIM_DEFAULT, ...s };
+  if (!out.accessCode) { out.accessCode = crypto.randomBytes(3).toString('hex').toUpperCase(); store.write('simulator', out); }
+  return out;
+}
+
 /* ---------- routes ---------- */
 async function api(req, res, url) {
   const p = url.pathname, m = req.method;
@@ -560,6 +581,39 @@ async function api(req, res, url) {
     if (out.test) return redirect(res, '/admin/#plati');
     if (!out.order) return redirect(res, '/magazin.html?plata=necunoscut');
     return redirect(res, '/magazin.html?plata=' + (out.order.paid ? 'ok' : 'esuata') + '&comanda=' + out.order.number + '&t=' + out.order.payToken);
+  }
+
+  // AI hair simulator (private page simulator.html, protected by an access code)
+  if (p === '/api/simulator/info' && m === 'GET') {
+    const sim = simSettings();
+    return ok(res, { enabled: sim.enabled, colors: sim.colors.map((c) => ({ id: c.id, name: c.name })) });
+  }
+  if (p === '/api/simulator' && m === 'POST') {
+    const sim = simSettings(), key = store.secrets().geminiKey;
+    if (!sim.enabled || !key) return fail(res, 403, 'Simulatorul nu este pornit încă.');
+    let b;
+    try { b = await readBody(req, 12e6); } catch (e) { return fail(res, 413, 'Poza este prea mare.'); }
+    if (!b.code || !crypto.timingSafeEqual(crypto.createHash('sha256').update(String(b.code)).digest(), crypto.createHash('sha256').update(String(sim.accessCode)).digest())) {
+      return fail(res, 401, 'Codul de acces nu este corect.');
+    }
+    if (!b.consent) return fail(res, 400, 'Bifează acordul pentru folosirea pozei.');
+    // limit: max 6 simulations per hour per visitor, 60 per day in total (costs)
+    const now = Date.now(), who = ip(req);
+    simHits.set(who, (simHits.get(who) || []).filter((t) => now - t < 3600e3));
+    simDay.list = simDay.list.filter((t) => now - t < 864e5);
+    if (simHits.get(who).length >= 6) return fail(res, 429, 'Ai făcut deja mai multe simulări. Încearcă din nou peste o oră.');
+    if (simDay.list.length >= (sim.dailyLimit || 60)) return fail(res, 429, 'Limita de simulări pe azi a fost atinsă. Încearcă mâine.');
+    simHits.get(who).push(now); simDay.list.push(now);
+    const colors = sim.colors.slice(0, 3);
+    if (!colors.length) return fail(res, 400, 'Nu sunt setate culori în panou.');
+    const results = await Promise.all(colors.map((c) => gemini.editHair(sim, key, b.photo, c)
+      .then((image) => ({ id: c.id, name: c.name, image }))
+      .catch((e) => ({ id: c.id, name: c.name, error: e.message }))));
+    const log = store.read('simulator-log', []);
+    log.push({ at: new Date().toISOString(), ok: results.filter((r) => r.image).length, failed: results.filter((r) => r.error).length });
+    store.write('simulator-log', log.slice(-500));
+    if (!results.some((r) => r.image)) return fail(res, 502, results[0].error || 'Simularea nu a reușit.');
+    return ok(res, { results });   // the photo is processed and not kept on the server
   }
 
   if (p === '/api/consult' && m === 'POST') {
@@ -928,6 +982,30 @@ async function api(req, res, url) {
     return { ...s, smartbillTokenSet: !!sec.smartbillToken, courierUserSet: !!(sec.courier || {}).user, payKeySet: ep.validKey(sec.payKey), payReady: payReady(s),
       mailPassSet: !!sec.mailPass, mailReady: mailer.configured(s.mail, sec.mailPass), siteUrl: siteOrigin(req) };
   };
+  // AI hair simulator (admin)
+  if (p === '/api/admin/simulator' && m === 'GET') {
+    const sim = simSettings(), log = store.read('simulator-log', []);
+    const today = new Date().toISOString().slice(0, 10);
+    return ok(res, { ...sim, keySet: !!store.secrets().geminiKey, today: log.filter((x) => x.at.slice(0, 10) === today).length, total: log.length });
+  }
+  if (p === '/api/admin/simulator' && m === 'PUT') {
+    const b = await readBody(req), sim = simSettings();
+    sim.enabled = !!b.enabled;
+    sim.model = str(b.model, 80) || SIM_DEFAULT.model;
+    if (b.accessCode !== undefined) sim.accessCode = str(b.accessCode, 30).toUpperCase().replace(/\s/g, '') || sim.accessCode;
+    sim.dailyLimit = Math.max(1, Math.min(1000, Math.round(num(b.dailyLimit) || 60)));
+    if (Array.isArray(b.colors)) {
+      sim.colors = b.colors.slice(0, 3).map((c, i) => ({ id: 'c' + (i + 1), name: str(c.name, 60), description: str(c.description, 400) })).filter((c) => c.name);
+    }
+    store.write('simulator', sim);
+    if (typeof b.geminiKey === 'string' && b.geminiKey.trim()) { const sec = store.secrets(); sec.geminiKey = b.geminiKey.trim().slice(0, 200); store.saveSecrets(sec); }
+    return ok(res, { ...sim, keySet: !!store.secrets().geminiKey });
+  }
+  if (p === '/api/admin/simulator/test' && m === 'POST') {
+    try { const sim = simSettings(); return ok(res, { model: await gemini.test(store.secrets().geminiKey, sim.model) }); }
+    catch (e) { return fail(res, 400, e.message); }
+  }
+
   if (p === '/api/admin/settings' && m === 'GET') return ok(res, settingsOut(store.settings()));
   if (p === '/api/admin/settings' && m === 'PUT') {
     const b = await readBody(req), s = store.settings(), x = b.smartbill || {};

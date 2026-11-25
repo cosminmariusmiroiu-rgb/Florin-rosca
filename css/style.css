@@ -1033,3 +1033,31 @@ a.credit:hover { transform: translateY(-2px); border-color: rgba(214,90,220,.7);
 .wform__done h2 { margin-top: 0; }
 .notfound { text-align: center; padding-top: 16vh; }
 .notfound .btn { margin: 6px; }
+
+/* ===== Simulator AI ===== */
+.sim { max-width: 900px; margin: 0 auto; padding: 26px 18px 70px; }
+.sim__intro h1 { font-family: var(--f-display); font-weight: 500; font-size: clamp(28px, 5.5vw, 44px); margin: 6px 0 10px; line-height: 1.15; }
+.sim__intro h1 em { font-family: var(--f-serif); font-style: italic; color: var(--gold-hi); }
+.sim__card, .sim__wait, .sim__res { margin-top: 20px; background: linear-gradient(170deg, #17150f, #0d0c0b); border: 1px solid rgba(212,169,69,.25); border-radius: 24px; padding: clamp(18px, 4vw, 30px); }
+.sim__code { display: block; font-size: 14px; margin-bottom: 14px; }
+.sim__code input { width: 100%; margin-top: 6px; padding: 13px 14px; border-radius: 12px; border: 1px solid rgba(255,255,255,.14); background: #12110d; color: inherit; font: 600 18px Manrope, sans-serif; letter-spacing: .15em; text-transform: uppercase; }
+.sim__photo { position: relative; display: grid; place-items: center; aspect-ratio: 3/4; max-width: 360px; margin: 0 auto; border-radius: 22px; border: 2px dashed rgba(212,169,69,.5); overflow: hidden; cursor: pointer; background: rgba(255,255,255,.02); }
+.sim__photo input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+.sim__ph { text-align: center; font-size: 17px; line-height: 1.5; } .sim__ph b { display: block; font-size: 44px; margin-bottom: 6px; } .sim__ph small { opacity: .65; }
+.sim__photo img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; display: none; }
+.sim__photo.has img { display: block; }
+.sim__tips { list-style: none; padding: 0; margin: 14px auto; max-width: 360px; font-size: 14px; opacity: .85; display: grid; gap: 4px; }
+.sim__go { width: 100%; min-height: 56px; font-size: 16px; margin-top: 6px; }
+.sim__wait { text-align: center; }
+.sim__spin { width: 54px; height: 54px; margin: 6px auto 14px; border-radius: 50%; border: 3px solid rgba(212,169,69,.2); border-top-color: var(--gold-hi); animation: simspin 1s linear infinite; }
+@keyframes simspin { to { transform: rotate(360deg); } }
+.sim__res h2, .sim__wait h2 { font-family: var(--f-display); font-weight: 500; margin: 0 0 14px; }
+.sim__grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
+@media (min-width: 760px) { .sim__grid { grid-template-columns: repeat(4, 1fr); } }
+.sim__item { margin: 0; border-radius: 18px; overflow: hidden; background: #000; border: 1px solid rgba(212,169,69,.25); }
+.sim__item img { width: 100%; aspect-ratio: 3/4; object-fit: cover; display: block; }
+.sim__item figcaption { padding: 10px 12px; font-weight: 600; font-size: 14px; color: var(--gold-hi); text-align: center; }
+.sim__item--orig figcaption { color: #c9c2b4; }
+.sim__item--err div { aspect-ratio: 3/4; display: grid; place-items: center; padding: 14px; text-align: center; font-size: 13px; opacity: .8; }
+.sim__note { font-size: 13.5px; opacity: .8; margin: 16px 0; line-height: 1.55; }
+.sim__act { display: flex; flex-wrap: wrap; gap: 10px; } .sim__act .btn { flex: 1 1 240px; }

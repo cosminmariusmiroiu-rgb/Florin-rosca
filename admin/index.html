@@ -42,6 +42,7 @@
         <button data-tab="fise">📋 <span>Fișe cliente</span><b class="pill" id="navFise" hidden></b></button>
         <button data-tab="comenzi">🧾 <span>Comenzi</span><b class="pill" id="navNew" hidden></b></button>
         <button data-tab="asistent">💬 <span>Asistent virtual</span><b class="pill" id="navChat" hidden></b></button>
+        <button data-tab="simulator">✨ <span>Simulator AI</span></button>
         <button data-tab="produse">🛍️ <span>Produse &amp; stoc</span></button>
         <button data-tab="texte">✏️ <span>Texte site</span></button>
         <button data-tab="smartbill">🔗 <span>SmartBill</span></button>
@@ -214,6 +215,28 @@
       </section>
 
       <!-- PLĂȚI CU CARDUL + E-MAIL -->
+      <section data-view="simulator" hidden>
+        <div class="bar"><h2>Simulator AI de culoare</h2><a class="btn btn--gold" id="simOpen" href="../simulator.html" target="_blank" rel="noopener">Deschide pagina ↗</a></div>
+        <div class="install-tip">✨ Clienta își face o poză și primește <b>3 variante</b> de culoare, cele pe care le alegi tu mai jos (la care poți ajunge după decolorare). Pagina e <b>privată</b>: nu apare în meniu sau pe Google, iar intrarea se face doar cu <b>codul de acces</b> sau cu linkul pe care îl trimiți tu. Poza nu se păstrează pe server.</div>
+        <div class="cards" id="simCards"></div>
+        <form class="panel form" id="simForm">
+          <label class="check"><input type="checkbox" name="enabled"> Simulatorul este pornit</label>
+          <div class="grid2">
+            <label>Cheia Gemini <small>(aistudio.google.com → Get API key)</small><input name="geminiKey" type="password" autocomplete="off" placeholder="lasă gol ca s-o păstrezi"></label>
+            <label>Model Gemini<input name="model" placeholder="gemini-2.5-flash-image"></label>
+            <label>Codul de acces pentru cliente<input name="accessCode" autocomplete="off"></label>
+            <label>Limită simulări pe zi<input name="dailyLimit" type="number" min="1" max="1000"></label>
+          </div>
+          <p class="muted" id="simKeyState"></p>
+          <div class="row"><button class="btn" type="button" id="simCopy">🔗 Copiază linkul pentru cliente</button></div>
+          <h3>Cele 3 culori afișate clientelor</h3>
+          <p class="muted">Pune culorile la care poți ajunge după decolorare (șanse reale peste 50%). La „descriere” scrie cât mai exact nuanța: AI-ul o folosește ca să coloreze părul.</p>
+          <div id="simColors" class="simcolors"></div>
+          <div class="row"><button class="btn btn--gold" type="submit">Salvează</button><button class="btn" type="button" id="simTest">Testează cheia</button></div>
+          <p class="note" id="simMsg" role="status"></p>
+        </form>
+      </section>
+
       <section data-view="plati" hidden>
         <h2>Plata cu cardul și e-mailuri</h2>
         <form class="panel form" id="payForm">

@@ -370,6 +370,40 @@
     } catch (x) { note($('#courierMsg'), x.message, false); }
   }));
 
+  /* ---------- AI hair simulator ---------- */
+  let simCfg = null;
+  loaders.simulator = async () => {
+    simCfg = await api('admin/simulator');
+    const f = $('#simForm');
+    f.enabled.checked = !!simCfg.enabled; f.model.value = simCfg.model || ''; f.accessCode.value = simCfg.accessCode || ''; f.dailyLimit.value = simCfg.dailyLimit || 60; f.geminiKey.value = '';
+    $('#simKeyState').textContent = simCfg.keySet ? '🔒 Cheia Gemini este salvată (nu se afișează).' : 'Cheia Gemini nu este pusă încă.';
+    $('#simCards').innerHTML = [['Stare', simCfg.enabled && simCfg.keySet ? 'Pornit' : 'Oprit'], ['Simulări azi', simCfg.today], ['Simulări în total', simCfg.total], ['Cod de acces', simCfg.accessCode]]
+      .map(([l, v]) => `<div class="card"><b>${esc(v)}</b><span>${l}</span></div>`).join('');
+    const cols = [0, 1, 2].map((i) => simCfg.colors[i] || { name: '', description: '' });
+    $('#simColors').innerHTML = cols.map((c, i) => `<div class="simcolor"><b>Varianta ${i + 1}</b>
+      <label>Nume (îl vede clienta)<input data-cn="${i}" value="${esc(c.name)}" placeholder="ex. Balayage bej perlat"></label>
+      <label>Descriere pentru AI (nuanța exactă)<textarea data-cd="${i}" rows="2" placeholder="ex. Soft pearl beige balayage with darker natural root">${esc(c.description)}</textarea></label></div>`).join('');
+  };
+  const simLink = () => new URL('../simulator.html?cod=' + encodeURIComponent($('#simForm').accessCode.value.trim().toUpperCase()), location.href).href;
+  $('#simCopy').addEventListener('click', async () => {
+    const l = simLink();
+    try { await navigator.clipboard.writeText(l); toast('Linkul a fost copiat: îl poți trimite clientei pe WhatsApp.'); } catch (e) { prompt('Copiază linkul:', l); }
+  });
+  function simBody() {
+    const f = $('#simForm');
+    return { enabled: f.enabled.checked, model: f.model.value, accessCode: f.accessCode.value, dailyLimit: f.dailyLimit.value, geminiKey: f.geminiKey.value,
+      colors: [0, 1, 2].map((i) => ({ name: $(`[data-cn="${i}"]`).value, description: $(`[data-cd="${i}"]`).value })) };
+  }
+  $('#simForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    try { await busy($('button[type=submit]', e.target), () => api('admin/simulator', { method: 'PUT', body: simBody() })); note($('#simMsg'), 'Simulatorul a fost salvat.', true); loaders.simulator(); }
+    catch (x) { note($('#simMsg'), x.message, false); }
+  });
+  $('#simTest').addEventListener('click', (e) => busy(e.currentTarget, async () => {
+    try { await api('admin/simulator', { method: 'PUT', body: simBody() }); const r = await api('admin/simulator/test', { method: 'POST' }); note($('#simMsg'), '✅ Cheia funcționează. Model: ' + r.model, true); loaders.simulator(); }
+    catch (x) { note($('#simMsg'), x.message, false); }
+  }));
+
   /* ---------- stock overview ---------- */
   let stockProducts = [];
   loaders.stoc = async () => {
