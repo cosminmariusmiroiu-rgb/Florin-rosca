@@ -122,7 +122,7 @@
     const hasHeroVideo = !!document.querySelector('.cine__video');
     let introDone = false, waiting = false, fallback = 0;
     try { introDone = sessionStorage.getItem('fr-intro-done') === '1'; } catch (e) {}
-    const fadeIn = () => { theme.volume = 0; let v = 0; const t = setInterval(() => { v = Math.min(0.7, v + 0.05); theme.volume = v; if (v >= 0.7) clearInterval(t); }, 90); };
+    const fadeIn = () => { theme.volume = 0; let v = 0; const t = setInterval(() => { v = Math.min(0.7, v + 0.14); theme.volume = v; if (v >= 0.7) clearInterval(t); }, 60); };
     const playTheme = (fade) => theme.play().then(() => { if (fade) fadeIn(); setState(true); return true; }).catch(() => false);
     const startSong = () => {
       if (!waiting) return;
@@ -130,7 +130,7 @@
       // the intro already said "Florin Roșca" with applause: skip the song's first voice tag
       playTheme(true);
     };
-    const SONG_AT = 4.6; // seconds into the intro: the song starts while the applause fades
+    const SONG_AT = 5.0; // seconds into the intro: the song starts while the applause fades
     intro.addEventListener('timeupdate', () => { if (intro.currentTime >= SONG_AT) startSong(); });
     intro.addEventListener('ended', startSong);
     const start = () => {
