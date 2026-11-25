@@ -19,7 +19,7 @@ Mai jos găsești tot ce trebuie ca să-l urci pe hosting.
 | Proces | permanent, cu repornire automată (pm2 / systemd / managerul de aplicații Node al hostingului) |
 | Folder de date | **persistent**, care NU se șterge la redeploy (implicit 1 GB ajunge) |
 | HTTPS | **obligatoriu** (SSL, de ex. Let's Encrypt). Panoul și aplicația de telefon nu merg corect fără HTTPS |
-| Ieșire internet | serverul trebuie să poată face cereri HTTPS către `ws.smartbill.ro` (facturi și stoc) și `api.sameday.ro` (AWB) |
+| Ieșire internet | serverul trebuie să poată face cereri HTTPS către `ws.smartbill.ro` (facturi și stoc), `api.sameday.ro` (AWB), `secure.euplatesc.ro` (plata cu cardul) și să trimită e-mail prin SMTP (porturile 465 sau 587) |
 
 ## 3. Variabile de mediu
 | Variabilă | Ce pui | Obligatoriu |
@@ -28,8 +28,9 @@ Mai jos găsești tot ce trebuie ca să-l urci pe hosting.
 | `ADMIN_PASSWORD` | parola de start a panoului (minim 8 caractere). Se poate schimba din panou | **da** (altfel primul care intră pe `/admin/` alege parola) |
 | `SESSION_SECRET` | un șir aleator lung (de ex. `openssl rand -hex 32`) | recomandat |
 | `PORT` | portul pe care ascultă serverul, dacă hostingul îl cere | după caz |
+| `PUBLIC_URL` | adresa publică a site-ului, de ex. `https://florinrosca.ro`. O folosesc plata cu cardul (EuPlatesc, pentru întoarcerea clientului și confirmarea plății) și linkurile din e-mailuri | **da**, după ce e legat domeniul |
 
-**Nu se pun** în variabile token-ul SmartBill sau datele Sameday. Le introduce Florin din panou și se salvează criptat în folderul de date (`secrets.json`, care nu se trimite niciodată către browser).
+**Nu se pun** în variabile token-ul SmartBill, datele Sameday, cheia EuPlatesc sau parola de e-mail. Le introduce Florin din panou și se salvează criptat în folderul de date (`secrets.json`, care nu se trimite niciodată către browser).
 
 ## 4. Variante de instalare
 
@@ -86,10 +87,28 @@ Proiectul are deja `render.yaml`: în Render faci **New → Blueprint** și aleg
 - `www` → **CNAME** către adresa `….onrender.com` primită;
 - domeniul principal → înregistrarea **A / ALIAS** pe care o afișează Render la **Settings → Custom Domains**.
 
-## 5. Domeniul
+## 5. Domeniul și nameserverele (DNS)
+**Pentru domeniul `.ro`, nameserverele se schimbă la registrar (ROTLD / firma prin care a fost cumpărat domeniul) de către cel care administrează domeniul.**
+
+**Varianta A sau B – la Hostinger (shared cu Node.js sau VPS):**
+- Domeniul pare să fie deja pe Hostinger, iar site-ul vechi rulează acolo. Dacă e așa, nameserverele nu trebuie schimbate.
+- Dacă trebuie puse, nameserverele standard Hostinger sunt `ns1.dns-parking.com` și `ns2.dns-parking.com`. **Se confirmă în hPanel → Domains → DNS / Nameservers**, pentru că pot diferi.
+- Pe VPS: înregistrarea **A** pentru `@` și `www` → IP-ul VPS-ului.
+
+**Varianta C – pe Render:**
+- **Nameserverele rămân cum sunt.** Nu se schimbă, ca să nu se strice e-mailul sau alte servicii de pe domeniu.
+- În zona DNS se adaugă:
+  - `www` → **CNAME** → `florin-rosca.onrender.com` (adresa exactă apare în Render);
+  - `@` (domeniul principal) → **A** → `216.24.57.1`. **Se verifică valoarea exactă în Render → Settings → Custom Domains**, unde Render o afișează.
+- **Înregistrările MX pentru e-mail nu se ating.**
+
+### Mutarea propriu-zisă
 - Recomandare: **testați întâi pe un subdomeniu**, de ex. `nou.florinrosca.ro`, și abia după ce Florin confirmă că totul e bine mutați domeniul principal.
 - **Înainte de mutare: backup complet al site-ului WordPress actual** (fișiere + bază de date). Comenzile și clienții vechi din WooCommerce rămân acolo.
 - Linkurile de pe site către `florinrosca.ro/termeni-si-conditii/`, `/politica-de-confidentialitate/` și `/livrare-si-retur/` vin acum de pe site-ul vechi. Aceste pagini trebuie păstrate (sau mutate) ca să nu dea eroare 404.
+
+## 5b. Plata cu cardul (EuPlatesc)
+- În contul EuPlatesc, adresa de confirmare a plății (IPN / „URL de notificare”) și adresele de întoarcere trebuie să fie pe domeniul final. Le arată panoul la **Plăți card & e-mail**, după ce e setat `PUBLIC_URL`.
 
 ## 6. Verificare după instalare
 - `https://DOMENIU/` → site-ul se deschide, cu videoclipul și butonul „Intră în salon ♪”
