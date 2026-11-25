@@ -29,7 +29,7 @@ Panoul se deschide la adresa **/admin/** a site-ului (de ex. `https://florinrosc
 4. La fiecare produs completezi **Codul produsului din SmartBill** (exact ca în nomenclatorul SmartBill), ca stocul să se potrivească.
 
 ### Gestiuni și coduri de produs
-- În SmartBill există gestiunea **PRODUSE** (produsele de vânzare, din salon și de pe site) și gestiunea **SERVICII** (materialele folosite la servicii).
+- În SmartBill, produsele de vânzare (din salon și de pe site) stau în gestiunea **PRODUSE**. Serviciile (manopera: balayage, vopsit, tuns, tratamente) nu au stoc, deci nu au nevoie de gestiune: se trec în SmartBill la Produse / Servicii cu tipul „serviciu”.
 - Fiecare produs de pe site are un **cod SmartBill** (ex. `LR-SPRAY-200`, `AY-MASCA-1000`). Același cod trebuie să fie și pe produsul din SmartBill: după cod se potrivesc stocul și facturile.
 - Citirea stocului din SmartBill se pornește abia după ce stocul a fost introdus în gestiunea PRODUSE. Altfel site-ul ar arăta toate produsele ca epuizate.
 
