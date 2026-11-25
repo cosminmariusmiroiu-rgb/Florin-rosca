@@ -1144,6 +1144,7 @@ async function api(req, res, url) {
       warehouseName: str(x.warehouseName, 80), vatName: str(x.vatName, 40) || 'Normala', vatPercent: num(x.vatPercent) ?? 21,
       vatPayer: 'vatPayer' in x ? !!x.vatPayer : s.smartbill.vatPayer !== false,
       useStock: !!x.useStock, autoInvoice: !!x.autoInvoice, sendEmail: !!x.sendEmail,
+      autoInvoiceHeld: x.autoInvoice ? null : (s.smartbill.autoInvoiceHeld || null),
       receipts: 'receipts' in x ? !!x.receipts : !!s.smartbill.receipts,
       receiptFile: 'receiptFile' in x ? (/^[\w .-]{1,40}$/.test(String(x.receiptFile || '').trim()) ? String(x.receiptFile).trim() : 'bon.txt') : (s.smartbill.receiptFile || 'bon.txt'),
       syncMinutes: Math.max(0, Math.min(1440, Math.round(num(x.syncMinutes) || 0)))

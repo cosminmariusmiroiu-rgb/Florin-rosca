@@ -166,7 +166,24 @@ function settings() {
 function secrets() { return read('secrets', {}); }
 function saveSecrets(v) { return write('secrets', v); }
 
+// The company is registered for VAT (ANAF registry: since 31.03.2026); the shop had been set up as a non-payer by mistake.
+// From now on documents carry VAT. Automatic invoicing is put on hold until the SmartBill account itself is set as a VAT payer
+// (Configurare → Date firmă), so that no invoice goes out with the wrong VAT in the meantime; it is switched back on from the panel.
+function vatPayerFix() {
+  const done = read('migrations', {});
+  if (done.vat1) return;
+  const s = read('settings', null);
+  if (s && s.smartbill && s.smartbill.vatPayer === false) {
+    s.smartbill.vatPayer = true;
+    if (!s.smartbill.vatPercent) s.smartbill.vatPercent = 21;
+    if (s.smartbill.autoInvoice) { s.smartbill.autoInvoice = false; s.smartbill.autoInvoiceHeld = 'tva'; }
+    write('settings', s);
+  }
+  write('migrations', { ...done, vat1: new Date().toISOString() });
+}
+
 defaultCodes();
 defaultServices();
+vatPayerFix();
 
 module.exports = { DATA_DIR, ROOT, read, write, products, categories, settings, secrets, saveSecrets, SMARTBILL_CODES };

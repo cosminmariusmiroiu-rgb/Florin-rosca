@@ -66,11 +66,26 @@ async function stocks(cfg, token) {
   return out;
 }
 
+// VAT rates configured in the SmartBill account: [{ name, percentage }]
+async function taxes(cfg, token) {
+  const data = await call(cfg, token, 'GET', '/tax', { query: { cif: cfg.cif } });
+  return (data.taxes || []).map((t) => ({ name: String(t.name || ''), percentage: Number(t.percentage) }));
+}
+// the rate put on documents: the one named in the settings, otherwise any rate of the account with the configured percentage.
+// If the account has no such rate nothing is issued (better no invoice than one with the wrong VAT).
+async function vatRate(cfg, token) {
+  const pct = Number(cfg.vatPercent) || 21, list = await taxes(cfg, token), want = String(cfg.vatName || '').toLowerCase();
+  const hit = list.find((t) => t.percentage === pct && t.name.toLowerCase() === want) || list.find((t) => t.percentage === pct);
+  if (!hit) throw new SmartBillError('SmartBill: în cont nu există cota de TVA de ' + pct + '%. Verifică în SmartBill, la Configurare → Date firmă, dacă firma este trecută ca plătitoare de TVA. Documentul nu a fost emis.');
+  return hit;
+}
+
 // invoice for an order
 async function invoice(cfg, token, order) {
   const c = order.customer;
-  // o firmă neplătitoare de TVA nu trimite cote de TVA pe produse
-  const tax = cfg.vatPayer === false ? {} : { isTaxIncluded: true, taxName: cfg.vatName || 'Normala', taxPercentage: Number(cfg.vatPercent) || 21 };
+  // o firmă neplătitoare de TVA nu trimite cote de TVA pe produse; una plătitoare trimite cota din contul SmartBill (prețurile includ TVA)
+  let tax = {};
+  if (cfg.vatPayer !== false) { const rate = await vatRate(cfg, token); tax = { isTaxIncluded: true, taxName: rate.name, taxPercentage: rate.percentage }; }
   const lines = order.items.map((it) => ({
     name: it.name + (it.size ? ' ' + it.size : ''),
     code: it.smartbillCode || it.id,
@@ -169,4 +184,4 @@ async function receiptText(cfg, token, id) {
   return String(data.message);
 }
 
-module.exports = { test, stocks, invoice, invoicePdf, receipt, receiptText, SmartBillError };
+module.exports = { test, stocks, taxes, invoice, invoicePdf, receipt, receiptText, SmartBillError };

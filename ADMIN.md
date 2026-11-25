@@ -28,6 +28,10 @@ Panoul se deschide la adresa **/admin/** a site-ului (de ex. `https://florinrosc
 3. Apeși **Testează conexiunea**.
 4. La fiecare produs completezi **Codul produsului din SmartBill** (exact ca în nomenclatorul SmartBill), ca stocul să se potrivească.
 
+### TVA
+- Firma este plătitoare de TVA (în registrul ANAF, din 31.03.2026). În panou → SmartBill, „Firma este plătitoare de TVA” trebuie să rămână bifat: facturile și bonurile se emit cu TVA 21%, iar prețurile din magazin sunt cu TVA inclus.
+- Și în SmartBill, la **Configurare → Date firmă**, firma trebuie să fie trecută „Plătitor TVA: Da”. Dacă în contul SmartBill nu există cota de 21%, aplicația nu emite factura și scrie motivul la comandă.
+
 ### Gestiuni și coduri de produs
 - În SmartBill, produsele de vânzare (din salon și de pe site) stau în gestiunea **PRODUSE**. Serviciile (manopera: balayage, vopsit, tuns, tratamente) nu au stoc, deci nu au nevoie de gestiune: se trec în SmartBill la Produse / Servicii cu tipul „serviciu”.
 - Fiecare produs de pe site are un **cod SmartBill** (ex. `LR-SPRAY-200`, `AY-MASCA-1000`). Același cod trebuie să fie și pe produsul din SmartBill: după cod se potrivesc stocul și facturile.
