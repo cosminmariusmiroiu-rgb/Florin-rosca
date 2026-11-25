@@ -130,7 +130,7 @@
       // the intro already said "Florin Roșca" with applause: skip the song's first voice tag
       playTheme(true);
     };
-    const SONG_AT = 5.0; // seconds into the intro: the song starts while the applause fades
+    const SONG_AT = 10.2; // seconds into the intro: the song starts while the applause fades
     intro.addEventListener('timeupdate', () => { if (intro.currentTime >= SONG_AT) startSong(); });
     intro.addEventListener('ended', startSong);
     const start = () => {
@@ -139,7 +139,7 @@
         return intro.play().then(() => {
           introDone = true; waiting = true; setState(true);
           try { sessionStorage.setItem('fr-intro-done', '1'); } catch (e) {}
-          fallback = setTimeout(startSong, 6000); // safety net
+          fallback = setTimeout(startSong, 11500); // safety net
           return true;
         }).catch(() => false);
       }
