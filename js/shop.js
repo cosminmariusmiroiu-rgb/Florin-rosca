@@ -107,7 +107,7 @@
       '<label>Județ *<select name="county" required><option value="">Alege</option>' + JUDETE.map(function (j) { return '<option>' + j + '</option>'; }).join('') + '</select></label></div>' +
       '<details><summary>Vreau factură pe firmă</summary><label>Denumire firmă<input name="company"></label><label>CUI<input name="cui"></label></details>' +
       '<label>Observații<textarea name="notes" rows="2"></textarea></label>' +
-      '<label class="cart__check"><input type="checkbox" name="acceptTerms"><span>Am citit și accept <a href="https://florinrosca.ro/termeni-si-conditii/" target="_blank" rel="noopener">termenii și condițiile</a> și <a href="https://florinrosca.ro/politica-de-confidentialitate/" target="_blank" rel="noopener">politica de confidențialitate</a>.</span></label>' +
+      '<label class="cart__check"><input type="checkbox" name="acceptTerms"><span>Am citit și accept <a href="termeni.html" target="_blank" rel="noopener">termenii și condițiile</a> și <a href="confidentialitate.html" target="_blank" rel="noopener">politica de confidențialitate</a>.</span></label>' +
       payBlock() +
       '<p class="cart__err" role="alert"></p>' +
       '<button class="btn btn--gold cart__go" type="submit"><span>Trimite comanda</span></button></form>' +
