@@ -115,8 +115,8 @@
     const KEY = 'fr-music-off-v2';
     const get = () => { try { return localStorage.getItem(KEY) === '1'; } catch (e) { return false; } };
     const put = (v) => { try { v ? localStorage.setItem(KEY, '1') : localStorage.removeItem(KEY); } catch (e) {} };
-    // Intro on the home page: "Florin Roșca… Luxury Hair" + applause; the song itself starts
-    // when the balayage appears in the hero video (event 'fr:balayage' from transform.js).
+    // Intro on the home page: "Florin Roșca… Luxury Hair" + applause; the song comes in
+    // over the last part of the applause and then goes on (with its own "Florin Roșca" later).
     const intro = new Audio('assets/audio/intro.mp3');
     intro.preload = 'auto'; intro.volume = 1;
     const hasHeroVideo = !!document.querySelector('.cine__video');
@@ -128,18 +128,18 @@
       if (!waiting) return;
       waiting = false; clearTimeout(fallback);
       // the intro already said "Florin Roșca" with applause: skip the song's first voice tag
-      const skip = () => { try { if (theme.currentTime < 2) theme.currentTime = 15; } catch (e) {} };
-      if (theme.readyState >= 1) skip(); else theme.addEventListener('loadedmetadata', skip, { once: true });
-      playTheme(true).then(skip);
+      playTheme(true);
     };
-    window.addEventListener('fr:balayage', startSong);
+    const SONG_AT = 4.6; // seconds into the intro: the song starts while the applause fades
+    intro.addEventListener('timeupdate', () => { if (intro.currentTime >= SONG_AT) startSong(); });
+    intro.addEventListener('ended', startSong);
     const start = () => {
       if (!theme.paused || waiting) return Promise.resolve(true);
       if (!introDone && hasHeroVideo) {
         return intro.play().then(() => {
           introDone = true; waiting = true; setState(true);
           try { sessionStorage.setItem('fr-intro-done', '1'); } catch (e) {}
-          fallback = setTimeout(startSong, 14000); // if the video is not playing, the song still comes in
+          fallback = setTimeout(startSong, 6000); // safety net
           return true;
         }).catch(() => false);
       }
