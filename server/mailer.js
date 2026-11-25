@@ -206,6 +206,30 @@ const templates = {
       text: 'Cerere de apel de la asistentul virtual\n' + contact.name + ', ' + contact.phone + (contact.note ? '\n„' + contact.note + '”' : '') + (site ? '\n\nPanou: ' + site + '/admin/#asistent' : '')
     };
   },
+  // to the customer: confirmation that the withdrawal request was received (content, date and time)
+  withdrawalCustomer(w, when) {
+    const what = w.details || 'toată comanda';
+    return {
+      to: w.email, subject: 'Confirmare de primire: cerere de retragere R' + w.number + ' (comanda #' + w.order + ')',
+      html: layout('Am primit cererea ta de retragere', '<p>Confirmăm primirea cererii tale de retragere din contract.</p>' +
+        '<table role="presentation" cellpadding="0" cellspacing="0" style="margin:12px 0;font-size:14px">' +
+        [['Număr de înregistrare', 'R' + w.number], ['Comanda', '#' + w.order], ['Nume', w.name || '–'], ['E-mail', w.email], ['Produse', what], ['Data și ora cererii', when]]
+          .map(([a, b]) => '<tr><td style="padding:6px 14px 6px 0;color:#7a7364;vertical-align:top">' + a + '</td><td style="padding:6px 0"><b>' + esc(b) + '</b></td></tr>').join('') + '</table>' +
+        '<p>Te contactăm în cel mai scurt timp cu pașii pentru returnarea produselor și pentru rambursare. Pentru întrebări: <b>' + PHONE + '</b>.</p>'),
+      text: 'Confirmăm primirea cererii tale de retragere din contract.\n\nNumăr de înregistrare: R' + w.number + '\nComanda: #' + w.order + '\nNume: ' + (w.name || '-') + '\nE-mail: ' + w.email + '\nProduse: ' + what + '\nData și ora cererii: ' + when + '\n\nTe contactăm cu pașii următori. Întrebări: ' + PHONE
+    };
+  },
+  // to the salon: a customer withdraws from an order
+  withdrawalSalon(w, when, to, site) {
+    return {
+      to, replyTo: w.email, subject: 'Cerere de retragere R' + w.number + ' · comanda #' + w.order,
+      html: layout('Cerere de retragere din contract', '<p>Comanda <b>#' + esc(w.order) + '</b>' + (w.matched ? '' : ' <span style="color:#b3261e">(nu am găsit comanda cu acest e-mail în panou; poate fi din magazinul vechi)</span>') + '</p>' +
+        '<p><b>' + esc(w.name || '–') + '</b> · ' + esc(w.email) + '<br>Produse: ' + esc(w.details || 'toată comanda') + '<br>Primită: ' + esc(when) + '</p>' +
+        '<p>Clientul a primit automat confirmarea de primire. Ai 14 zile pentru rambursare, de la data cererii.</p>' +
+        (site ? '<p><a href="' + esc(site) + '/admin/#comenzi" style="display:inline-block;background:#c9a24a;color:#14100a;text-decoration:none;padding:11px 20px;border-radius:9px;font-weight:bold">Deschide panoul</a></p>' : '')),
+      text: 'Cerere de retragere R' + w.number + '\nComanda #' + w.order + '\n' + (w.name || '-') + ', ' + w.email + '\nProduse: ' + (w.details || 'toată comanda') + '\nPrimită: ' + when + (site ? '\n\nPanou: ' + site + '/admin/#comenzi' : '')
+    };
+  },
   test(to) {
     return { to, subject: 'E-mail de test – Florin Roșca', html: layout('Legătura de e-mail funcționează ✓', '<p>Acesta este un mesaj de test trimis din panoul de administrare. De acum, site-ul poate trimite confirmări de comandă.</p>'), text: 'Legătura de e-mail funcționează. Mesaj de test trimis din panoul de administrare.' };
   }

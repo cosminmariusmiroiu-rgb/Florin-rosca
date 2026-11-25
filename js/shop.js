@@ -45,7 +45,7 @@
       var buy = !shop.enabled ? '<a class="btn btn--gold pcard__buy" href="tel:+40732937622"><span>Comandă telefonic</span></a>'
         : p.inStock ? '<button class="btn btn--gold pcard__buy" type="button" data-add="' + esc(p.id) + '"><span>Adaugă în coș</span></button>'
         : '<button class="btn pcard__buy" type="button" disabled><span>Stoc epuizat</span></button>';
-      return '<article class="pcard" data-cat="' + esc(p.category) + '">' +
+      return '<article class="pcard" id="produs-' + esc(p.id) + '" data-cat="' + esc(p.category) + '">' +
         (off ? '<span class="pcard__tag">-' + off + '%</span>' : '') +
         '<div class="pcard__img"><img src="' + esc(src) + '" alt="' + esc(p.alt || p.name) + '" loading="lazy" width="600" height="600"></div>' +
         '<h2 class="pcard__name">' + esc(p.name) + (p.size ? ' <small>' + esc(p.size) + '</small>' : '') + '</h2>' +
@@ -57,6 +57,9 @@
     // keep the active category filter
     var active = document.querySelector('.chip.is-active');
     if (active && active.getAttribute('data-f') !== 'all') active.click();
+    // a link to one product (also the addresses of the old shop: /produs/nume/) scrolls to it
+    var want = /^#produs-[a-z0-9-]+$/.test(location.hash) && document.getElementById(location.hash.slice(1));
+    if (want && !render.shown) { render.shown = true; setTimeout(function () { want.scrollIntoView({ block: 'center' }); want.classList.add('pcard--focus'); }, 350); }
     var note = document.querySelector('.shopnote');
     var how = shop.card && shop.cod ? 'cu plata cu cardul sau ramburs la livrare' : shop.card ? 'cu plata cu cardul' : 'cu plata ramburs la livrare';
     if (note && shop.enabled) note.innerHTML = 'Comanzi direct de aici, ' + how + (shop.freeShippingFrom ? ' · livrare gratuită de la ' + lei(shop.freeShippingFrom) : '') + '. Pentru o recomandare potrivită părului tău, sună la <a href="tel:+40732937622">0732 937 622</a>.';

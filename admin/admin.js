@@ -102,6 +102,7 @@
     if (s.parcels) al.push(`🚚 Ai <b>${s.parcels}</b> colete de pregătit. <a href="#colete" data-go="colete">Vezi coletele →</a>`);
     if (s.newConsults) al.push(`📋 Ai <b>${s.newConsults}</b> fișe de consultație noi. <a href="#fise" data-go="fise">Vezi fișele →</a>`);
     if (s.newOrders) al.push(`🧾 Ai <b>${s.newOrders}</b> comenzi noi. <a href="#comenzi" data-go="comenzi">Vezi comenzile →</a>`);
+    if (s.withdrawals) al.push(`↩️ <b>${s.withdrawals}</b> ${s.withdrawals === 1 ? 'cerere de retragere nouă' : 'cereri de retragere noi'} (retur). <a href="#comenzi" data-go="comenzi">Vezi →</a>`);
     if (chat.calls) al.push(`📞 <b>${chat.calls}</b> ${chat.calls === 1 ? 'persoană a cerut' : 'persoane au cerut'} să fie ${chat.calls === 1 ? 'sunată' : 'sunate'}, prin asistentul virtual. <a href="#asistent" data-go="asistent">Vezi →</a>`);
     if (chat.unanswered) al.push(`❓ Aurelia nu a știut să răspundă la <b>${chat.unanswered}</b> ${chat.unanswered === 1 ? 'întrebare' : 'întrebări'} în ultimele 7 zile. <a href="#asistent" data-go="asistent">Vezi ce s-a întrebat →</a>`);
     if (s.unpaidCard) al.push(`💳 <b>${s.unpaidCard}</b> ${s.unpaidCard === 1 ? 'comandă cu cardul așteaptă' : 'comenzi cu cardul așteaptă'} plata (nu se pregătesc până nu sunt plătite). <a href="#comenzi" data-go="comenzi">Vezi →</a>`);
@@ -520,7 +521,20 @@
   /* ---------- orders ---------- */
   const ST = { noua: 'Nouă', confirmata: 'Confirmată', expediata: 'Expediată', livrata: 'Livrată', anulata: 'Anulată' };
   let orders = [];
-  loaders.comenzi = async () => { orders = await api('admin/orders'); renderOrders(); };
+  loaders.comenzi = async () => { orders = await api('admin/orders'); renderOrders(); loadWithdrawals(); };
+  // withdrawal requests sent through the online form
+  async function loadWithdrawals() {
+    const list = await api('admin/withdrawals').catch(() => []);
+    $('#wdPanel').hidden = !list.length;
+    $('#wdList').innerHTML = list.map((w) => `<article class="ord${w.status === 'noua' ? '' : ' off'}">
+      <div class="ord__head"><h3>R${w.number} · comanda #${esc(w.order)}</h3><span class="status status--${w.status === 'noua' ? 'noua' : 'livrata'}">${w.status === 'noua' ? 'Nouă' : 'Rezolvată'}</span></div>
+      <div class="ord__meta">${when(w.at)} · ${esc(w.name || 'fără nume')} · <a href="mailto:${esc(w.email)}">${esc(w.email)}</a>${w.matched ? '' : ' · <b class="low">comanda nu a fost găsită cu acest e-mail (poate fi din magazinul vechi)</b>'}</div>
+      <p>Produse: <b>${esc(w.details || 'toată comanda')}</b></p>
+      <div class="row"><button class="btn btn--sm" type="button" data-wd="${w.id}" data-to="${w.status === 'noua' ? 'rezolvata' : 'noua'}">${w.status === 'noua' ? '✓ Marchează rezolvată' : 'Redeschide'}</button></div></article>`).join('');
+    $$('[data-wd]').forEach((b) => b.addEventListener('click', async () => {
+      try { await api('admin/withdrawals/' + b.dataset.wd, { method: 'PUT', body: { status: b.dataset.to } }); loadWithdrawals(); } catch (x) { toast(x.message); }
+    }));
+  }
   $('#ordFilter').addEventListener('change', renderOrders);
   function renderOrders() {
     const f = $('#ordFilter').value, list = orders.filter((o) => !f || o.status === f);

@@ -1018,3 +1018,18 @@ a.credit:hover { transform: translateY(-2px); border-color: rgba(214,90,220,.7);
 .legal__body h2, .legal__body h3, .legal__body h4 { font-family: var(--f-display); font-weight: 500; color: var(--gold-hi); margin: 30px 0 10px; font-size: 20px; }
 .legal__body a { color: var(--gold-hi); text-decoration: underline; }
 .legal__body ul, .legal__body ol { padding-left: 22px; }
+
+/* a product opened from a direct link */
+.pcard--focus { outline: 1px solid var(--gold); box-shadow: 0 0 0 4px rgba(212,169,69,.18); }
+/* withdrawal form */
+.wform { display: grid; gap: 14px; margin: 22px 0; padding: 22px; border: 1px solid var(--line); border-radius: 18px; background: rgba(255,255,255,.02); }
+.wform label { display: block; font-size: 14px; color: var(--muted); }
+.wform label span { color: var(--gold-hi); }
+.wform input, .wform textarea { display: block; margin-top: 6px; width: 100%; padding: 12px 14px; border-radius: 12px; border: 1px solid rgba(255,255,255,.14); background: rgba(0,0,0,.45); color: var(--ink); font: 400 15px var(--f-sans); outline: none; }
+.wform input:focus, .wform textarea:focus { border-color: var(--gold); }
+.wform__err { margin: 0; color: #ef6b62; font-size: 14px; } .wform__err:empty { display: none; }
+.wform .btn { justify-self: start; }
+.wform__done { margin: 22px 0; padding: 22px; border: 1px solid rgba(95,211,138,.45); border-radius: 18px; background: rgba(95,211,138,.06); }
+.wform__done h2 { margin-top: 0; }
+.notfound { text-align: center; padding-top: 16vh; }
+.notfound .btn { margin: 6px; }

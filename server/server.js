@@ -24,7 +24,7 @@ const TYPES = {
   '.woff2': 'font/woff2', '.webmanifest': 'application/manifest+json'
 };
 // never served as static files
-const BLOCKED = /^\/(server|data|\.git|node_modules)(\/|$)|\/\.[^/]/;
+const BLOCKED = /^\/(server|data|\.git|node_modules)(\/|$)|\/\.[^/]|^\/[^/]+\.(md|ya?ml|py|json|lock)$|^\/Dockerfile$/i;
 
 /* ---------- helpers ---------- */
 function send(res, code, data, headers = {}) {
@@ -425,6 +425,26 @@ async function api(req, res, url) {
     const s = store.settings();
     return ok(res, { enabled: s.shopEnabled, shippingCost: s.shippingCost, freeShippingFrom: s.freeShippingFrom, cod: s.codEnabled, card: payReady(s), wallets: !!s.pay.wallets, chatCallback: !!s.chat.callback });
   }
+  // withdrawal from the contract: the online form (the customer gets a confirmation of receipt by e-mail)
+  if (p === '/api/withdrawal' && m === 'POST') {
+    try {
+      const b = await readBody(req, 8000);
+      const orderNo = str(b.order, 20).replace(/^#/, ''), email = str(b.email, 120), name = str(b.name, 80), details = str(b.details, 600);
+      if (!orderNo || !mailer.isEmail(email)) throw new Error('Completează numărul comenzii și o adresă de e-mail corectă.');
+      if (chatLimit('w' + ip(req), 5, 3600e3)) throw new Error('Prea multe cereri. Te rugăm să ne scrii la florinroscasalon@yahoo.com.');
+      const list = store.read('withdrawals', []), now = new Date().toISOString();
+      const order = store.read('orders', []).find((o) => String(o.number) === orderNo);
+      const rec = { id: crypto.randomUUID(), number: list.reduce((mx, w) => Math.max(mx, w.number || 0), 100) + 1, at: now, order: orderNo, email, name, details,
+        matched: !!(order && String(order.customer.email || '').toLowerCase() === email.toLowerCase()), status: 'noua' };
+      list.push(rec);
+      store.write('withdrawals', list);
+      const when = new Intl.DateTimeFormat('ro-RO', { timeZone: 'Europe/Bucharest', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }).format(new Date(now));
+      const origin = siteOrigin(req), s = store.settings();
+      mail(() => mailer.templates.withdrawalCustomer(rec, when));
+      mail((st) => mailer.templates.withdrawalSalon(rec, when, salonTo(st), origin));
+      return ok(res, { number: rec.number, order: orderNo, when, mailed: !!(s.mail.enabled && mailer.configured(s.mail, store.secrets().mailPass)) });
+    } catch (e) { return fail(res, 400, e.message); }
+  }
   // the virtual assistant: every question is kept, so the salon sees what visitors ask
   if (p === '/api/chat' && m === 'POST') {
     const b = await readBody(req, 5000), text = str(b.text, 300);
@@ -553,6 +573,7 @@ async function api(req, res, url) {
       unpaidCard: orders.filter((o) => o.status === 'noua' && awaitingPay(o)).length,
       pay: { enabled: !!s.pay.enabled, ready: payReady(s) },
       chat: chatStats(store.read('chats', [])),
+      withdrawals: store.read('withdrawals', []).filter((w) => w.status === 'noua').length,
       mail: { enabled: !!s.mail.enabled, ready: mailer.configured(s.mail, store.secrets().mailPass), lastError: s.mail.lastError },
       newConsults: store.read('consultations', []).filter((c) => c.status === 'noua').length,
       parcels: orders.filter((o) => (o.status === 'noua' || o.status === 'confirmata') && !awaitingPay(o)).length,
@@ -822,6 +843,16 @@ async function api(req, res, url) {
     } catch (e) { return fail(res, 400, e.message); }
   }
 
+  // withdrawal requests
+  if (p === '/api/admin/withdrawals' && m === 'GET') return ok(res, store.read('withdrawals', []).slice().sort((a, b) => b.at.localeCompare(a.at)).slice(0, 200));
+  const wd = p.match(/^\/api\/admin\/withdrawals\/([\w-]+)$/);
+  if (wd && m === 'PUT') {
+    const b = await readBody(req), list = store.read('withdrawals', []), w = list.find((x) => x.id === wd[1]);
+    if (!w) return fail(res, 404, 'Cererea nu există.');
+    if (['noua', 'rezolvata'].includes(b.status)) w.status = b.status;
+    store.write('withdrawals', list); return ok(res, w);
+  }
+
   // virtual assistant: conversations, questions without an answer, call-back requests
   if (p === '/api/admin/chats' && m === 'GET') {
     const list = store.read('chats', []), now = Date.now(), last = (c) => c.lastAt || c.startedAt;
@@ -942,16 +973,52 @@ async function api(req, res, url) {
 }
 
 /* ---------- static files ---------- */
+// addresses of the old WordPress / WooCommerce site → the new pages (old links and Google results keep working)
+const OLD_PAGES = {
+  '/magazin': '/magazin.html', '/cos': '/magazin.html', '/finalizare': '/magazin.html', '/contul-meu': '/magazin.html', '/shop': '/magazin.html', '/cart': '/magazin.html', '/checkout': '/magazin.html',
+  '/contact': '/#contact', '/despre-florin': '/#despre', '/consultatie': '/consultatie.html',
+  '/termeni-si-conditii': '/termeni.html', '/politica-de-confidentialitate': '/confidentialitate.html', '/livrare-si-retur': '/livrare-retur.html',
+  '/modalitati-de-plata': '/modalitati-de-plata.html', '/informatii-despre-retragere': '/informatii-retragere.html', '/formular-de-retragere': '/retragere.html'
+};
+const SITE_PAGES = ['/', '/magazin.html', '/consultatie.html', '/termeni.html', '/confidentialitate.html', '/livrare-retur.html', '/modalitati-de-plata.html', '/informatii-retragere.html', '/retragere.html'];
+function oldAddress(pathname) {
+  const p = pathname.replace(/\/+$/, '').toLowerCase();
+  if (OLD_PAGES[p]) return OLD_PAGES[p];
+  const prod = /^\/produs\/([a-z0-9-]+)$/.exec(p);
+  if (prod) return '/magazin.html#produs-' + prod[1];
+  if (/^\/(categorie-produs|eticheta-produs|product-category|product)\//.test(p)) return '/magazin.html';
+  return null;
+}
+const NOT_FOUND = '<!doctype html><html lang="ro"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="robots" content="noindex"><title>Pagina nu a fost găsită · Florin Roșca Luxury Hair</title><link rel="icon" href="/assets/img/favicon.png"><link rel="stylesheet" href="/css/style.css"></head>' +
+  '<body class="page-shop page-legal"><main class="legal notfound"><p class="eyebrow">Florin Roșca Luxury Hair</p><h1>Pagina nu a fost găsită</h1><p>Adresa s-a schimbat odată cu noul site. Găsești totul de aici:</p>' +
+  '<p><a class="btn btn--gold" href="/"><span>Pagina principală</span></a><a class="btn btn--ghost" href="/magazin.html"><span>Magazin</span></a></p></main></body></html>';
+const notFound = (res, rel) => (/\.[a-z0-9]{2,5}$/i.test(rel) && !/\.html?$/i.test(rel)
+  ? send(res, 404, 'Nu există.', { 'Content-Type': 'text/plain; charset=utf-8' })
+  : send(res, 404, NOT_FOUND, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' }));
+
 function serveStatic(req, res, url) {
   let rel = decodeURIComponent(url.pathname);
   if (rel === '/admin') { res.writeHead(301, { Location: '/admin/' }); return res.end(); }
+  // once the site has its own domain (PUBLIC_URL), the technical address sends visitors there
+  const home = (process.env.PUBLIC_URL || '').replace(/\/+$/, '');
+  if (home && /\.onrender\.com$/i.test(String(req.headers.host || '').split(':')[0]) && !home.includes(String(req.headers.host))) {
+    res.writeHead(301, { Location: home + url.pathname + url.search }); return res.end();
+  }
+  if (rel === '/robots.txt') return send(res, 200, 'User-agent: *\nDisallow: /admin/\nDisallow: /api/\n\nSitemap: ' + siteOrigin(req) + '/sitemap.xml\n', { 'Content-Type': 'text/plain; charset=utf-8', 'Cache-Control': 'public, max-age=3600' });
+  if (rel === '/sitemap.xml') {
+    const o = siteOrigin(req);
+    return send(res, 200, '<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n' + SITE_PAGES.map((x) => '  <url><loc>' + o + x + '</loc></url>').join('\n') + '\n</urlset>\n',
+      { 'Content-Type': 'application/xml; charset=utf-8', 'Cache-Control': 'public, max-age=3600' });
+  }
+  const moved = oldAddress(rel);
+  if (moved) { res.writeHead(301, { Location: moved, 'Cache-Control': 'public, max-age=3600' }); return res.end(); }
   if (rel.endsWith('/')) rel += 'index.html';
-  if (BLOCKED.test(rel)) return send(res, 404, 'Nu există.', { 'Content-Type': 'text/plain; charset=utf-8' });
+  if (BLOCKED.test(rel)) return notFound(res, rel);
   const base = rel.startsWith('/uploads/') ? store.DATA_DIR : ROOT;
   const full = path.normalize(path.join(base, rel));
   if (!full.startsWith(base + path.sep)) return send(res, 400, 'Cerere invalidă', { 'Content-Type': 'text/plain' });
   fs.stat(full, (err, st) => {
-    if (err || !st.isFile()) return send(res, 404, 'Pagina nu există.', { 'Content-Type': 'text/plain; charset=utf-8' });
+    if (err || !st.isFile()) return notFound(res, rel);
     const type = TYPES[path.extname(full).toLowerCase()] || 'application/octet-stream';
     const headers = {
       'Content-Type': type, 'X-Content-Type-Options': 'nosniff', 'Referrer-Policy': 'strict-origin-when-cross-origin',
