@@ -418,27 +418,54 @@ function evaluate(c) {
   return out;
 }
 
-async function saveConsult(body, origin) {
-  const c = {
-    name: str(body.name, 120), phone: str(body.phone, 30), email: str(body.email, 120), service: str(body.service, 40),
-    lastColor: str(body.lastColor, 40), boxDye: YN(body.boxDye), homeBleach: YN(body.homeBleach),
-    keratin: YN(body.keratin), keratinSince: str(body.keratinSince, 80), perm: YN(body.perm), permSince: str(body.permSince, 80),
-    allergy: YN(body.allergy), allergyDetails: str(body.allergyDetails, 200), notes: str(body.notes, 1000)
+// the answers of a client file; with `base`, only the fields that were sent change (editing from the panel)
+const CONSULT_KEYS = ['name', 'phone', 'email', 'service', 'lastColor', 'boxDye', 'homeBleach', 'keratin', 'keratinSince', 'perm', 'permSince', 'allergy', 'allergyDetails', 'notes'];
+const CONSULT_STATUS = ['noua', 'contactata', 'programata', 'finalizata'];
+function consultFields(body, base) {
+  const b = base || {};
+  const s = (k, max) => (body[k] !== undefined ? str(body[k], max) : b[k] || '');
+  const yn = (k) => (body[k] !== undefined ? YN(body[k]) : b[k] || '');
+  return {
+    name: s('name', 120), phone: s('phone', 30), email: s('email', 120), service: s('service', 40),
+    lastColor: s('lastColor', 40), boxDye: yn('boxDye'), homeBleach: yn('homeBleach'),
+    keratin: yn('keratin'), keratinSince: s('keratinSince', 80), perm: yn('perm'), permSince: s('permSince', 80),
+    allergy: yn('allergy'), allergyDetails: s('allergyDetails', 200), notes: s('notes', 1000)
   };
+}
+// the salon may leave answers empty (a client met in the salon); the name stays mandatory
+function consultCheck(c) {
+  if (!c.name) return 'Scrie numele clientei.';
+  if (c.phone && !/^[+0-9 ()-]{9,20}$/.test(c.phone)) return 'Numărul de telefon nu pare corect.';
+  if (c.email && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(c.email)) return 'Adresa de e-mail nu pare corectă.';
+  return '';
+}
+// photos arrive as data URLs; "" removes one. Returns the new { key: file name } map.
+function consultPhotos(id, sent, current, required) {
+  const files = { ...(current || {}) }, drop = (f) => { try { fs.unlinkSync(path.join(PRIVATE, f)); } catch (e) {} };
+  for (const k of ['photoFront', 'photoBack', 'photoDeposit']) {
+    const v = (sent || {})[k];
+    if (v === undefined || v === null) { if (required) throw new Error('Adaugă toate cele 3 poze (față, spate și dovada avansului).'); continue; }
+    if (v === '' && !required) { if (files[k]) drop(files[k]); delete files[k]; continue; }
+    const mt = /^data:image\/(jpeg|png|webp);base64,([A-Za-z0-9+/=]+)$/.exec(v);
+    if (!mt) throw new Error(required ? 'Adaugă toate cele 3 poze (față, spate și dovada avansului).' : 'O poză nu a putut fi citită. Alege o imagine JPG, PNG sau WebP.');
+    const buf = Buffer.from(mt[2], 'base64');
+    if (buf.length > 6e6) throw new Error('O poză este prea mare.');
+    // a replaced photo gets a new name, so the browser does not show the old one from its cache
+    const name = id + '-' + k + (files[k] ? '-' + Date.now().toString(36) : '') + '.' + mt[1].replace('jpeg', 'jpg');
+    fs.writeFileSync(path.join(PRIVATE, name), buf);
+    if (files[k]) drop(files[k]);
+    files[k] = name;
+  }
+  return files;
+}
+
+async function saveConsult(body, origin) {
+  const c = consultFields(body);
   if (!c.name || !/^[+0-9 ()-]{9,20}$/.test(c.phone)) throw new Error('Completează numele și un număr de telefon corect.');
   if (c.email && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(c.email)) throw new Error('Adresa de e-mail nu pare corectă.');
   if (!c.service || !c.lastColor || !c.boxDye || !c.homeBleach || !c.keratin || !c.perm || !c.allergy) throw new Error('Răspunde la toate întrebările marcate cu *.');
   if (!body.depositAck || !body.gdpr) throw new Error('Bifează acordurile de la final.');
-  const id = crypto.randomUUID(), files = {};
-  for (const k of ['photoFront', 'photoBack', 'photoDeposit']) {
-    const mt = /^data:image\/(jpeg|png|webp);base64,([A-Za-z0-9+/=]+)$/.exec((body.photos || {})[k] || '');
-    if (!mt) throw new Error('Adaugă toate cele 3 poze (față, spate și dovada avansului).');
-    const buf = Buffer.from(mt[2], 'base64');
-    if (buf.length > 6e6) throw new Error('O poză este prea mare.');
-    const name = id + '-' + k + '.' + mt[1].replace('jpeg', 'jpg');
-    fs.writeFileSync(path.join(PRIVATE, name), buf);
-    files[k] = name;
-  }
+  const id = crypto.randomUUID(), files = consultPhotos(id, body.photos, {}, true);
   const list = store.read('consultations', []);
   const rec = { id, number: list.reduce((m, x) => Math.max(m, x.number || 0), 0) + 1, createdAt: new Date().toISOString(), status: 'noua', ...c, photos: files, evaluation: evaluate(c), consent: { gdpr: true, depositNonRefundable: true, at: new Date().toISOString() } };
   list.push(rec);
@@ -858,11 +885,36 @@ async function api(req, res, url) {
 
   // client files (consultations)
   if (p === '/api/admin/consults' && m === 'GET') return ok(res, store.read('consultations', []).slice().reverse());
+  // the salon adds a client file itself (answers and photos are optional, the name is not)
+  if (p === '/api/admin/consults' && m === 'POST') {
+    let b; try { b = await readBody(req, 20e6); } catch (e) { return fail(res, 400, 'Pozele sunt prea mari.'); }
+    const f = consultFields(b), bad = consultCheck(f);
+    if (bad) return fail(res, 400, bad);
+    const id = crypto.randomUUID(); let files;
+    try { files = consultPhotos(id, b.photos, {}, false); } catch (e) { return fail(res, 400, e.message); }
+    const list = store.read('consultations', []);
+    const rec = { id, number: list.reduce((n, x) => Math.max(n, x.number || 0), 0) + 1, createdAt: new Date().toISOString(), source: 'salon',
+      status: CONSULT_STATUS.includes(b.status) ? b.status : 'contactata', ...f, photos: files, evaluation: evaluate(f),
+      adminNote: str(b.adminNote, 3000), appointment: str(b.appointment, 60) };
+    list.push(rec); store.write('consultations', list);
+    return ok(res, rec);
+  }
   const cm = p.match(/^\/api\/admin\/consults\/([\w-]+)$/);
   if (cm && m === 'PUT') {
-    const b = await readBody(req), list = store.read('consultations', []), c = list.find((x) => x.id === cm[1]);
+    let b; try { b = await readBody(req, 20e6); } catch (e) { return fail(res, 400, 'Pozele sunt prea mari.'); }
+    const list = store.read('consultations', []), c = list.find((x) => x.id === cm[1]);
     if (!c) return fail(res, 404, 'Fișa nu există.');
-    if (['noua', 'contactata', 'programata', 'finalizata'].includes(b.status)) c.status = b.status;
+    // any answer can be corrected from the panel, including the ones the client filled in herself
+    if (CONSULT_KEYS.some((k) => b[k] !== undefined)) {
+      const f = consultFields(b, c), bad = consultCheck(f);
+      if (bad) return fail(res, 400, bad);
+      Object.assign(c, f); c.evaluation = evaluate(c); c.editedAt = new Date().toISOString();
+    }
+    if (b.photos && typeof b.photos === 'object') {
+      try { c.photos = consultPhotos(c.id, b.photos, c.photos, false); } catch (e) { return fail(res, 400, e.message); }
+      c.editedAt = new Date().toISOString();
+    }
+    if (CONSULT_STATUS.includes(b.status)) c.status = b.status;
     if (b.adminNote !== undefined) c.adminNote = str(b.adminNote, 3000);
     if (b.appointment !== undefined) c.appointment = str(b.appointment, 60);
     store.write('consultations', list); return ok(res, c);

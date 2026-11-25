@@ -10,6 +10,10 @@ Panoul se deschide la adresa **/admin/** a site-ului (de ex. `https://florinrosc
 - **SmartBill**: conectezi contul. Stocul se sincronizează automat, iar factura se emite manual sau automat la fiecare comandă.
 - **Magazin & cont**: oprești sau pornești comenzile online, setezi costul livrării și pragul de livrare gratuită, schimbi parola.
 
+## Fișe cliente
+- Fișele completate de cliente pe site apar la **Fișe cliente**. Cu **+ Fișă nouă** adaugi tu o fișă (ajunge numele; restul răspunsurilor și pozele sunt opționale).
+- Cu **✏️ Modifică fișa** schimbi orice răspuns, inclusiv la fișele completate de cliente, și poți adăuga, schimba sau scoate poze.
+
 ## Colete și curier (Sameday)
 1. Ceri de la Sameday (managerul de cont) **datele de acces pentru API**: utilizator și parolă API. Nu sunt aceleași cu cele de la eAWB.
 2. În panou: **Colete → Setări curier**. Alegi Sameday, completezi utilizatorul și parola, apoi apeși **„Încarcă din cont”** ca să alegi punctul de ridicare și serviciul. Apoi apeși **„Salvează”** și **„Testează conexiunea”**.
@@ -24,10 +28,15 @@ Panoul se deschide la adresa **/admin/** a site-ului (de ex. `https://florinrosc
 3. Apeși **Testează conexiunea**.
 4. La fiecare produs completezi **Codul produsului din SmartBill** (exact ca în nomenclatorul SmartBill), ca stocul să se potrivească.
 
+### Gestiuni și coduri de produs
+- În SmartBill există gestiunea **PRODUSE** (produsele de vânzare, din salon și de pe site) și gestiunea **SERVICII** (materialele folosite la servicii).
+- Fiecare produs de pe site are un **cod SmartBill** (ex. `LR-SPRAY-200`, `AY-MASCA-1000`). Același cod trebuie să fie și pe produsul din SmartBill: după cod se potrivesc stocul și facturile.
+- Citirea stocului din SmartBill se pornește abia după ce stocul a fost introdus în gestiunea PRODUSE. Altfel site-ul ar arăta toate produsele ca epuizate.
+
 ### Factura către clientă (e-mail și WhatsApp)
 - **Comenzi de pe site**: cu „Emite factura automat” bifat, factura se emite singură (la ramburs imediat, la card după ce plata e confirmată). Clienta primește în e-mailul de confirmare un buton **Descarcă factura**.
-- **Vânzare în salon**: bifezi **Emite și factură în SmartBill** (bifa se ține minte) și, dacă vrei, treci telefonul clientei. Pentru o vânzare deja salvată, apeși **Emite factură în SmartBill** din lista de vânzări.
-- **WhatsApp**: lângă fiecare factură apare **Trimite factura pe WhatsApp**. Se deschide WhatsApp cu mesajul gata scris și linkul facturii; apeși doar „Trimite”. Dacă nu ai trecut telefonul, alegi clienta din lista WhatsApp.
+- **Vânzare în salon**: aici nu se emite factură. Documentul fiscal este **bonul de la casa de marcat**, care se bate din SmartBill (Vânzări → Bon fiscal), de pe calculatorul legat la casa de marcat. În pagina „Vânzare salon” ai un link direct spre bonul fiscal din SmartBill.
+- **WhatsApp**: lângă factura fiecărei comenzi de pe site apare **Trimite factura pe WhatsApp**. Se deschide WhatsApp cu mesajul gata scris și linkul facturii; apeși doar „Trimite”.
 - Linkul facturii (`/factura/….pdf`) este privat: îl are doar cine primește mesajul și nu apare în Google.
 
 ## Plata cu cardul (EuPlătesc), Apple Pay și Google Pay

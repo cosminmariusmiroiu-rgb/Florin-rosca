@@ -85,12 +85,10 @@
             <div class="sale__opts">
               <select id="salePay" aria-label="Plata"><option value="cash">💵 Numerar</option><option value="card">💳 Card</option><option value="transfer">🏦 Transfer</option></select>
               <input id="saleClient" placeholder="Clientă (opțional)" aria-label="Clientă">
-              <input id="salePhone" type="tel" placeholder="Telefon (pentru factura pe WhatsApp)" aria-label="Telefon clientă">
             </div>
-            <label class="check" id="saleInvWrap" hidden><input type="checkbox" id="saleInv"> Emite și factură în SmartBill</label>
             <div class="row"><button class="btn" type="button" id="saleClear">Golește</button><button class="btn btn--gold sale__go" type="submit" id="saleGo">✓ Vândut</button></div>
             <p class="note" id="saleMsg" role="status"></p>
-            <div id="saleWa" hidden></div>
+            <p class="sale__bon">Bonul fiscal se bate din SmartBill, la casa de marcat: <a href="https://cloud.smartbill.ro/documente/emitere/bon-fiscal/" target="_blank" rel="noopener">🧾 Deschide bonul fiscal în SmartBill</a></p>
           </div>
         </form>
         <div class="panel">
@@ -141,10 +139,11 @@
       <!-- FIȘE CLIENTE -->
       <section data-view="fise" hidden>
         <div class="bar"><h2>Fișe cliente</h2>
-          <div><input id="fiseSearch" type="search" placeholder="Caută după nume sau telefon">
+          <div><button class="btn btn--gold" id="fisaNew" type="button">+ Fișă nouă</button>
+          <input id="fiseSearch" type="search" placeholder="Caută după nume sau telefon">
           <select id="fiseFilter"><option value="">Toate</option><option value="noua">Noi</option><option value="contactata">Contactate</option><option value="programata">Programate</option><option value="finalizata">Finalizate</option></select></div>
         </div>
-        <p class="muted">Fișele completate de cliente pe site (pagina <b>/consultatie.html</b>). Pozele sunt private: le vezi doar tu, din panou.</p>
+        <p class="muted">Fișele completate de cliente pe site (pagina <b>/consultatie.html</b>) și cele adăugate de tine cu <b>+ Fișă nouă</b>. Pe oricare o poți modifica cu <b>✏️ Modifică fișa</b>. Pozele sunt private: le vezi doar tu, din panou.</p>
         <div id="fiseList" class="list"></div>
       </section>
 
@@ -323,6 +322,35 @@
       <label class="check"><input type="checkbox" name="salonOnly"> Doar în salon (nu apare pe site, se vinde doar la Vânzare salon)</label>
       <p class="err" id="prodErr" role="alert"></p>
       <div class="row row--end"><button class="btn btn--danger" type="button" id="prodDel">Șterge</button><button class="btn" type="button" id="prodDup">⧉ Duplică</button><span class="sp"></span><button class="btn" value="cancel" type="button" id="prodCancel">Renunță</button><button class="btn btn--gold" type="submit" id="prodSave">Salvează</button></div>
+    </form>
+  </dialog>
+
+  <!-- client file: add one from the salon / edit any answer -->
+  <dialog class="dlg" id="fisaDlg">
+    <form method="dialog" class="form" id="fisaForm">
+      <h3 id="fisaTitle">Fișă nouă</h3>
+      <div class="grid2">
+        <label>Nume și prenume<input name="name" required maxlength="120" autocomplete="off"></label>
+        <label>Telefon<input name="phone" type="tel" maxlength="30" autocomplete="off"></label>
+        <label>E-mail (opțional)<input name="email" type="email" maxlength="120" autocomplete="off"></label>
+        <label>Serviciu dorit<select name="service"><option value="">—</option><option>Balayage</option><option>Vopsit</option><option>Decolorat</option><option>Tratament</option><option>Altceva</option></select></label>
+        <label>Ultima vopsire / decolorare<select name="lastColor"><option value="">—</option><option>Niciodată</option><option>Sub o lună</option><option>1 – 3 luni</option><option>3 – 6 luni</option><option>Peste 6 luni</option></select></label>
+        <label>Vopsea din comerț<select name="boxDye"><option value="">—</option><option>Da</option><option>Nu</option></select></label>
+        <label>Decolorat acasă<select name="homeBleach"><option value="">—</option><option>Da</option><option>Nu</option></select></label>
+        <label>Keratină<select name="keratin"><option value="">—</option><option>Da</option><option>Nu</option></select></label>
+        <label>Keratină: de cât timp<input name="keratinSince" maxlength="80" placeholder="ex. de 2 luni"></label>
+        <label>Permanent<select name="perm"><option value="">—</option><option>Da</option><option>Nu</option></select></label>
+        <label>Permanent: de cât timp<input name="permSince" maxlength="80" placeholder="ex. de 6 luni"></label>
+        <label>Alergii<select name="allergy"><option value="">—</option><option>Da</option><option>Nu</option></select></label>
+        <label>La ce este alergică<input name="allergyDetails" maxlength="200" placeholder="ex. PPD, amoniac, latex"></label>
+        <label>Status<select name="status"><option value="noua">Nouă</option><option value="contactata">Contactată</option><option value="programata">Programată</option><option value="finalizata">Finalizată</option></select></label>
+        <label>Programare (zi și oră)<input name="appointment" maxlength="60" placeholder="ex. 28.11, ora 12:00"></label>
+      </div>
+      <label>Ce a mai spus clienta<textarea name="notes" rows="2" maxlength="1000"></textarea></label>
+      <label>Notițe pentru fișă<textarea name="adminNote" rows="3" maxlength="3000" placeholder="formulă culoare, tratament folosit, observații…"></textarea></label>
+      <div class="fphotos" id="fisaPhotos"></div>
+      <p class="err" id="fisaErr" role="alert"></p>
+      <div class="row row--end"><span class="sp"></span><button class="btn" type="button" id="fisaCancel">Renunță</button><button class="btn btn--gold" type="submit" id="fisaSave">Salvează fișa</button></div>
     </form>
   </dialog>
 

@@ -155,9 +155,7 @@
   loaders.vanzare = async () => {
     saleProducts = await api('admin/products'); await loadCats();
     const st = await api('admin/settings').catch(() => null);
-    $('#saleInvWrap').hidden = !(st && st.smartbillTokenSet && st.smartbill.cif);
     settings = settings || st;
-    try { if (!$('#saleInvWrap').hidden && localStorage.getItem('fr-sale-inv') === '1') $('#saleInv').checked = true; } catch (e) {}
     const used = ['all', ...cats.map((c) => c.id).filter((k) => saleProducts.some((p) => p.category === k))];
     $('#saleCats').innerHTML = used.map((k) => `<button type="button" class="chip${k === saleCat ? ' is-on' : ''}" data-cat="${k}">${esc(k === 'all' ? 'Toate' : catName(k))}</button>`).join('');
     $$('#saleCats .chip').forEach((c) => c.addEventListener('click', () => { saleCat = c.dataset.cat; $$('#saleCats .chip').forEach((x) => x.classList.toggle('is-on', x === c)); renderGrid(); }));
@@ -215,20 +213,16 @@
     const items = Object.keys(picked).map((id) => ({ id, qty: picked[id].qty, price: picked[id].price }));
     if (!items.length) { note($('#saleMsg'), 'Bifează mai întâi produsele vândute.', false); return; }
     try {
-      const phone = $('#salePhone').value;
-      const s = await busy($('#saleGo'), () => api('admin/sales', { method: 'POST', body: { items, payment: $('#salePay').value, client: $('#saleClient').value, phone, invoice: $('#saleInv').checked } }));
-      $('#saleWa').hidden = !s.invoice;
-      $('#saleWa').innerHTML = s.invoice ? waInvoice(s.invoice, phone, s.client, 'cumpărăturile de azi') + ` <a class="btn btn--sm" href="${invUrl(s.invoice)}" target="_blank" rel="noopener">📄 Vezi factura</a>` : '';
-      note($('#saleMsg'), `✓ Vânzarea #${s.number} a fost salvată: ${lei(s.total)}. Stocul a fost scăzut.` + (s.invoice ? ` Factura ${s.invoice.series} ${s.invoice.number} emisă în SmartBill.` : s.invoiceError ? ` Factura SmartBill NU s-a emis: ${s.invoiceError}` : ''), !s.invoiceError);
+      // in the salon the fiscal document is the receipt from the cash register (issued in SmartBill), not an invoice
+      const s = await busy($('#saleGo'), () => api('admin/sales', { method: 'POST', body: { items, payment: $('#salePay').value, client: $('#saleClient').value, invoice: false } }));
+      note($('#saleMsg'), `✓ Vânzarea #${s.number} a fost salvată: ${lei(s.total)}. Stocul a fost scăzut. Nu uita bonul fiscal.`, true);
       toast('Vânzare salvată ✓');
-      picked = {}; $('#saleClient').value = ''; $('#salePhone').value = '';
+      picked = {}; $('#saleClient').value = '';
       await loaders.vanzare();
     } catch (x) { note($('#saleMsg'), x.message, false); }
   });
   $('#saleRange').addEventListener('change', renderSales);
-  $('#saleInv').addEventListener('change', (e) => { try { localStorage.setItem('fr-sale-inv', e.target.checked ? '1' : '0'); } catch (x) {} });
   function renderSales() {
-    const canInvoice = !$('#saleInvWrap').hidden;
     const r = $('#saleRange').value, now = Date.now(), today = new Date().toISOString().slice(0, 10);
     const list = sales.filter((x) => r === 'all' ? true : r === 'today' ? x.createdAt.slice(0, 10) === today : now - Date.parse(x.createdAt) < +r * 864e5);
     const ok = list.filter((x) => !x.cancelled);
@@ -240,11 +234,8 @@
       <div class="ord__meta">${when(x.createdAt)}${x.client ? ' · ' + esc(x.client) : ''}</div>
       <div class="muted">${x.items.map((i) => `${i.qty} × ${esc(i.name)} ${esc(i.size || '')}`).join('<br>')}</div>
       ${x.invoice ? `<div class="row">Factura <b>${esc(x.invoice.series)} ${esc(x.invoice.number)}</b> <a class="btn btn--sm" href="${invUrl(x.invoice)}" target="_blank" rel="noopener">📄 PDF</a>${x.cancelled ? '' : waInvoice(x.invoice, x.phone, x.client, 'cumpărăturile din salon')}</div>` : x.invoiceError ? `<div class="err">Factura nu s-a emis: ${esc(x.invoiceError)}</div>` : ''}
-      ${x.cancelled ? '' : `<div class="row row--end">${!x.invoice && canInvoice ? `<button class="btn btn--sm btn--gold" data-sinv="${x.id}" type="button">Emite factură în SmartBill</button>` : ''}<span class="sp"></span><button class="btn btn--sm btn--danger" data-cancel="${x.id}" type="button">Anulează (pune stocul înapoi)</button></div>`}</div>`).join('')
+      ${x.cancelled ? '' : `<div class="row row--end"><span class="sp"></span><button class="btn btn--sm btn--danger" data-cancel="${x.id}" type="button">Anulează (pune stocul înapoi)</button></div>`}</div>`).join('')
       : '<div class="empty">Nicio vânzare în perioada aleasă.</div>';
-    $$('[data-sinv]').forEach((b) => b.addEventListener('click', () => busy(b, async () => {
-      try { await api('admin/sales/' + b.dataset.sinv + '/invoice', { method: 'POST', body: {} }); toast('Factura a fost emisă în SmartBill.'); loaders.vanzare(); } catch (x) { toast(x.message); loaders.vanzare(); }
-    })));
     $$('[data-cancel]').forEach((b) => b.addEventListener('click', async () => {
       if (!confirm('Anulezi vânzarea? Produsele se pun înapoi în stoc.')) return;
       try { await api('admin/sales/' + b.dataset.cancel + '/cancel', { method: 'POST' }); toast('Vânzarea a fost anulată.'); loaders.vanzare(); } catch (x) { toast(x.message); }
@@ -510,7 +501,7 @@
     const row = (l, v) => `<tr><td>${l}</td><td><b>${esc(v || '—')}</b></td></tr>`;
     $('#fiseList').innerHTML = list.map((c) => `<article class="ord">
       <div class="ord__head"><h3>Fișa #${c.number} · ${esc(c.name)}</h3><span class="status status--${c.status === 'noua' ? 'noua' : c.status === 'finalizata' ? 'livrata' : ''}">${FS[c.status] || c.status}</span></div>
-      <div class="ord__meta">${when(c.createdAt)} · <a href="tel:${esc(c.phone)}">${esc(c.phone)}</a>${c.email ? ' · <a href="mailto:' + esc(c.email) + '">' + esc(c.email) + '</a>' : ''} · serviciu: <b>${esc(c.service)}</b></div>
+      <div class="ord__meta">${when(c.createdAt)}${c.phone ? ` · <a href="tel:${esc(c.phone)}">${esc(c.phone)}</a>` : ''}${c.email ? ' · <a href="mailto:' + esc(c.email) + '">' + esc(c.email) + '</a>' : ''} · serviciu: <b>${esc(c.service || '—')}</b>${c.source === 'salon' ? ' · adăugată în salon' : ''}${c.editedAt ? ' · modificată ' + when(c.editedAt) : ''}</div>
       <div class="fise__grid">
         <table>${row('Ultima vopsire / decolorare', c.lastColor)}${row('Vopsea din comerț', c.boxDye)}${row('Decolorat acasă', c.homeBleach)}${row('Keratină', c.keratin + (c.keratinSince ? ' · ' + c.keratinSince : ''))}${row('Permanent', c.perm + (c.permSince ? ' · ' + c.permSince : ''))}${row('Alergii', c.allergy + (c.allergyDetails ? ' · ' + c.allergyDetails : ''))}${c.notes ? row('Observații', c.notes) : ''}</table>
         <div class="fise__ph">${[['photoFront', 'Față'], ['photoBack', 'Spate'], ['photoDeposit', 'Dovadă avans']].map(([k, l]) => c.photos && c.photos[k] ? `<a href="${ph(c.photos[k])}" target="_blank" rel="noopener"><img src="${ph(c.photos[k])}" alt="${l}" loading="lazy"><span>${l}</span></a>` : '').join('')}</div>
@@ -520,18 +511,70 @@
         <label>Programare (zi și oră)<input data-fap="${c.id}" value="${esc(c.appointment || '')}" placeholder="ex. 28.11, ora 12:00"></label>
         <label>Notițe pentru fișă<textarea data-fnote="${c.id}" rows="2" placeholder="formulă culoare, tratament folosit, observații…">${esc(c.adminNote || '')}</textarea></label>
       </div>
-      <div class="row row--end"><span class="sp"></span><button class="btn btn--sm btn--danger" data-fdel="${c.id}" type="button">Șterge fișa</button></div>
+      <div class="row row--end"><button class="btn btn--sm" data-fedit="${c.id}" type="button">✏️ Modifică fișa</button><span class="sp"></span><button class="btn btn--sm btn--danger" data-fdel="${c.id}" type="button">Șterge fișa</button></div>
     </article>`).join('');
     const save = (id, body) => api('admin/consults/' + id, { method: 'PUT', body }).then((c) => { fise = fise.map((x) => (x.id === id ? c : x)); toast('Fișa a fost salvată.'); }).catch((e) => toast(e.message));
     $$('[data-fst]').forEach((el) => el.addEventListener('change', () => save(el.dataset.fst, { status: el.value }).then(renderFise)));
     $$('[data-fap]').forEach((el) => el.addEventListener('change', () => save(el.dataset.fap, { appointment: el.value })));
     $$('[data-fnote]').forEach((el) => el.addEventListener('change', () => save(el.dataset.fnote, { adminNote: el.value })));
+    $$('[data-fedit]').forEach((el) => el.addEventListener('click', () => openFisa(fise.find((x) => x.id === el.dataset.fedit))));
     $$('[data-fdel]').forEach((el) => el.addEventListener('click', async () => {
       if (!confirm('Ștergi definitiv fișa și pozele ei?')) return;
       await api('admin/consults/' + el.dataset.fdel, { method: 'DELETE' }).catch((e) => toast(e.message));
       loaders.fise();
     }));
   }
+
+  // the salon adds a file itself or corrects any answer of an existing one (also the ones filled in by the client)
+  const F_TEXT = ['name', 'phone', 'email', 'service', 'lastColor', 'boxDye', 'homeBleach', 'keratin', 'keratinSince', 'perm', 'permSince', 'allergy', 'allergyDetails', 'notes', 'adminNote', 'appointment', 'status'];
+  const F_PHOTO = [['photoFront', 'Părul din față'], ['photoBack', 'Părul din spate'], ['photoDeposit', 'Dovada avansului']];
+  let fisaEdit = null, fisaPh = {};
+  const shrink = (file) => new Promise((res, rej) => {
+    const img = new Image(), url = URL.createObjectURL(file);
+    img.onload = () => {
+      const k = Math.min(1, 1600 / Math.max(img.width, img.height)), c = document.createElement('canvas');
+      c.width = Math.round(img.width * k); c.height = Math.round(img.height * k);
+      c.getContext('2d').drawImage(img, 0, 0, c.width, c.height); URL.revokeObjectURL(url);
+      res(c.toDataURL('image/jpeg', 0.82));
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); rej(new Error('Poza nu a putut fi citită.')); };
+    img.src = url;
+  });
+  function fisaPhotos() {
+    const cur = (fisaEdit && fisaEdit.photos) || {};
+    $('#fisaPhotos').innerHTML = F_PHOTO.map(([k, l]) => {
+      const src = fisaPh[k] !== undefined ? fisaPh[k] : ph(cur[k]);
+      return `<div class="fphoto${src ? ' has' : ''}"><label><input type="file" accept="image/*" data-fph="${k}" hidden>${src ? `<img src="${esc(src)}" alt="">` : '<b>📷</b>'}<span>${l}${src ? ' · schimbă' : ' · adaugă'}</span></label>${src ? `<button type="button" class="fphoto__x" data-fphx="${k}" aria-label="Scoate poza">×</button>` : ''}</div>`;
+    }).join('');
+    $$('#fisaPhotos [data-fph]').forEach((inp) => inp.addEventListener('change', async () => {
+      if (!inp.files[0]) return;
+      try { fisaPh[inp.dataset.fph] = await shrink(inp.files[0]); fisaPhotos(); } catch (x) { $('#fisaErr').textContent = x.message; }
+    }));
+    $$('#fisaPhotos [data-fphx]').forEach((b) => b.addEventListener('click', () => { fisaPh[b.dataset.fphx] = ''; fisaPhotos(); }));
+  }
+  function openFisa(c) {
+    fisaEdit = c || null; fisaPh = {};
+    const f = $('#fisaForm'); f.reset();
+    $('#fisaTitle').textContent = c ? `Modifică fișa #${c.number} · ${c.name}` : 'Fișă nouă';
+    F_TEXT.forEach((k) => {
+      const el = f.elements[k], v = c ? c[k] || '' : k === 'status' ? 'contactata' : '';
+      if (el.tagName === 'SELECT' && v && ![...el.options].some((o) => o.value === v)) el.add(new Option(v, v));   // an older answer that is not in the list
+      el.value = v;
+    });
+    $('#fisaErr').textContent = ''; fisaPhotos(); $('#fisaDlg').showModal();
+  }
+  $('#fisaNew').addEventListener('click', () => openFisa(null));
+  $('#fisaCancel').addEventListener('click', () => $('#fisaDlg').close());
+  $('#fisaForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const f = e.target, body = {};
+    F_TEXT.forEach((k) => { body[k] = f.elements[k].value.trim(); });
+    if (Object.keys(fisaPh).length) body.photos = fisaPh;
+    try {
+      await busy($('#fisaSave'), () => api('admin/consults' + (fisaEdit ? '/' + fisaEdit.id : ''), { method: fisaEdit ? 'PUT' : 'POST', body }));
+      $('#fisaDlg').close(); toast(fisaEdit ? 'Fișa a fost modificată.' : 'Fișa a fost adăugată.'); loaders.fise();
+    } catch (x) { $('#fisaErr').textContent = x.message; }
+  });
 
   /* ---------- virtual assistant ("Florin" on the site) ---------- */
   const TOPIC = { programare: 'Programare', orar: 'Program & adresă', servicii: 'Servicii', balayage: 'Balayage', tratamente: 'Tratamente', magazin: 'Magazin', preturi: 'Prețuri',

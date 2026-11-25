@@ -343,3 +343,14 @@ b.low { color: var(--red); } b.okk { color: var(--green); }
 .simcolor { background: var(--card2); border-radius: 18px; padding: 14px; }
 .simcolor b { display: block; margin-bottom: 4px; }
 .simcolor label { margin: 8px 0; }
+
+/* client file editor: the three optional photos */
+.fphotos { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin: 6px 0 2px; }
+.fphoto { position: relative; }
+.fphoto label { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; min-height: 120px; padding: 8px; border: 1.5px dashed var(--line, #d9d4c8); border-radius: 18px; cursor: pointer; text-align: center; font-size: 13px; }
+.fphoto.has label { border-style: solid; }
+.fphoto label b { font-size: 26px; font-weight: 400; }
+.fphoto img { width: 100%; height: 110px; object-fit: cover; border-radius: 12px; }
+.fphoto__x { position: absolute; top: 6px; right: 6px; width: 28px; height: 28px; border: 0; border-radius: 50%; background: rgba(18,17,16,.75); color: #fff; font-size: 18px; line-height: 1; cursor: pointer; }
+.sale__bon { margin: 8px 0 0; font-size: 13.5px; opacity: .9; }
+.sale__bon a { color: inherit; font-weight: 600; text-decoration: underline; white-space: nowrap; }

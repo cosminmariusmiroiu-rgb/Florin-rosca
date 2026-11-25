@@ -9,7 +9,7 @@
     "image": "assets/img/shop/spray-reparator-luxury-repair-200-ml.webp",
     "alt": "Spray reparator Luxury Repair cu colagen și aminoacizi, 200 ml",
     "description": "",
-    "smartbillCode": "",
+    "smartbillCode": "LR-SPRAY-200",
     "stock": null,
     "active": true,
     "order": 1
@@ -24,7 +24,7 @@
     "image": "assets/img/shop/masca-reparatoare-luxury-repair-1000-ml.webp",
     "alt": "Mască reparatoare Luxury Repair cu colagen și aminoacizi, 1000 ml",
     "description": "",
-    "smartbillCode": "",
+    "smartbillCode": "LR-MASCA-1000",
     "stock": null,
     "active": true,
     "order": 2
@@ -39,7 +39,7 @@
     "image": "assets/img/shop/sampon-luxury-repair-1000-ml.webp",
     "alt": "Șampon Luxury Repair cu colagen și aminoacizi, 1000 ml",
     "description": "",
-    "smartbillCode": "",
+    "smartbillCode": "LR-SAMPON-1000",
     "stock": null,
     "active": true,
     "order": 3
@@ -54,7 +54,7 @@
     "image": "assets/img/shop/spray-mineral-luxury-repair-150-ml.webp",
     "alt": "Spray mineral Luxury Repair pentru păr deteriorat, 150 ml",
     "description": "",
-    "smartbillCode": "",
+    "smartbillCode": "LR-SPRAYMIN-150",
     "stock": null,
     "active": true,
     "order": 4
@@ -69,7 +69,7 @@
     "image": "assets/img/shop/fiole-reparatoare-luxury-repair-12-x-10-ml.webp",
     "alt": "Fiole reparatoare Luxury Repair pentru păr deteriorat, 12 × 10 ml",
     "description": "",
-    "smartbillCode": "",
+    "smartbillCode": "LR-FIOLE-12X10",
     "stock": null,
     "active": true,
     "order": 5
@@ -84,7 +84,7 @@
     "image": "assets/img/shop/kit-profesional-luxury-repair-5-pasi.webp",
     "alt": "Kit profesional Luxury Repair pentru îngrijirea părului în 5 pași",
     "description": "",
-    "smartbillCode": "",
+    "smartbillCode": "LR-KIT-5PASI",
     "stock": null,
     "active": true,
     "order": 6
@@ -99,7 +99,7 @@
     "image": "assets/img/shop/spuma-neutralizanta-luxury-repair-anti-yellow-200-ml.webp",
     "alt": "Spumă neutralizantă Luxury Repair Anti-Yellow pentru păr blond, 200 ml",
     "description": "",
-    "smartbillCode": "",
+    "smartbillCode": "AY-SPUMA-200",
     "stock": null,
     "active": true,
     "order": 7
@@ -114,7 +114,7 @@
     "image": "assets/img/shop/masca-neutralizanta-luxury-repair-anti-yellow-1000-ml.webp",
     "alt": "Mască neutralizantă Luxury Repair Anti-Yellow pentru păr blond, 1000 ml",
     "description": "",
-    "smartbillCode": "",
+    "smartbillCode": "AY-MASCA-1000",
     "stock": null,
     "active": true,
     "order": 8
@@ -129,7 +129,7 @@
     "image": "assets/img/shop/sampon-neutralizant-luxury-repair-anti-yellow-1000-ml.webp",
     "alt": "Șampon neutralizant Luxury Repair Anti-Yellow, 1000 ml",
     "description": "",
-    "smartbillCode": "",
+    "smartbillCode": "AY-SAMPON-1000",
     "stock": null,
     "active": true,
     "order": 9
@@ -144,7 +144,7 @@
     "image": "assets/img/shop/set-luxury-repair-anti-yellow-sampon-masca-2x1000-ml.webp",
     "alt": "Set Luxury Repair Anti-Yellow cu șampon și mască, 2 × 1000 ml",
     "description": "",
-    "smartbillCode": "",
+    "smartbillCode": "AY-SET-2X1000",
     "stock": null,
     "active": true,
     "order": 10
@@ -159,7 +159,7 @@
     "image": "assets/img/shop/kit-luxury-repair-anti-yellow-3-pasi-2200-ml.webp",
     "alt": "Kit Luxury Repair Anti-Yellow în 3 pași, 2200 ml",
     "description": "",
-    "smartbillCode": "",
+    "smartbillCode": "AY-KIT-3PASI",
     "stock": null,
     "active": true,
     "order": 11
@@ -174,7 +174,7 @@
     "image": "assets/img/shop/kit-luxury-repair-hair-botox-argan-oil-250-ml.webp",
     "alt": "Kit Luxury Repair Hair Botox și Argan Oil, 250 ml",
     "description": "",
-    "smartbillCode": "",
+    "smartbillCode": "LR-KIT-BOTOX-250",
     "stock": null,
     "active": true,
     "order": 12

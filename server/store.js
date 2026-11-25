@@ -21,6 +21,30 @@ function write(name, value) {
   return value;
 }
 
+// the products' codes in SmartBill (nomenclature + stock): the same code on the site and in SmartBill links the two
+const SMARTBILL_CODES = {
+  'spray-reparator-luxury-repair-200-ml': 'LR-SPRAY-200',
+  'masca-reparatoare-luxury-repair-1000-ml': 'LR-MASCA-1000',
+  'sampon-luxury-repair-1000-ml': 'LR-SAMPON-1000',
+  'spray-mineral-luxury-repair-150-ml': 'LR-SPRAYMIN-150',
+  'fiole-reparatoare-luxury-repair-12-x-10-ml': 'LR-FIOLE-12X10',
+  'kit-profesional-luxury-repair-5-pasi': 'LR-KIT-5PASI',
+  'spuma-neutralizanta-luxury-repair-anti-yellow-200-ml': 'AY-SPUMA-200',
+  'masca-neutralizanta-luxury-repair-anti-yellow-1000-ml': 'AY-MASCA-1000',
+  'sampon-neutralizant-luxury-repair-anti-yellow-1000-ml': 'AY-SAMPON-1000',
+  'set-luxury-repair-anti-yellow-sampon-masca-2x1000-ml': 'AY-SET-2X1000',
+  'kit-luxury-repair-anti-yellow-3-pasi-2200-ml': 'AY-KIT-3PASI',
+  'kit-luxury-repair-hair-botox-argan-oil-250-ml': 'LR-KIT-BOTOX-250'
+};
+// products that have no SmartBill code yet receive the one above (a code set from the panel is never changed)
+function defaultCodes() {
+  const list = read('products', null);
+  if (!Array.isArray(list)) return;
+  let changed = false;
+  for (const p of list) if (p && !p.smartbillCode && SMARTBILL_CODES[p.id]) { p.smartbillCode = SMARTBILL_CODES[p.id]; changed = true; }
+  if (changed) write('products', list);
+}
+
 // first run: products come from the seed extracted from the old shop
 function products() {
   return read('products', () => {
@@ -106,4 +130,6 @@ function settings() {
 function secrets() { return read('secrets', {}); }
 function saveSecrets(v) { return write('secrets', v); }
 
-module.exports = { DATA_DIR, ROOT, read, write, products, categories, settings, secrets, saveSecrets };
+defaultCodes();
+
+module.exports = { DATA_DIR, ROOT, read, write, products, categories, settings, secrets, saveSecrets, SMARTBILL_CODES };
