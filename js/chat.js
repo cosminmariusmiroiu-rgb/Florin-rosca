@@ -1,5 +1,5 @@
 /* =========================================================
-   Aurelia — asistenta virtuală a salonului Florin Roșca
+   Florin — asistentul virtual al salonului Florin Roșca (se prezintă mereu ca asistent virtual, nu ca stilistul)
    Răspunde din informațiile reale ale salonului (fără AI extern).
    Pe serverul site-ului, întrebările se salvează pentru salon (panou → Asistent virtual),
    iar vizitatorul își poate lăsa numele și telefonul ca să fie sunat.
@@ -18,7 +18,7 @@
     { id: 'orar', label: 'Program & adresă', keys: ['orar', 'programul', 'deschis', 'inchis', 'ora', 'ore', 'adresa', 'unde', 'locatie', 'harta', 'ghencea', 'dimri', 'sector', 'cum ajung', 'weekend', 'duminica', 'sambata'],
       a: `📍 <b>Prelungirea Ghencea 350–356</b>, Cartier Dimri, Bloc C3, AP7, București, Sector 6.<br>🕚 <b>Luni – Sâmbătă:</b> 11:00 – 21:00<br>Duminică: închis<a class="aur-act" href="${MAPS}" target="_blank" rel="noopener">🗺️ Deschide în Google Maps</a>` },
     { id: 'servicii', label: 'Servicii', keys: ['servici', 'ce faceti', 'oferiti', 'tuns', 'tunsoare', 'vopsit', 'vopsea', 'culoare', 'corectie', 'transformare', 'schimbare'],
-      a: `Florin se ocupă de:<br>✦ <b>Balayage Premium Dubai</b>: blonduri și șuvițe dimensionale, tehnici Mounir Academy<br>✦ <b>Transformări complete de lux</b>: schimbări de look, corecții de culoare, tunsori personalizate<br>✦ <b>Tratamente intensive</b>: Hair Botox, reparare și hidratare profundă<br>Totul pornește de la o <b>consultație gratuită</b> de 15 minute.` },
+      a: `În salon, <b>Florin Roșca</b> se ocupă de:<br>✦ <b>Balayage Premium Dubai</b>: blonduri și șuvițe dimensionale, tehnici Mounir Academy<br>✦ <b>Transformări complete de lux</b>: schimbări de look, corecții de culoare, tunsori personalizate<br>✦ <b>Tratamente intensive</b>: Hair Botox, reparare și hidratare profundă<br>Totul pornește de la o <b>consultație gratuită</b> de 15 minute.` },
     { id: 'balayage', label: 'Balayage', keys: ['balayage', 'balaiaj', 'blond', 'suvite', 'suvita', 'perlat', 'platinat', 'ombre', 'decolor'],
       a: `<b>Balayage Premium Dubai</b>: blonduri și șuvițe dimensionale, realizate prin tehnici <b>Mounir Academy</b>. Nuanțele sunt alese în funcție de părul tău și de rezultatul dorit, iar la final primești recomandări de menținere a culorii.<br>Începe cu o consultație gratuită: sună la <b>${TEL}</b>.${callBtn}` },
     { id: 'tratamente', label: 'Tratamente', keys: ['tratament', 'botox', 'hidrat', 'reparare', 'deteriorat', 'ars', 'uscat', 'rupt', 'varfuri', 'cadere'],
@@ -26,11 +26,11 @@
     { id: 'magazin', label: 'Magazin', keys: ['magazin', 'produs', 'cumpar', 'sampon', 'masca', 'fiole', 'spray', 'spuma', 'kit', 'set', 'luxury repair', 'anti-yellow', 'anti yellow', 'livrare', 'comanda'],
       a: `În magazin găsești gama <b>Luxury Repair</b>: 12 produse, între care șampon, mască, fiole, spray-uri, gama Anti-Yellow pentru blond, kituri și seturi, toate cu reducere.<br>De exemplu: Fiole reparatoare <b>350 lei</b> (în loc de 499), Kit Hair Botox & Argan Oil <b>299 lei</b> (în loc de 465).<a class="aur-act" href="${SHOP}">🛍️ Intră în magazin</a>` },
     { id: 'preturi', label: 'Prețuri', keys: ['pret', 'cost', 'costa', 'cat e', 'cat este', 'tarif', 'lei', 'bani', 'scump', 'ieftin'],
-      a: `Prețul la balayage, culoare sau tratament depinde de părul tău: lungime, densitate, starea firului și rezultatul dorit. Florin ți-l spune exact la <b>consultația gratuită</b> sau la telefon, <b>${TEL}</b>.<br>Prețurile produselor din magazin sunt afișate direct pe produse.${callBtn}` },
-    { id: 'florin', label: 'Despre Florin', keys: ['florin', 'cine', 'despre', 'experienta', 'mounir', 'dubai', 'formare', 'academie', 'curs', 'seminar'],
+      a: `Prețul la balayage, culoare sau tratament depinde de părul tău: lungime, densitate, starea firului și rezultatul dorit. Îl afli exact la <b>consultația gratuită</b> sau la telefon, <b>${TEL}</b>.<br>Prețurile produselor din magazin sunt afișate direct pe produse.${callBtn}` },
+    { id: 'florin', label: 'Despre Florin Roșca', keys: ['florin', 'cine', 'despre', 'experienta', 'mounir', 'dubai', 'formare', 'academie', 'curs', 'seminar'],
       a: `<b>Florin Roșca</b> are <b>peste 10 ani</b> de experiență în hairstyling și s-a format la <b>Mounir Academy Dubai</b> în tehnici de culoare și balayage.<br>⭐ Este <b>primul hair-stylist publicat pe paginile lui Mounir</b>.<br>Salonul are <b>4,9 din 5</b> din 581 de recenzii pe Google.` },
     { id: 'consultatie', label: 'Consultație gratuită', keys: ['consult', 'gratis', 'gratuit', 'sfat', 'recomand', 'nu stiu', 'ce mi se potriveste'],
-      a: `Prima consultație este <b>gratuită și durează 15 minute</b>. Florin analizează părul și stilul tău și îți recomandă tehnica de culoare, tunsoarea și îngrijirea potrivite.<br>Pentru o transformare completă există și o consultație dedicată de 30 de minute.${callBtn}` },
+      a: `Prima consultație este <b>gratuită și durează 15 minute</b>. Florin Roșca îți analizează părul și stilul și îți recomandă tehnica de culoare, tunsoarea și îngrijirea potrivite.<br>Pentru o transformare completă există și o consultație dedicată de 30 de minute.${callBtn}` },
     { id: 'recenzii', label: 'Recenzii', keys: ['recenz', 'pareri', 'review', 'stele', 'google', 'nota'],
       a: `Salonul Florin Roșca are <b>4,9 din 5 stele</b> din <b>581 de recenzii</b> pe Google.<a class="aur-act" href="${MAPS}" target="_blank" rel="noopener">⭐ Vezi recenziile</a>` },
     { id: 'contact', label: 'Contact', keys: ['telefon', 'numar', 'suna', 'contact', 'whatsapp', 'instagram', 'facebook', 'tiktok', 'mesaj'],
@@ -53,7 +53,7 @@
     }
     return best;
   }
-  const unknown = () => `Nu sunt sigură că am înțeles. 🙏 Poți alege un subiect de mai jos, sau îl suni direct pe Florin la <b>${TEL}</b>, care îți răspunde la orice întrebare.${callBtn}` +
+  const unknown = () => `Nu sunt sigur că am înțeles. 🙏 Poți alege un subiect de mai jos, sau suni direct la salon, la <b>${TEL}</b>, unde primești răspuns la orice întrebare.${callBtn}` +
     (callbackOn ? '<button type="button" class="aur-act aur-act--line" data-call>📲 Vreau să fiu sunat(ă)</button>' : '');
 
   // ---------- what visitors ask is kept for the salon (no names, unless they leave them) ----------
@@ -72,13 +72,13 @@
   const root = document.createElement('div');
   root.className = 'aur';
   root.innerHTML = `
-    <button class="aur-fab" type="button" aria-label="Deschide chatul cu Aurelia" aria-expanded="false">
+    <button class="aur-fab" type="button" aria-label="Deschide chatul cu Florin, asistentul virtual" aria-expanded="false">
       <span class="aur-fab__icon" aria-hidden="true">✦</span><span class="aur-fab__ping"></span>
     </button>
-    <section class="aur-win" role="dialog" aria-label="Chat cu Aurelia" hidden>
+    <section class="aur-win" role="dialog" aria-label="Chat cu Florin, asistentul virtual" hidden>
       <header class="aur-head">
-        <span class="aur-ava" aria-hidden="true">A</span>
-        <div><b>Aurelia</b><small><i></i> Asistenta salonului Florin Roșca</small></div>
+        <span class="aur-ava" aria-hidden="true">F</span>
+        <div><b>Florin</b><small><i></i> Asistentul virtual al salonului</small></div>
         <button class="aur-x" type="button" aria-label="Închide chatul">×</button>
       </header>
       <div class="aur-log" aria-live="polite"></div>
@@ -164,7 +164,7 @@
     root.classList.toggle('is-open', v);
     if (v && !greeted) {
       greeted = true;
-      botSay(`Bună, sunt <b>Aurelia</b> ✨, asistentul virtual al salonului <b>Florin Roșca Luxury Hair</b>. Te pot ajuta cu ceva? Îți răspund despre programări, servicii, program și produse.`);
+      botSay(`Bună, sunt <b>Florin</b> ✨, asistentul virtual al salonului <b>Florin Roșca Luxury Hair</b>. Te pot ajuta cu ceva? Îți răspund despre programări, servicii, program și produse.`);
     }
     if (v) setTimeout(() => input.focus(), 50);
   }
@@ -185,13 +185,13 @@
   lab.addEventListener('click', () => open(true));
   root.appendChild(lab);
 
-  // on every visit: Aurelia asks if she can help (closable)
+  // on every visit: the assistant asks if it can help (closable)
   setTimeout(() => {
     if (!win.hidden) return;
     const tip = document.createElement('div');
     tip.className = 'aur-tip';
     tip.setAttribute('role', 'status');
-    tip.innerHTML = 'Bună! Sunt <b>Aurelia</b>, asistentul virtual ✨<br>Te pot ajuta cu ceva?<button type="button" class="aur-tip__x" aria-label="Închide">×</button>';
+    tip.innerHTML = 'Bună! Sunt <b>Florin</b>, asistentul virtual ✨<br>Te pot ajuta cu ceva?<button type="button" class="aur-tip__x" aria-label="Închide">×</button>';
     tip.addEventListener('click', (e) => { tip.remove(); if (!e.target.closest('.aur-tip__x')) open(true); });
     root.appendChild(tip);
     root.classList.add('has-tip');

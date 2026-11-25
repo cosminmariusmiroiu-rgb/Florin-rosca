@@ -204,7 +204,7 @@ const templates = {
     return {
       to, subject: 'Cerere de apel de la asistentul virtual · ' + contact.name,
       html: layout('Cineva a cerut să fie sunat', '<p><b>' + esc(contact.name) + '</b> · <a href="tel:' + esc(contact.phone) + '">' + esc(contact.phone) + '</a></p>' +
-        (contact.note ? '<p><i>„' + esc(contact.note) + '”</i></p>' : '') + '<p>Cererea a venit prin Aurelia, asistentul virtual de pe site.</p>' +
+        (contact.note ? '<p><i>„' + esc(contact.note) + '”</i></p>' : '') + '<p>Cererea a venit prin asistentul virtual de pe site.</p>' +
         (site ? '<p><a href="' + esc(site) + '/admin/#asistent" style="display:inline-block;background:#c9a24a;color:#14100a;text-decoration:none;padding:11px 20px;border-radius:9px;font-weight:bold">Deschide panoul</a></p>' : '')),
       text: 'Cerere de apel de la asistentul virtual\n' + contact.name + ', ' + contact.phone + (contact.note ? '\n„' + contact.note + '”' : '') + (site ? '\n\nPanou: ' + site + '/admin/#asistent' : '')
     };

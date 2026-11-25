@@ -112,7 +112,7 @@
     if (s.newOrders) al.push(`🧾 Ai <b>${s.newOrders}</b> comenzi noi. <a href="#comenzi" data-go="comenzi">Vezi comenzile →</a>`);
     if (s.withdrawals) al.push(`↩️ <b>${s.withdrawals}</b> ${s.withdrawals === 1 ? 'cerere de retragere nouă' : 'cereri de retragere noi'} (retur). <a href="#comenzi" data-go="comenzi">Vezi →</a>`);
     if (chat.calls) al.push(`📞 <b>${chat.calls}</b> ${chat.calls === 1 ? 'persoană a cerut' : 'persoane au cerut'} să fie ${chat.calls === 1 ? 'sunată' : 'sunate'}, prin asistentul virtual. <a href="#asistent" data-go="asistent">Vezi →</a>`);
-    if (chat.unanswered) al.push(`❓ Aurelia nu a știut să răspundă la <b>${chat.unanswered}</b> ${chat.unanswered === 1 ? 'întrebare' : 'întrebări'} în ultimele 7 zile. <a href="#asistent" data-go="asistent">Vezi ce s-a întrebat →</a>`);
+    if (chat.unanswered) al.push(`❓ Asistentul virtual nu a știut să răspundă la <b>${chat.unanswered}</b> ${chat.unanswered === 1 ? 'întrebare' : 'întrebări'} în ultimele 7 zile. <a href="#asistent" data-go="asistent">Vezi ce s-a întrebat →</a>`);
     if (s.unpaidCard) al.push(`💳 <b>${s.unpaidCard}</b> ${s.unpaidCard === 1 ? 'comandă cu cardul așteaptă' : 'comenzi cu cardul așteaptă'} plata (nu se pregătesc până nu sunt plătite). <a href="#comenzi" data-go="comenzi">Vezi →</a>`);
     if (!s.smartbill.configured) al.push('🔗 SmartBill nu este conectat încă. <a href="#smartbill" data-go="smartbill">Conectează acum →</a>');
     if (s.pay && !s.pay.ready) al.push('💶 Plata cu cardul (EuPlătesc) nu este pornită încă. <a href="#plati" data-go="plati">Configurează →</a>');
@@ -533,9 +533,9 @@
     }));
   }
 
-  /* ---------- virtual assistant (Aurelia) ---------- */
+  /* ---------- virtual assistant ("Florin" on the site) ---------- */
   const TOPIC = { programare: 'Programare', orar: 'Program & adresă', servicii: 'Servicii', balayage: 'Balayage', tratamente: 'Tratamente', magazin: 'Magazin', preturi: 'Prețuri',
-    florin: 'Despre Florin', consultatie: 'Consultație gratuită', recenzii: 'Recenzii', contact: 'Contact', salut: 'Salut', multumesc: 'Mulțumiri' };
+    florin: 'Despre Florin Roșca', consultatie: 'Consultație gratuită', recenzii: 'Recenzii', contact: 'Contact', salut: 'Salut', multumesc: 'Mulțumiri' };
   const CS = { nou: 'De sunat', sunat: 'Am sunat', rezolvat: 'Rezolvat' };
   loaders.asistent = async () => {
     const d = await api('admin/chats');
@@ -555,7 +555,7 @@
     $('#chatList').innerHTML = d.chats.length ? d.chats.map((c) => {
       const miss = c.messages.filter((x) => !x.topic).length;
       return `<details class="ord chat"><summary><b>${when(c.lastAt || c.startedAt)}</b> · ${c.messages.length} ${c.messages.length === 1 ? 'mesaj' : 'mesaje'} · ${c.contact ? '📞 ' + esc(c.contact.name) : 'vizitator anonim'}${miss ? ` · <b class="low">${miss} fără răspuns</b>` : ''}</summary>
-        <div class="chat__log">${c.messages.map((x) => `<div class="chat__m"><span>${hm(x.at)}</span><div><b>${esc(x.text)}</b><small>${x.topic === 'apel' ? 'și-a lăsat numărul de telefon' : x.topic ? 'Aurelia a răspuns despre: ' + esc(TOPIC[x.topic] || x.topic) : '<b class="low">Aurelia nu a știut să răspundă</b>'}</small></div></div>`).join('')}</div>
+        <div class="chat__log">${c.messages.map((x) => `<div class="chat__m"><span>${hm(x.at)}</span><div><b>${esc(x.text)}</b><small>${x.topic === 'apel' ? 'și-a lăsat numărul de telefon' : x.topic ? 'asistentul a răspuns despre: ' + esc(TOPIC[x.topic] || x.topic) : '<b class="low">asistentul nu a știut să răspundă</b>'}</small></div></div>`).join('')}</div>
         <div class="row row--end"><small class="muted">pagina: ${esc(c.page || 'site')}</small><span class="sp"></span><button class="btn btn--sm btn--danger" data-cdel="${c.id}" type="button">Șterge conversația</button></div></details>`;
     }).join('') : '<div class="empty">Încă nu i-a scris nimeni asistentului. Conversațiile apar aici automat.</div>';
     $$('[data-cst]').forEach((el) => el.addEventListener('change', async () => {

@@ -782,7 +782,7 @@ html:not(.webgl) .ritual__stage, html:not(.webgl) .ritual__hint { display: none;
 @keyframes avGlow { 0%, 100% { filter: drop-shadow(0 0 4px rgba(214,90,220,.25)); } 50% { filter: drop-shadow(0 0 12px rgba(214,90,220,.7)); } }
 @media (max-width: 420px) { .credit__word { width: 130px; } .credit__mark { width: 40px; } }
 
-/* ---------- Aurelia chat ---------- */
+/* ---------- chat assistant ---------- */
 .aur { position: fixed; right: max(20px, env(safe-area-inset-right, 0px)); bottom: calc(88px + env(safe-area-inset-bottom, 0px)); z-index: 70; font-family: var(--f-sans); }
 .aur-fab { position: relative; width: 56px; height: 56px; border-radius: 50%; border: 1px solid rgba(255,236,180,.6); cursor: pointer;
   background: radial-gradient(circle at 30% 25%, #2c2416, #0c0b0a 70%); color: var(--gold-hi); box-shadow: 0 0 0 1px rgba(212,169,69,.35), 0 12px 30px -8px rgba(212,169,69,.55); transition: transform .3s; }

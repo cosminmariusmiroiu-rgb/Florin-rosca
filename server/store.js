@@ -57,7 +57,7 @@ const DEFAULT_SETTINGS = {
     lastOk: null,
     lastError: null
   },
-  chat: {                     // asistentul virtual (Aurelia)
+  chat: {                     // asistentul virtual („Florin” pe site)
     callback: true            // vizitatorii pot lăsa numele și telefonul ca să fie sunați
   },
   courier: {

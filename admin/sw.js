@@ -1,5 +1,5 @@
 /* Aplicația panoului: ecranul se deschide rapid; datele vin mereu proaspete de la server */
-const CACHE = 'fr-admin-v6';
+const CACHE = 'fr-admin-v7';
 const SHELL = ['./', './index.html', './admin.css', './admin.js', './manifest.webmanifest', './icon-192.png', './icon-512.png'];
 self.addEventListener('install', (e) => { e.waitUntil(caches.open(CACHE).then((c) => c.addAll(SHELL)).then(() => self.skipWaiting())); });
 self.addEventListener('activate', (e) => {

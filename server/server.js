@@ -249,7 +249,7 @@ function publicOrder(number, token) {
   return o && o.payToken && token && o.payToken === token ? o : null;
 }
 
-/* ---------- virtual assistant (Aurelia): what visitors ask + call-back requests ---------- */
+/* ---------- virtual assistant ("Florin" on the site): what visitors ask + call-back requests ---------- */
 const CHAT_KEEP_DAYS = 180, CHAT_MAX = 3000, CHAT_ID = /^[a-z0-9]{16,40}$/;
 const chatHits = new Map();
 function chatLimit(key, max, ms) { // true = too many
