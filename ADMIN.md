@@ -24,6 +24,12 @@ Panoul se deschide la adresa **/admin/** a site-ului (de ex. `https://florinrosc
 3. Apeși **Testează conexiunea**.
 4. La fiecare produs completezi **Codul produsului din SmartBill** (exact ca în nomenclatorul SmartBill), ca stocul să se potrivească.
 
+### Factura către clientă (e-mail și WhatsApp)
+- **Comenzi de pe site**: cu „Emite factura automat” bifat, factura se emite singură (la ramburs imediat, la card după ce plata e confirmată). Clienta primește în e-mailul de confirmare un buton **Descarcă factura**.
+- **Vânzare în salon**: bifezi **Emite și factură în SmartBill** (bifa se ține minte) și, dacă vrei, treci telefonul clientei. Pentru o vânzare deja salvată, apeși **Emite factură în SmartBill** din lista de vânzări.
+- **WhatsApp**: lângă fiecare factură apare **Trimite factura pe WhatsApp**. Se deschide WhatsApp cu mesajul gata scris și linkul facturii; apeși doar „Trimite”. Dacă nu ai trecut telefonul, alegi clienta din lista WhatsApp.
+- Linkul facturii (`/factura/….pdf`) este privat: îl are doar cine primește mesajul și nu apare în Google.
+
 ## Plata cu cardul (EuPlătesc), Apple Pay și Google Pay
 1. Din contul de comerciant EuPlătesc (manager.euplatesc.ro) copiezi **Merchant ID-ul (MID)** și **cheia (KEY)**.
 2. În panou: **Plăți card & e-mail**. Completezi MID-ul și cheia, bifezi **„Clienții pot plăti cu cardul pe site”** și apeși **„Salvează”**.

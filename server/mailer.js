@@ -147,6 +147,8 @@ const payLine = (o) => (o.payment === 'card'
   ? (o.paid ? 'Plata: cu cardul, online – <b>achitată</b>.' : 'Plata: cu cardul, online.')
   : 'Plata: <b>ramburs</b> – plătești ' + lei(o.total) + ' la primirea coletului.');
 const addr = (c) => esc(c.address) + ', ' + esc(c.city) + ', jud. ' + esc(c.county);
+// the customer's private link to the invoice PDF (only when the invoice exists and the site address is known)
+const invoiceUrl = (o) => (o.invoice && o.invoice.token && o.origin ? o.origin + '/factura/' + o.invoice.token + '.pdf' : '');
 const plain = (h) => h.replace(/<br\s*\/?>/gi, '\n').replace(/<[^>]+>/g, '').replace(/&amp;/g, '&');
 
 const templates = {
@@ -156,9 +158,10 @@ const templates = {
     return {
       to: c.email, subject: 'Comanda ta #' + o.number + ' – Florin Roșca Luxury Hair',
       html: layout('Mulțumim, ' + c.name.split(' ')[0] + '! Am primit comanda #' + o.number, '<p>Îți pregătim coletul și te anunțăm când pleacă spre tine.</p>' + itemsTable(o) +
-        '<p>' + payLine(o) + '</p><p><b>Livrare la:</b><br>' + esc(c.name) + ', ' + esc(c.phone) + '<br>' + addr(c) + '</p>' +
+        '<p>' + payLine(o) + '</p>' + (invoiceUrl(o) ? '<p><a href="' + esc(invoiceUrl(o)) + '" style="display:inline-block;background:#c9a24a;color:#14100a;text-decoration:none;padding:11px 20px;border-radius:9px;font-weight:bold">Descarcă factura ' + esc(o.invoice.series) + ' ' + esc(o.invoice.number) + '</a></p>' : '') +
+        '<p><b>Livrare la:</b><br>' + esc(c.name) + ', ' + esc(c.phone) + '<br>' + addr(c) + '</p>' +
         '<p>Pentru orice întrebare ne poți suna la <b>' + PHONE + '</b>.</p>'),
-      text: 'Mulțumim! Am primit comanda #' + o.number + '.\n\n' + itemsText(o) + '\n\n' + plain(payLine(o)) + '\n\nLivrare la: ' + c.name + ', ' + c.phone + ', ' + c.address + ', ' + c.city + ', jud. ' + c.county + '\n\nÎntrebări: ' + PHONE
+      text: 'Mulțumim! Am primit comanda #' + o.number + '.\n\n' + itemsText(o) + '\n\n' + plain(payLine(o)) + '\n\nLivrare la: ' + c.name + ', ' + c.phone + ', ' + c.address + ', ' + c.city + ', jud. ' + c.county + (invoiceUrl(o) ? '\n\nFactura: ' + invoiceUrl(o) : '') + '\n\nÎntrebări: ' + PHONE
     };
   },
   // to the salon, for every new order that has to be prepared

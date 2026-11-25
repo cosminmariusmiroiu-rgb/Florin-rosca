@@ -84,10 +84,12 @@
             <div class="sale__opts">
               <select id="salePay" aria-label="Plata"><option value="cash">💵 Numerar</option><option value="card">💳 Card</option><option value="transfer">🏦 Transfer</option></select>
               <input id="saleClient" placeholder="Clientă (opțional)" aria-label="Clientă">
+              <input id="salePhone" type="tel" placeholder="Telefon (pentru factura pe WhatsApp)" aria-label="Telefon clientă">
             </div>
             <label class="check" id="saleInvWrap" hidden><input type="checkbox" id="saleInv"> Emite și factură în SmartBill</label>
             <div class="row"><button class="btn" type="button" id="saleClear">Golește</button><button class="btn btn--gold sale__go" type="submit" id="saleGo">✓ Vândut</button></div>
             <p class="note" id="saleMsg" role="status"></p>
+            <div id="saleWa" hidden></div>
           </div>
         </form>
         <div class="panel">

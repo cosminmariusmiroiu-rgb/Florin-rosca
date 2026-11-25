@@ -27,6 +27,14 @@
   let toastT;
   function toast(msg) { const t = $('#toast'); t.textContent = msg; t.classList.add('on'); clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove('on'), 3200); }
   function note(el, msg, good) { el.textContent = msg; el.className = 'note ' + (good ? 'ok' : 'bad'); }
+  // the invoice goes to the customer as a WhatsApp message with a private link to the PDF (the salon only taps "send")
+  const waPhone = (p) => { let d = String(p || '').replace(/\D/g, ''); if (d.startsWith('00')) d = d.slice(2); if (d.length === 10 && d[0] === '0') d = '4' + d; return d.length >= 10 ? d : ''; };
+  const invUrl = (inv) => ((settings && settings.siteUrl) || location.origin) + '/factura/' + inv.token + '.pdf';
+  function waInvoice(inv, phone, name, what) {
+    const first = String(name || '').trim().split(/\s+/)[0];
+    const text = `Bună ziua${first ? ', ' + first : ''}! Vă trimitem factura ${inv.series} ${inv.number}${what ? ' pentru ' + what : ''} de la Florin Roșca Luxury Hair:\n${invUrl(inv)}\nVă mulțumim!`;
+    return `<a class="btn btn--sm btn--wa" href="https://wa.me/${waPhone(phone)}?text=${encodeURIComponent(text)}" target="_blank" rel="noopener">🟢 Trimite factura pe WhatsApp</a>`;
+  }
   async function busy(btn, fn) { btn.disabled = true; try { return await fn(); } finally { btn.disabled = false; } }
 
   /* ---------- login ---------- */
@@ -148,6 +156,8 @@
     saleProducts = await api('admin/products'); await loadCats();
     const st = await api('admin/settings').catch(() => null);
     $('#saleInvWrap').hidden = !(st && st.smartbillTokenSet && st.smartbill.cif);
+    settings = settings || st;
+    try { if (!$('#saleInvWrap').hidden && localStorage.getItem('fr-sale-inv') === '1') $('#saleInv').checked = true; } catch (e) {}
     const used = ['all', ...cats.map((c) => c.id).filter((k) => saleProducts.some((p) => p.category === k))];
     $('#saleCats').innerHTML = used.map((k) => `<button type="button" class="chip${k === saleCat ? ' is-on' : ''}" data-cat="${k}">${esc(k === 'all' ? 'Toate' : catName(k))}</button>`).join('');
     $$('#saleCats .chip').forEach((c) => c.addEventListener('click', () => { saleCat = c.dataset.cat; $$('#saleCats .chip').forEach((x) => x.classList.toggle('is-on', x === c)); renderGrid(); }));
@@ -205,15 +215,20 @@
     const items = Object.keys(picked).map((id) => ({ id, qty: picked[id].qty, price: picked[id].price }));
     if (!items.length) { note($('#saleMsg'), 'Bifează mai întâi produsele vândute.', false); return; }
     try {
-      const s = await busy($('#saleGo'), () => api('admin/sales', { method: 'POST', body: { items, payment: $('#salePay').value, client: $('#saleClient').value, invoice: $('#saleInv').checked } }));
+      const phone = $('#salePhone').value;
+      const s = await busy($('#saleGo'), () => api('admin/sales', { method: 'POST', body: { items, payment: $('#salePay').value, client: $('#saleClient').value, phone, invoice: $('#saleInv').checked } }));
+      $('#saleWa').hidden = !s.invoice;
+      $('#saleWa').innerHTML = s.invoice ? waInvoice(s.invoice, phone, s.client, 'cumpărăturile de azi') + ` <a class="btn btn--sm" href="${invUrl(s.invoice)}" target="_blank" rel="noopener">📄 Vezi factura</a>` : '';
       note($('#saleMsg'), `✓ Vânzarea #${s.number} a fost salvată: ${lei(s.total)}. Stocul a fost scăzut.` + (s.invoice ? ` Factura ${s.invoice.series} ${s.invoice.number} emisă în SmartBill.` : s.invoiceError ? ` Factura SmartBill NU s-a emis: ${s.invoiceError}` : ''), !s.invoiceError);
       toast('Vânzare salvată ✓');
-      picked = {}; $('#saleClient').value = '';
+      picked = {}; $('#saleClient').value = ''; $('#salePhone').value = '';
       await loaders.vanzare();
     } catch (x) { note($('#saleMsg'), x.message, false); }
   });
   $('#saleRange').addEventListener('change', renderSales);
+  $('#saleInv').addEventListener('change', (e) => { try { localStorage.setItem('fr-sale-inv', e.target.checked ? '1' : '0'); } catch (x) {} });
   function renderSales() {
+    const canInvoice = !$('#saleInvWrap').hidden;
     const r = $('#saleRange').value, now = Date.now(), today = new Date().toISOString().slice(0, 10);
     const list = sales.filter((x) => r === 'all' ? true : r === 'today' ? x.createdAt.slice(0, 10) === today : now - Date.parse(x.createdAt) < +r * 864e5);
     const ok = list.filter((x) => !x.cancelled);
@@ -224,8 +239,12 @@
     $('#saleList').innerHTML = list.length ? list.map((x) => `<div class="ord${x.cancelled ? ' off' : ''}"><div class="ord__head"><h3>#${x.number} · ${lei(x.total)}</h3><span class="status">${x.cancelled ? 'Anulată' : PAY[x.payment]}</span></div>
       <div class="ord__meta">${when(x.createdAt)}${x.client ? ' · ' + esc(x.client) : ''}</div>
       <div class="muted">${x.items.map((i) => `${i.qty} × ${esc(i.name)} ${esc(i.size || '')}`).join('<br>')}</div>
-      ${x.cancelled ? '' : `<div class="row row--end"><span class="sp"></span><button class="btn btn--sm btn--danger" data-cancel="${x.id}" type="button">Anulează (pune stocul înapoi)</button></div>`}</div>`).join('')
+      ${x.invoice ? `<div class="row">Factura <b>${esc(x.invoice.series)} ${esc(x.invoice.number)}</b> <a class="btn btn--sm" href="${invUrl(x.invoice)}" target="_blank" rel="noopener">📄 PDF</a>${x.cancelled ? '' : waInvoice(x.invoice, x.phone, x.client, 'cumpărăturile din salon')}</div>` : x.invoiceError ? `<div class="err">Factura nu s-a emis: ${esc(x.invoiceError)}</div>` : ''}
+      ${x.cancelled ? '' : `<div class="row row--end">${!x.invoice && canInvoice ? `<button class="btn btn--sm btn--gold" data-sinv="${x.id}" type="button">Emite factură în SmartBill</button>` : ''}<span class="sp"></span><button class="btn btn--sm btn--danger" data-cancel="${x.id}" type="button">Anulează (pune stocul înapoi)</button></div>`}</div>`).join('')
       : '<div class="empty">Nicio vânzare în perioada aleasă.</div>';
+    $$('[data-sinv]').forEach((b) => b.addEventListener('click', () => busy(b, async () => {
+      try { await api('admin/sales/' + b.dataset.sinv + '/invoice', { method: 'POST', body: {} }); toast('Factura a fost emisă în SmartBill.'); loaders.vanzare(); } catch (x) { toast(x.message); loaders.vanzare(); }
+    })));
     $$('[data-cancel]').forEach((b) => b.addEventListener('click', async () => {
       if (!confirm('Anulezi vânzarea? Produsele se pun înapoi în stoc.')) return;
       try { await api('admin/sales/' + b.dataset.cancel + '/cancel', { method: 'POST' }); toast('Vânzarea a fost anulată.'); loaders.vanzare(); } catch (x) { toast(x.message); }
@@ -542,7 +561,7 @@
     $('#ordList').innerHTML = list.map((o) => {
       const c = o.customer;
       const inv = o.invoice
-        ? `Factura <b>${esc(o.invoice.series)} ${esc(o.invoice.number)}</b> · <a href="/api/admin/orders/${o.id}/invoice.pdf" target="_blank" rel="noopener">PDF ↗</a>`
+        ? `Factura <b>${esc(o.invoice.series)} ${esc(o.invoice.number)}</b> · <a href="/api/admin/orders/${o.id}/invoice.pdf" target="_blank" rel="noopener">PDF ↗</a> ${o.invoice.token ? waInvoice(o.invoice, c.phone, c.name, 'comanda #' + o.number) : ''}`
         : `<button class="btn btn--sm btn--gold" data-inv="${o.id}" type="button">Emite factura în SmartBill</button>${o.invoiceError ? `<div class="err">${esc(o.invoiceError)}</div>` : ''}`;
       return `<article class="ord">
         <div class="ord__head"><h3>Comanda #${o.number} · ${lei(o.total)}</h3><span class="status status--${o.status}">${ST[o.status] || o.status}</span></div>

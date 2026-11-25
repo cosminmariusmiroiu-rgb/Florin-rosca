@@ -283,9 +283,42 @@ function nextOrderNumber(orders) {
 async function issueInvoice(order) {
   const settings = store.settings();
   const inv = await sb.invoice(settings.smartbill, store.secrets().smartbillToken, order);
-  order.invoice = { ...inv, issuedAt: new Date().toISOString() };
+  order.invoice = { ...inv, issuedAt: new Date().toISOString(), token: invToken() };
   order.invoiceError = null;
   return order;
+}
+
+/* ---------- the invoice as a link for the customer (WhatsApp, e-mail): a private address that opens the PDF ---------- */
+function invToken() { return crypto.randomBytes(12).toString('hex'); }
+// older invoices get their link the first time the panel lists them
+function withInvoiceLinks(name) {
+  const list = store.read(name, []); let changed = false;
+  for (const x of list) if (x.invoice && !x.invoice.token) { x.invoice.token = invToken(); changed = true; }
+  if (changed) store.write(name, list);
+  return list;
+}
+async function publicInvoice(req, res, url) {
+  const m = /^\/factura\/([a-f0-9]{24})\.pdf$/.exec(url.pathname);
+  if (!m || chatLimit('f' + ip(req), 40, 600e3)) return notFound(res, '/factura');
+  const hit = store.read('orders', []).concat(store.read('sales', [])).find((x) => x.invoice && x.invoice.token === m[1]);
+  if (!hit) return notFound(res, '/factura');
+  try {
+    const pdf = await sb.invoicePdf(store.settings().smartbill, store.secrets().smartbillToken, hit.invoice.series, hit.invoice.number);
+    return send(res, 200, pdf, { 'Content-Type': 'application/pdf', 'Content-Disposition': `inline; filename="factura-${hit.invoice.series}${hit.invoice.number}.pdf"`, 'Cache-Control': 'private, no-store', 'X-Robots-Tag': 'noindex' });
+  } catch (e) {
+    return send(res, 502, 'Factura nu poate fi deschisă acum. Te rugăm să încerci din nou sau să suni la 0732 937 622.', { 'Content-Type': 'text/plain; charset=utf-8' });
+  }
+}
+// invoice for a sale made in the salon
+async function issueSaleInvoice(sale) {
+  const list = store.products();
+  const inv = await sb.invoice(store.settings().smartbill, store.secrets().smartbillToken, {
+    number: 'S' + sale.number, shipping: 0,
+    customer: { name: sale.client || 'Client salon', address: '-', city: 'București', county: 'București', email: '', phone: '' },
+    items: sale.items.map((it) => ({ ...it, smartbillCode: (list.find((x) => x.id === it.id) || {}).smartbillCode || '' }))
+  });
+  sale.invoice = { ...inv, issuedAt: new Date().toISOString(), token: invToken() };
+  sale.invoiceError = null;
 }
 
 async function placeOrder(body, origin) {
@@ -673,7 +706,7 @@ async function api(req, res, url) {
   if (p === '/api/admin/stock-moves' && m === 'GET') return ok(res, store.read('stock-moves', []).slice(-200).reverse());
 
   // sales in the salon
-  if (p === '/api/admin/sales' && m === 'GET') return ok(res, store.read('sales', []).slice().reverse().slice(0, 500));
+  if (p === '/api/admin/sales' && m === 'GET') return ok(res, withInvoiceLinks('sales').slice().reverse().slice(0, 500));
   if (p === '/api/admin/sales' && m === 'POST') {
     const b = await readBody(req), list = store.products(), items = [];
     for (const line of Array.isArray(b.items) ? b.items.slice(0, 50) : []) {
@@ -690,20 +723,26 @@ async function api(req, res, url) {
     const sales = store.read('sales', []);
     const sale = { id: crypto.randomUUID(), number: sales.reduce((mx, x) => Math.max(mx, x.number || 0), 0) + 1, createdAt: new Date().toISOString(),
       items, total: money(items.reduce((a, i) => a + i.price * i.qty, 0)), payment: ['cash', 'card', 'transfer'].includes(b.payment) ? b.payment : 'cash',
-      client: str(b.client, 120), note: str(b.note, 300), cancelled: false };
+      client: str(b.client, 120), phone: str(b.phone, 30), note: str(b.note, 300), cancelled: false };
     sales.push(sale); store.write('sales', sales);
     if (b.invoice && store.secrets().smartbillToken) {
-      try {
-        const inv = await sb.invoice(store.settings().smartbill, store.secrets().smartbillToken, {
-          number: 'S' + sale.number, shipping: 0,
-          customer: { name: sale.client || 'Client salon', address: '-', city: 'București', county: 'București', email: '', phone: '' },
-          items: items.map((it) => ({ ...it, smartbillCode: (list.find((x) => x.id === it.id) || {}).smartbillCode || '' }))
-        });
-        sale.invoice = { ...inv, issuedAt: new Date().toISOString() };
-      } catch (e) { sale.invoiceError = e.message; }
+      try { await issueSaleInvoice(sale); } catch (e) { sale.invoiceError = e.message; }
       store.write('sales', sales.map((x) => (x.id === sale.id ? sale : x)));
     }
     return ok(res, sale);
+  }
+  // invoice for a sale that was saved without one
+  const si = p.match(/^\/api\/admin\/sales\/([\w-]+)\/invoice$/);
+  if (si && m === 'POST') {
+    const sales = store.read('sales', []), sale = sales.find((x) => x.id === si[1]);
+    if (!sale || sale.cancelled) return fail(res, 404, 'Vânzarea nu există sau este anulată.');
+    if (sale.invoice) return fail(res, 400, 'Vânzarea are deja factură.');
+    if (!store.secrets().smartbillToken) return fail(res, 400, 'SmartBill nu este conectat.');
+    const b = await readBody(req);
+    if (b.client !== undefined) sale.client = str(b.client, 120);
+    if (b.phone !== undefined) sale.phone = str(b.phone, 30);
+    try { await issueSaleInvoice(sale); store.write('sales', sales); return ok(res, sale); }
+    catch (e) { sale.invoiceError = e.message; store.write('sales', sales); return fail(res, 400, e.message); }
   }
   const sl = p.match(/^\/api\/admin\/sales\/([\w-]+)\/cancel$/);
   if (sl && m === 'POST') {
@@ -725,7 +764,7 @@ async function api(req, res, url) {
   }
 
   // orders
-  if (p === '/api/admin/orders' && m === 'GET') return ok(res, store.read('orders', []).slice().reverse());
+  if (p === '/api/admin/orders' && m === 'GET') return ok(res, withInvoiceLinks('orders').slice().reverse());
   const om = p.match(/^\/api\/admin\/orders\/([\w-]+)(\/invoice|\/invoice\.pdf)?$/);
   if (om && !om[2] && m === 'PUT') {
     const b = await readBody(req), orders = store.read('orders', []), o = orders.find((x) => x.id === om[1]);
@@ -1004,7 +1043,7 @@ function serveStatic(req, res, url) {
   if (home && /\.onrender\.com$/i.test(String(req.headers.host || '').split(':')[0]) && !home.includes(String(req.headers.host))) {
     res.writeHead(301, { Location: home + url.pathname + url.search }); return res.end();
   }
-  if (rel === '/robots.txt') return send(res, 200, 'User-agent: *\nDisallow: /admin/\nDisallow: /api/\n\nSitemap: ' + siteOrigin(req) + '/sitemap.xml\n', { 'Content-Type': 'text/plain; charset=utf-8', 'Cache-Control': 'public, max-age=3600' });
+  if (rel === '/robots.txt') return send(res, 200, 'User-agent: *\nDisallow: /admin/\nDisallow: /api/\nDisallow: /factura/\n\nSitemap: ' + siteOrigin(req) + '/sitemap.xml\n', { 'Content-Type': 'text/plain; charset=utf-8', 'Cache-Control': 'public, max-age=3600' });
   if (rel === '/sitemap.xml') {
     const o = siteOrigin(req);
     return send(res, 200, '<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n' + SITE_PAGES.map((x) => '  <url><loc>' + o + x + '</loc></url>').join('\n') + '\n</urlset>\n',
@@ -1043,6 +1082,7 @@ const server = http.createServer(async (req, res) => {
   try {
     if (url.pathname.startsWith('/api/')) return await api(req, res, url);
     if (req.method !== 'GET' && req.method !== 'HEAD') return fail(res, 405, 'Metodă nepermisă.');
+    if (url.pathname.startsWith('/factura/')) return await publicInvoice(req, res, url);
     serveStatic(req, res, url);
   } catch (e) {
     console.error(e);
