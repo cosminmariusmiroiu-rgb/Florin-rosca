@@ -18,17 +18,9 @@
   if (vid) {
     frame.classList.add('has-video');
     const HOLD = 3500;
-    // "Florin Roșca!" + applause when the balayage appears (only if the visitor has the music on)
-    const cheer = new Audio('assets/audio/aplauze.mp3?v=202611251558');
-    cheer.preload = 'auto'; cheer.volume = 1;
+    // the moment the balayage appears: the song starts (see the music block in main.js)
     let cheered = false;
-    function playCheer() {
-      const m = window.__music, theme = document.getElementById('theme');
-      if (!m || !m.playing()) return;
-      if (theme) { theme.volume = 0.35; setTimeout(() => { theme.volume = 0.7; }, 5200); } // lower the music under the voice
-      try { cheer.currentTime = 0; } catch (e) {}
-      cheer.play().catch(() => {});
-    }
+    function playCheer() { window.dispatchEvent(new Event('fr:balayage')); }
     const sync = () => {
       const after = vid.duration ? vid.currentTime > vid.duration * 0.6 : false;
       frame.classList.toggle('is-after', after);

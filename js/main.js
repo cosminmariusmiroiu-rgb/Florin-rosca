@@ -115,13 +115,42 @@
     const KEY = 'fr-music-off-v2';
     const get = () => { try { return localStorage.getItem(KEY) === '1'; } catch (e) { return false; } };
     const put = (v) => { try { v ? localStorage.setItem(KEY, '1') : localStorage.removeItem(KEY); } catch (e) {} };
-    const start = () => theme.play().then(() => { setState(true); return true; }).catch(() => false);
-    window.__music = { start, playing: () => !theme.paused, off: get };
+    // Intro on the home page: "Florin Roșca… Luxury Hair" + applause; the song itself starts
+    // when the balayage appears in the hero video (event 'fr:balayage' from transform.js).
+    const intro = new Audio('assets/audio/intro.mp3');
+    intro.preload = 'auto'; intro.volume = 1;
+    const hasHeroVideo = !!document.querySelector('.cine__video');
+    let introDone = false, waiting = false, fallback = 0;
+    try { introDone = sessionStorage.getItem('fr-intro-done') === '1'; } catch (e) {}
+    const fadeIn = () => { theme.volume = 0; let v = 0; const t = setInterval(() => { v = Math.min(0.7, v + 0.05); theme.volume = v; if (v >= 0.7) clearInterval(t); }, 90); };
+    const playTheme = (fade) => theme.play().then(() => { if (fade) fadeIn(); setState(true); return true; }).catch(() => false);
+    const startSong = () => {
+      if (!waiting) return;
+      waiting = false; clearTimeout(fallback);
+      // the intro already said "Florin Roșca" with applause: skip the song's first voice tag
+      const skip = () => { try { if (theme.currentTime < 2) theme.currentTime = 15; } catch (e) {} };
+      if (theme.readyState >= 1) skip(); else theme.addEventListener('loadedmetadata', skip, { once: true });
+      playTheme(true).then(skip);
+    };
+    window.addEventListener('fr:balayage', startSong);
+    const start = () => {
+      if (!theme.paused || waiting) return Promise.resolve(true);
+      if (!introDone && hasHeroVideo) {
+        return intro.play().then(() => {
+          introDone = true; waiting = true; setState(true);
+          try { sessionStorage.setItem('fr-intro-done', '1'); } catch (e) {}
+          fallback = setTimeout(startSong, 14000); // if the video is not playing, the song still comes in
+          return true;
+        }).catch(() => false);
+      }
+      return playTheme(false);
+    };
+    window.__music = { start, playing: () => !theme.paused || !intro.paused || waiting, off: get };
 
     soundBtn.addEventListener('click', (e) => {
       e.stopPropagation();
-      if (theme.paused) { put(false); start(); }
-      else { theme.pause(); setState(false); put(true); }
+      if (theme.paused && intro.paused && !waiting) { put(false); start(); }
+      else { theme.pause(); intro.pause(); waiting = false; clearTimeout(fallback); setState(false); put(true); }
     });
 
     // Autostart: try right away; browsers that block sound without a gesture
