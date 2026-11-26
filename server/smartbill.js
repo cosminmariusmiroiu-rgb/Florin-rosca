@@ -10,25 +10,44 @@ function today() {
 
 class SmartBillError extends Error {}
 
-async function call(cfg, token, method, path, { query, body, raw } = {}) {
+// The CIF has to be written exactly as in the SmartBill account: "RO48413001" for a VAT payer, "48413001" otherwise.
+// When SmartBill does not find the firm under the form from the settings, the other form is tried once (nothing was issued by
+// the refused request) and the one that works is remembered.
+const cifOther = (cif) => { const c = String(cif || '').replace(/\s+/g, ''); return /^ro/i.test(c) ? c.replace(/^ro/i, '') : 'RO' + c; };
+const noFirm = (msg) => /firma la care|nu mai este disponibil|firma\b.*\bnu (exista|a fost gasita)/i.test(String(msg || '').normalize('NFD').replace(/[\u0300-\u036f]/g, ''));
+const cifKnown = new Map();   // CIF from the settings -> the form SmartBill accepted
+
+async function call(cfg, token, method, path, opts = {}) {
   if (!cfg.email || !token || !cfg.cif) throw new SmartBillError('SmartBill nu este configurat (lipsesc e-mailul, token-ul sau CIF-ul).');
+  const set = String(cfg.cif).replace(/\s+/g, '');
+  try {
+    return await once(cfg, token, method, path, opts, cifKnown.get(set) || set);
+  } catch (e) {
+    if (!(e instanceof SmartBillError) || !e.noFirm || cifKnown.has(set)) throw e;
+    const data = await once(cfg, token, method, path, opts, cifOther(set)).catch(() => { throw e; });
+    cifKnown.set(set, cifOther(set));
+    return data;
+  }
+}
+
+async function once(cfg, token, method, path, { query, body, raw }, cif) {
   const url = new URL(BASE + path);
-  for (const [k, v] of Object.entries(query || {})) if (v !== undefined && v !== '') url.searchParams.set(k, v);
+  for (const [k, v] of Object.entries(query || {})) if (v !== undefined && v !== '') url.searchParams.set(k, k === 'cif' ? cif : v);
+  if (body && 'companyVatCode' in body) body = { ...body, companyVatCode: cif };
   let res;
   try {
     res = await doFetch(url, method, cfg, token, body, raw);
   } catch (e) {
     throw new SmartBillError('Nu mă pot conecta la SmartBill (' + (e.name === 'TimeoutError' ? 'timpul a expirat' : 'rețea indisponibilă') + '). Încearcă din nou.');
   }
-  if (raw) {
-    if (!res.ok) throw new SmartBillError('SmartBill a răspuns cu eroarea ' + res.status);
-    return Buffer.from(await res.arrayBuffer());
-  }
+  if (raw && res.ok) return Buffer.from(await res.arrayBuffer());
   let data = {};
-  try { data = await res.json(); } catch (e) {}
+  try { data = JSON.parse(await res.text()); } catch (e) {}
   if (!res.ok || (data && data.errorText)) {
-    const msg = (data && (data.errorText || data.message)) || ('eroare ' + res.status);
-    throw new SmartBillError('SmartBill: ' + msg);
+    const msg = (data && (data.errorText || data.message)) || '';
+    const err = new SmartBillError(msg ? 'SmartBill: ' + msg : raw ? 'SmartBill a răspuns cu eroarea ' + res.status : 'SmartBill: eroare ' + res.status);
+    err.noFirm = noFirm(msg);
+    throw err;
   }
   return data;
 }

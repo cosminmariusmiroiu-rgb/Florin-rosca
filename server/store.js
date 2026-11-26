@@ -182,8 +182,21 @@ function vatPayerFix() {
   write('migrations', { ...done, vat1: new Date().toISOString() });
 }
 
+// SmartBill writes the CIF of a VAT payer with "RO" in front and its API wants it exactly so
+function cifFix() {
+  const done = read('migrations', {});
+  if (done.cif1) return;
+  const s = read('settings', null);
+  if (s && s.smartbill && s.smartbill.vatPayer !== false && /^\d{2,10}$/.test(String(s.smartbill.cif || '').trim())) {
+    s.smartbill.cif = 'RO' + String(s.smartbill.cif).trim();
+    write('settings', s);
+  }
+  write('migrations', { ...done, cif1: new Date().toISOString() });
+}
+
 defaultCodes();
 defaultServices();
 vatPayerFix();
+cifFix();
 
 module.exports = { DATA_DIR, ROOT, read, write, products, categories, settings, secrets, saveSecrets, SMARTBILL_CODES };

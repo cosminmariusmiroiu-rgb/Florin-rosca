@@ -31,6 +31,8 @@ Panoul se deschide la adresa **/admin/** a site-ului (de ex. `https://florinrosc
 ### TVA
 - Firma este plătitoare de TVA (în registrul ANAF, din 31.03.2026). În panou → SmartBill, „Firma este plătitoare de TVA” trebuie să rămână bifat: facturile și bonurile se emit cu TVA 21%, iar prețurile din magazin sunt cu TVA inclus.
 - Și în SmartBill, la **Configurare → Date firmă**, firma trebuie să fie trecută „Plătitor TVA: Da”. Dacă în contul SmartBill nu există cota de 21%, aplicația nu emite factura și scrie motivul la comandă.
+- CIF-ul din panou → SmartBill este cel din contul SmartBill: pentru o firmă plătitoare de TVA are „RO” în față (RO48413001). Dacă e scris fără „RO”, aplicația încearcă singură și forma cealaltă.
+- În SmartBill, la **Nomenclatoare → Produse / Servicii**, fiecare articol are „Cota TVA 21%” și „Prețul conține TVA: Da” (prețul scris acolo este cel plătit de clientă). La un articol nou, bifează la fel.
 
 ### Gestiuni și coduri de produs
 - În SmartBill, produsele de vânzare (din salon și de pe site) stau în gestiunea **PRODUSE**. Serviciile (manopera: balayage, vopsit, tuns, tratamente) nu au stoc, deci nu au nevoie de gestiune: se trec în SmartBill la Produse / Servicii cu tipul „serviciu”.
