@@ -488,7 +488,10 @@
     const f = $('#simForm');
     f.enabled.checked = !!simCfg.enabled; f.model.value = simCfg.model || ''; f.accessCode.value = simCfg.accessCode || ''; f.dailyLimit.value = simCfg.dailyLimit || 60; f.geminiKey.value = '';
     $('#simKeyState').textContent = simCfg.keySet ? '🔒 Cheia Gemini este salvată (nu se afișează).' : 'Cheia Gemini nu este pusă încă.';
-    $('#simCards').innerHTML = [['Stare', simCfg.enabled && simCfg.keySet ? 'Pornit' : 'Oprit'], ['Simulări azi', simCfg.today], ['Simulări în total', simCfg.total], ['Cod de acces', simCfg.accessCode]]
+    const le = simCfg.lastError, lb = $('#simLastErr');
+    lb.hidden = !le;
+    if (le) lb.textContent = '⚠️ Ultima simulare nu a reușit (' + new Date(le.at).toLocaleString('ro-RO', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) + '): ' + le.text;
+    $('#simCards').innerHTML = [['Stare', !simCfg.enabled || !simCfg.keySet ? 'Oprit' : le && le.code === 'billing' ? 'Pornit, dar Google cere plată' : le ? 'Pornit, cu eroare' : 'Pornit'], ['Simulări azi', simCfg.today], ['Simulări în total', simCfg.total], ['Cod de acces', simCfg.accessCode]]
       .map(([l, v]) => `<div class="card"><b>${esc(v)}</b><span>${l}</span></div>`).join('');
     const cols = [0, 1, 2].map((i) => simCfg.colors[i] || { name: '', description: '' });
     $('#simColors').innerHTML = cols.map((c, i) => `<div class="simcolor"><b>Varianta ${i + 1}</b>

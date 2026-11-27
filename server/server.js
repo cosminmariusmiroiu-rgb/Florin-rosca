@@ -657,12 +657,18 @@ async function api(req, res, url) {
     if (!colors.length) return fail(res, 400, 'Nu sunt setate culori în panou.');
     const results = await Promise.all(colors.map((c) => gemini.editHair(sim, key, b.photo, c)
       .then((image) => ({ id: c.id, name: c.name, image }))
-      .catch((e) => ({ id: c.id, name: c.name, error: e.message }))));
+      .catch((e) => ({ id: c.id, name: c.name, error: e.message, code: e.code || 'api' }))));
+    const bad = results.find((r) => r.error);
     const log = store.read('simulator-log', []);
-    log.push({ at: new Date().toISOString(), ok: results.filter((r) => r.image).length, failed: results.filter((r) => r.error).length });
+    // the reason of a failure is kept for the panel (the salon has to see it); the client never sees Google's messages
+    log.push({ at: new Date().toISOString(), ok: results.filter((r) => r.image).length, failed: results.filter((r) => r.error).length, ...(bad ? { err: String(bad.error).slice(0, 400), code: bad.code } : {}) });
     store.write('simulator-log', log.slice(-500));
-    if (!results.some((r) => r.image)) return fail(res, 502, results[0].error || 'Simularea nu a reușit.');
-    return ok(res, { results });   // the photo is processed and not kept on the server
+    if (!results.some((r) => r.image)) {
+      if (results.every((r) => r.code === 'photo')) return fail(res, 422, 'Din această poză nu a ieșit nicio variantă. Încearcă altă poză, cu fața și părul bine luminate.');
+      simHits.get(who).pop(); simDay.list.pop();   // not the visitor's fault: the attempt does not count
+      return fail(res, 503, 'Simulatorul nu este disponibil în acest moment. Te rugăm să încerci puțin mai târziu.');
+    }
+    return ok(res, { results: results.map((r) => (r.image ? { id: r.id, name: r.name, image: r.image } : { id: r.id, name: r.name, error: 'Varianta nu a ieșit.' })) });   // the photo is processed and not kept on the server
   }
 
   if (p === '/api/consult' && m === 'POST') {
@@ -1110,7 +1116,9 @@ async function api(req, res, url) {
   if (p === '/api/admin/simulator' && m === 'GET') {
     const sim = simSettings(), log = store.read('simulator-log', []);
     const today = new Date().toISOString().slice(0, 10);
-    return ok(res, { ...sim, keySet: !!store.secrets().geminiKey, today: log.filter((x) => x.at.slice(0, 10) === today).length, total: log.length });
+    const made = log.filter((x) => x.ok > 0), last = log[log.length - 1];
+    return ok(res, { ...sim, keySet: !!store.secrets().geminiKey, today: made.filter((x) => x.at.slice(0, 10) === today).length, total: made.length,
+      lastError: last && last.err && !last.ok ? { at: last.at, text: last.err, code: last.code || 'api' } : null });
   }
   if (p === '/api/admin/simulator' && m === 'PUT') {
     const b = await readBody(req), sim = simSettings();
